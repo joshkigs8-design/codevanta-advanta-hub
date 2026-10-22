@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #0a0e0c;
+  --foreground: #f4f7f5;
+  --card-bg: #111815;
+  --border-color: #1f3127;
+  --gold-accent: #d4af37;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0e0c;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1f3127;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2a4537;
+}
+
+/* Accessible focus ring */
+:focus-visible {
+  outline: 2px solid #d4af37;
+  outline-offset: 2px;
+}
