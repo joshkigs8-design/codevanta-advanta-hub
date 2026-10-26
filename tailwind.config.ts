@@ -11,29 +11,29 @@ const config: Config = {
     extend: {
       colors: {
         hub: {
-          bg: "#0a0e0c",
-          surface: "#111815",
-          "surface-elevated": "#17221c",
-          "surface-card": "#131e18",
-          border: "#1f3127",
-          "border-subtle": "#16251e",
+          bg: "#080a0f",
+          surface: "#11151d",
+          "surface-elevated": "#1a202b",
+          "surface-card": "#131923",
+          border: "#293240",
+          "border-subtle": "#202936",
           forest: {
-            DEFAULT: "#0f231a",
-            light: "#173427",
-            dark: "#0a1711",
-            muted: "#13281e",
+            DEFAULT: "#17251e",
+            light: "#263c2b",
+            dark: "#0b120e",
+            muted: "#17231d",
           },
           gold: {
-            DEFAULT: "#d4af37",
-            hover: "#e2be4a",
-            dim: "#9c8128",
-            subtle: "rgba(212, 175, 55, 0.12)",
-            border: "rgba(212, 175, 55, 0.28)",
+            DEFAULT: "#c9003d",
+            hover: "#ef174e",
+            dim: "#7d0a2c",
+            subtle: "rgba(201, 0, 61, 0.14)",
+            border: "rgba(239, 23, 78, 0.34)",
           },
           text: {
-            primary: "#f4f7f5",
-            secondary: "#9bb0a5",
-            muted: "#667d71",
+            primary: "#f5f7f2",
+            secondary: "#a2adbd",
+            muted: "#687384",
           },
           status: {
             verified: "#10b981",
@@ -44,11 +44,11 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
-        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace"],
+        sans: ["Space Grotesk", "sans-serif"],
+        mono: ["DM Mono", "monospace"],
       },
       boxShadow: {
-        "gold-glow": "0 0 20px -3px rgba(212, 175, 55, 0.18)",
+          "gold-glow": "0 0 28px -5px rgba(201, 0, 61, 0.34)",
         "card-subtle": "0 4px 20px -2px rgba(0, 0, 0, 0.4)",
       }
     },

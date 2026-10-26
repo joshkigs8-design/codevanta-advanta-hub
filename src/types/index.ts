@@ -72,6 +72,8 @@ export interface Resource {
   editorial_notes: string;
   featured: boolean;
   click_count: number;
+  image_url?: string;
+  logo_url?: string;
   tags?: string[];
   created_at: string;
   updated_at: string;

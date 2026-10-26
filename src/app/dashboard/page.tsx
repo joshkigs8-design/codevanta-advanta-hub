@@ -1,4 +1,5 @@
 "use client";
+import { getResourceLogo } from '@/lib/resourceImages';
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
@@ -355,11 +356,7 @@ export default function DashboardPage() {
                   key={b.id}
                   className="p-4 rounded-xl bg-hub-surface border border-hub-border flex items-start justify-between gap-4"
                 >
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-mono uppercase text-hub-gold px-2 py-0.5 rounded bg-hub-surface-elevated border border-hub-border">
-                      {b.category_name}
-                    </span>
-                    <h4 className="font-bold text-white text-base">{b.name}</h4>
+                  <div className="flex items-start gap-3.5"><div className="w-10 h-10 rounded-xl bg-hub-surface-elevated border border-white/10 p-1.5 flex items-center justify-center shrink-0"><img src={getResourceLogo({ official_website: b.official_website })} alt="" className="w-6 h-6 object-contain" /></div><div className="space-y-1"><span className="text-[10px] font-mono uppercase text-hub-gold px-2 py-0.5 rounded bg-hub-surface-elevated border border-hub-border">{b.category_name}</span><h4 className="font-bold text-white text-base">{b.name}</h4>
                     <p className="text-xs text-hub-text-secondary line-clamp-2">{b.short_description}</p>
                     <div className="pt-2 flex items-center gap-3">
                       <a
@@ -372,6 +369,7 @@ export default function DashboardPage() {
                         <ExternalLink className="w-3 h-3" />
                       </a>
                     </div>
+                  </div>
                   </div>
 
                   <button

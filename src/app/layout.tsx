@@ -9,12 +9,17 @@ export const metadata: Metadata = {
     "Discover verified free APIs, AI models, developer hosting tiers, student benefits, and production blueprints operated by CodeVanta Ventures.",
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico" },
+    ],
+    shortcut: ["/favicon.svg"],
+    apple: ["/favicon.svg"],
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0e0c",
+  themeColor: "#080a0f",
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
