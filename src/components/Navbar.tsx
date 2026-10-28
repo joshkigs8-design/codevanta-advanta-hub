@@ -57,7 +57,6 @@ export default function Navbar() {
     { href: "/directory", label: "Directory", icon: Compass },
     { href: "/guides", label: "Learning & Blueprints", icon: BookOpen },
     { href: "/plans", label: "Membership Plans", icon: Sparkles },
-    { href: "/compliance", label: "Compliance & Safety", icon: ShieldAlert },
   ];
 
   return (

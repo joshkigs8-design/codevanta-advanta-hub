@@ -53,28 +53,18 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Col 3: Legal & Governance */}
+          {/* Col 3: Legal */}
           <div className="space-y-3">
-            <h4 className="text-xs font-mono uppercase tracking-wider text-hub-gold font-semibold">Governance & Terms</h4>
+            <h4 className="text-xs font-mono uppercase tracking-wider text-hub-gold font-semibold">Legal</h4>
             <ul className="space-y-2 text-sm text-hub-text-secondary">
               <li>
                 <Link href="/terms" className="hover:text-hub-text-primary transition-colors">
-                  Terms of Service
+                  Terms and Conditions
                 </Link>
               </li>
               <li>
                 <Link href="/privacy" className="hover:text-hub-text-primary transition-colors">
-                  Privacy Policy (KDPA 2019)
-                </Link>
-              </li>
-              <li>
-                <Link href="/refund-policy" className="hover:text-hub-text-primary transition-colors">
-                  Refund & Cancellation Policy
-                </Link>
-              </li>
-              <li>
-                <Link href="/compliance" className="hover:text-hub-text-primary transition-colors text-emerald-400 font-medium">
-                  Referral Compliance Disclosure
+                  Privacy Policy
                 </Link>
               </li>
             </ul>

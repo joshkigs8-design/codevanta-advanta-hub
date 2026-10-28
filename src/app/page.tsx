@@ -114,7 +114,7 @@ export default async function HomePage() {
             </div>
 
             <div className="hidden sm:inline-flex items-center gap-2.5 text-xs font-mono text-white/90 bg-black/50 backdrop-blur-xl px-4 py-1.5 rounded-full border border-white/15 shadow-lg">
-              <span className="text-hub-gold font-bold">30+</span>
+              <span className="text-hub-gold font-bold">50+</span>
               <span>Verified Free Tiers Online</span>
             </div>
           </div>
@@ -315,17 +315,6 @@ export default async function HomePage() {
               </div>
             </div>
 
-            <div className="pt-2">
-              <Link
-                href="/compliance"
-                className="inline-flex items-center gap-3 px-5 py-3 rounded-full text-xs font-semibold bg-white text-black hover:bg-hub-gold hover:text-white transition-all active:scale-95 group shadow-lg"
-              >
-                <span>Learn More About Compliance</span>
-                <div className="w-5 h-5 rounded-full bg-black/10 group-hover:bg-white/20 flex items-center justify-center">
-                  <ArrowRight className="w-3 h-3 text-black group-hover:text-white group-hover:translate-x-0.5 transition-transform" />
-                </div>
-              </Link>
-            </div>
           </div>
 
           {/* Center Column: Big Feature Photography / Architecture Card */}
@@ -404,7 +393,7 @@ export default async function HomePage() {
             href="/directory"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-semibold bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-all group"
           >
-            <span>Explore all 30+ resources</span>
+            <span>Explore all 50+ resources</span>
             <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
           </Link>
         </div>

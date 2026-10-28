@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import Chatbot from "@/components/Chatbot";
 
 export const metadata: Metadata = {
   title: "CodeVanta Advanta Hub — Curated Developer Resources & Membership",
@@ -11,10 +12,14 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
       { url: "/favicon.ico" },
     ],
     shortcut: ["/favicon.svg"],
-    apple: ["/favicon.svg"],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      { url: "/favicon.svg" },
+    ],
   },
 };
 
@@ -38,6 +43,7 @@ export default function RootLayout({
           <main className="w-full">{children}</main>
         </div>
         <Footer />
+        <Chatbot />
       </body>
     </html>
   );

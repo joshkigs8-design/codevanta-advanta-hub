@@ -1,10 +1,9 @@
-import React from "react";
 import Link from "next/link";
-import { ShieldCheck, ArrowLeft } from "lucide-react";
+import { ArrowLeft, FileText, ShieldCheck } from "lucide-react";
 
 export default function TermsPage() {
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12">
       <Link
         href="/"
         className="inline-flex items-center gap-1.5 text-xs text-hub-gold hover:underline font-mono"
@@ -13,70 +12,55 @@ export default function TermsPage() {
         Back to Home
       </Link>
 
-      <div className="space-y-2 border-b border-hub-border pb-6">
-        <span className="text-xs font-mono uppercase tracking-widest text-hub-gold font-bold">
-          CodeVanta Ventures Governance
-        </span>
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-          Terms of Service
-        </h1>
-        <p className="text-xs text-hub-text-muted font-mono">Effective Date: October 2026</p>
-      </div>
-
-      <div className="prose prose-invert max-w-none text-sm text-hub-text-secondary space-y-6 leading-relaxed">
-        <section className="space-y-3">
-          <h2 className="text-lg font-bold text-white">1. Operator &amp; Platform Identification</h2>
-          <p>
-            <strong>CodeVanta Advanta Hub</strong> is owned, maintained, and operated by <strong>CodeVanta Ventures</strong>,
-            a technology initiative established in Nairobi, Kenya. By accessing or using the platform, you agree to be bound
-            by these Terms of Service and all applicable laws and regulations of the Republic of Kenya.
-          </p>
-        </section>
-
-        <section className="space-y-3">
-          <h2 className="text-lg font-bold text-white">2. Nature of the Service &amp; Independent Value</h2>
-          <p>
-            CodeVanta Advanta Hub provides curated developer discovery tools, API documentation indexes, verified cloud
-            free-tier data, architectural blueprints, and programming tutorials.
-          </p>
-          <div className="p-4 rounded-xl bg-hub-surface border border-hub-gold/30 text-xs text-hub-text-primary">
-            <strong>Core Principle:</strong> Every membership plan delivers genuine, standalone utility. Members are
-            never required or coerced to recruit, invite, or refer other users to enjoy the benefits of their purchased plan.
+      <div className="mt-8 p-6 sm:p-8 rounded-2xl bg-hub-surface border border-hub-border shadow-2xl space-y-6">
+        <div className="space-y-3">
+          <div className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-hub-gold font-bold">
+            <FileText className="w-4 h-4" />
+            Terms and Conditions
           </div>
-        </section>
+          <h1 className="text-3xl font-extrabold text-white tracking-tight">
+            Before you continue
+          </h1>
+          <p className="text-sm text-hub-text-secondary leading-relaxed">
+            CodeVanta Advanta Hub provides curated developer resources, guides, and membership features.
+            By continuing, you agree to use the platform lawfully and responsibly.
+          </p>
+        </div>
 
-        <section className="space-y-3">
-          <h2 className="text-lg font-bold text-white">3. Third-Party Resources &amp; External Trademarks</h2>
+        <div className="p-4 rounded-xl bg-hub-surface-elevated border border-hub-border space-y-2 text-sm text-hub-text-secondary">
           <p>
-            The platform indexes publicly available developer tools, open-source repositories, and third-party SaaS services
-            (such as Google Gemini, Supabase, Render, Safaricom Daraja, etc.). All product names, logos, and brands are property
-            of their respective owners. Indexing does not imply endorsement by third-party providers. We disclaim liability
-            for modifications to third-party pricing, terms, or quota adjustments made by external providers.
+            You agree not to misuse the platform, submit fraudulent information, or use third-party
+            resources in violation of their own terms. Access may be suspended when these conditions are
+            violated.
           </p>
-        </section>
+          <p>
+            Please read our{" "}
+            <Link href="/privacy" className="text-hub-gold hover:underline font-medium">
+              Privacy Policy
+            </Link>{" "}
+            to learn how account and usage information is handled.
+          </p>
+        </div>
 
-        <section className="space-y-3">
-          <h2 className="text-lg font-bold text-white">4. Referral Programme Rules &amp; Anti-Fraud Governance</h2>
-          <p>
-            Participation in the referral programme is strictly optional. The referral system operates under strict direct-only
-            attribution. Multi-level marketing (MLM), downline commissions, self-referrals, automated bot sign-ups, and
-            misleading income claims are strictly prohibited and result in immediate account termination.
-          </p>
-          <p>
-            Referral commissions are funded from direct product sales margins. In accordance with platform policy and Kenyan
-            consumer protection guidelines, monetary referral withdrawals are subject to compliance reviews and may be
-            paused or disabled without affecting resource directory access.
-          </p>
-        </section>
+        <div className="flex flex-col-reverse sm:flex-row gap-3">
+          <Link
+            href="/"
+            className="flex-1 inline-flex items-center justify-center px-4 py-2.5 rounded-lg border border-hub-border text-sm font-semibold text-hub-text-secondary hover:text-white hover:border-hub-text-muted transition-colors"
+          >
+            Decline
+          </Link>
+          <Link
+            href="/register"
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-hub-gold text-hub-forest-dark text-sm font-bold hover:bg-hub-gold-hover shadow-gold-glow transition-colors"
+          >
+            <ShieldCheck className="w-4 h-4" />
+            Accept and continue
+          </Link>
+        </div>
 
-        <section className="space-y-3">
-          <h2 className="text-lg font-bold text-white">5. Governing Law &amp; Dispute Resolution</h2>
-          <p>
-            These Terms are governed by and construed in accordance with the Laws of the Republic of Kenya. Any disputes
-            arising under these terms shall be resolved amicably through good-faith negotiation before escalating to the
-            competent courts of Nairobi, Kenya.
-          </p>
-        </section>
+        <p className="text-center text-[11px] text-hub-text-muted">
+          You can review these terms and the Privacy Policy at any time from the footer.
+        </p>
       </div>
     </div>
   );
