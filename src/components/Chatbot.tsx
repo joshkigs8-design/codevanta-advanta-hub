@@ -66,10 +66,15 @@ export default function Chatbot() {
         >
           <header className="flex items-center justify-between border-b border-hub-border bg-hub-surface-elevated px-4 py-3">
             <div className="flex items-center gap-3">
-              <SheepAvatar className="h-10 w-10" />
+              <SheepAvatar className="h-10 w-10 ring-2 ring-hub-gold/50" />
               <div>
-                <h2 className="text-sm font-bold text-white">Woolly</h2>
-                <p className="text-[11px] text-hub-text-muted">CodeVanta assistant</p>
+                <h2 className="text-sm font-bold text-white flex items-center gap-1.5">
+                  <span>Woolly</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-hub-gold/20 text-hub-gold font-medium">
+                    AI Mascot
+                  </span>
+                </h2>
+                <p className="text-[11px] text-hub-text-muted">CodeVanta Hub Assistant</p>
               </div>
             </div>
             <button
@@ -135,11 +140,11 @@ export default function Chatbot() {
         type="button"
         onClick={() => setIsOpen((open) => !open)}
         aria-label={isOpen ? "Close Woolly chat" : "Open Woolly chat"}
-        className="ml-auto flex items-center gap-2 rounded-full border border-white/15 bg-hub-surface-elevated p-1.5 pr-4 text-xs font-semibold text-white shadow-xl shadow-black/30 hover:border-hub-gold/60 hover:bg-hub-surface"
+        className="ml-auto flex items-center gap-2.5 rounded-full border border-hub-gold/40 bg-hub-surface-elevated/95 p-1.5 pr-4 text-xs font-semibold text-white shadow-2xl shadow-black/60 hover:border-hub-gold hover:bg-hub-surface active:scale-95 transition-all backdrop-blur-md"
       >
-        <SheepAvatar className="h-10 w-10" />
+        <SheepAvatar className="h-10 w-10 ring-2 ring-hub-gold/50" />
         <span className="hidden sm:inline">{isOpen ? "Close chat" : "Chat with Woolly"}</span>
-        {!isOpen && <MessageCircle className="h-4 w-4 text-hub-gold" />}
+        {!isOpen && <MessageCircle className="h-4 w-4 text-hub-gold animate-pulse" />}
       </button>
     </div>
   );

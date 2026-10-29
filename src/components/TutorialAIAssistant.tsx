@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import SheepAvatar from "@/components/SheepAvatar";
 import {
   Sparkles,
   Send,
   Loader2,
-  Bot,
   User,
   ChevronDown,
   ChevronUp,
@@ -116,12 +116,10 @@ export default function TutorialAIAssistant({
         className="flex items-center justify-between p-4 bg-gradient-to-r from-hub-gold/20 via-black/40 to-transparent border-b border-white/10 cursor-pointer select-none"
       >
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-hub-gold/20 border border-hub-gold/40 flex items-center justify-center text-hub-gold shadow-md">
-            <Sparkles className="w-4 h-4" />
-          </div>
+          <SheepAvatar className="w-8 h-8 ring-2 ring-hub-gold/40 shadow-md" />
           <div>
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <span>CodeVanta AI Assistant</span>
+              <span>Woolly AI Guide</span>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-800/40">
                 Online
               </span>
@@ -168,9 +166,7 @@ export default function TutorialAIAssistant({
                 className={`flex gap-2.5 ${m.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 {m.role === "assistant" && (
-                  <div className="w-6 h-6 rounded-md bg-hub-gold/20 text-hub-gold border border-hub-gold/30 flex items-center justify-center shrink-0 mt-0.5">
-                    <Bot className="w-3.5 h-3.5" />
-                  </div>
+                  <SheepAvatar className="w-6 h-6 shrink-0 mt-0.5 ring-1 ring-hub-gold/30" />
                 )}
                 <div
                   className={`p-3 rounded-xl max-w-[85%] leading-relaxed ${

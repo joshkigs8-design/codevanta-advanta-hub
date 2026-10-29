@@ -1655,6 +1655,41 @@ function seedAdditionalResources(db: DatabaseSync) {
         "editorial_notes": "Essential for Kenyan developers testing Safaricom Daraja M-Pesa STK Push instant payment webhooks locally.",
         "featured": 1,
         "click_count": 0
+    },
+    {
+        "id": "res-jotform-ai-agents",
+        "name": "Jotform AI Agents",
+        "slug": "jotform-ai-agents",
+        "short_description": "Build and publish no-code AI agents for customer support, lead capture, and guided workflows.",
+        "detailed_description": "Jotform AI Agents lets you create a conversational agent without building an AI backend. Start with an agent goal, train it with approved website content, documents, or other knowledge sources, test its answers, and publish it for visitors to use. It can be useful for answering product questions, collecting lead details, and directing users to the right form or workflow.",
+        "official_website": "https://www.jotform.com/ai/agents/",
+        "documentation_url": "https://www.jotform.com/help/ai-agents/",
+        "category_id": "cat-ai-models",
+        "pricing_classification": "freemium",
+        "free_tier_details": "Jotform advertises AI Agent creation as free. A Jotform account is required, and available agent usage, publishing, integrations, or advanced features may depend on the current plan limits.",
+        "api_key_required": 0,
+        "account_required": 1,
+        "credit_card_required": 0,
+        "usage_limits": "Free availability and quotas can vary by agent capability and Jotform plan; check the current workspace and pricing details before relying on it for production support.",
+        "license_info": "Commercial SaaS",
+        "commercial_use_allowed": 1,
+        "skill_level": "beginner",
+        "platforms": [
+          "Web",
+          "No-Code",
+          "Customer Support"
+        ],
+        "programming_languages": [
+          "No-Code"
+        ],
+        "alternatives": [
+          "Tidio AI",
+          "Botpress",
+          "Voiceflow"
+        ],
+        "editorial_notes": "How to use it: create an agent, define its role and welcome message, add trusted website or document knowledge, test representative questions, then publish or share it. Review responses and update its knowledge whenever your product or policies change.",
+        "featured": 1,
+        "click_count": 0
     }
   ];
 
