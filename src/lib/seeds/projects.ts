@@ -87,3 +87,4 @@ The user interface connects directly to your local Ollama daemon at \`http://127
     updated_at: now,
   },
 ];
+

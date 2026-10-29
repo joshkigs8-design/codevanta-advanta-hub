@@ -116,3 +116,4 @@ export const initialLearningPaths: LearningPath[] = [
     updated_at: now,
   },
 ];
+

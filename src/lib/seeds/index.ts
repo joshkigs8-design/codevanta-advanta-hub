@@ -252,3 +252,4 @@ export function initPhase2SchemaAndData(db: DatabaseSync) {
     );
   }
 }
+

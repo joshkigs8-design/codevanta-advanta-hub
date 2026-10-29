@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
 import fs from "node:fs";
+import os from "node:os";
 import bcrypt from "bcryptjs";
 import { initPhase2SchemaAndData } from "./seeds";
 import type {
@@ -28,16 +29,90 @@ import type {
 
 let dbInstance: DatabaseSync | null = null;
 
+function isDirectoryWritable(dir: string): boolean {
+  try {
+    const testFile = path.join(dir, `.write_test_${Date.now()}`);
+    fs.writeFileSync(testFile, "");
+    fs.unlinkSync(testFile);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getDatabasePath(): string {
+  // If explicitly configured via environment variable
+  if (process.env.DATABASE_PATH) {
+    return process.env.DATABASE_PATH;
+  }
+
+  // Detect serverless hosting environments (Vercel, AWS Lambda, Netlify)
+  // where the application root is strictly read-only and /tmp is writable.
+  const isServerless =
+    Boolean(process.env.VERCEL) ||
+    Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME) ||
+    Boolean(process.env.NETLIFY) ||
+    (process.platform === "linux" && fs.existsSync("/tmp") && !isDirectoryWritable(process.cwd()));
+
+  if (isServerless) {
+    const tmpDir = os.tmpdir() || "/tmp";
+    if (!fs.existsSync(tmpDir)) {
+      try {
+        fs.mkdirSync(tmpDir, { recursive: true });
+      } catch {
+        // ignore
+      }
+    }
+    const tmpDbPath = path.join(tmpDir, "codevanta.sqlite");
+    const cwdDbPath = path.join(process.cwd(), "codevanta.sqlite");
+
+    // Copy bundled seed database from project root to tmp if present and not yet in tmp
+    if (fs.existsSync(cwdDbPath) && !fs.existsSync(tmpDbPath)) {
+      try {
+        fs.copyFileSync(cwdDbPath, tmpDbPath);
+      } catch {
+        // Fallback to auto-initialization below
+      }
+    }
+
+    return tmpDbPath;
+  }
+
+  return path.resolve(process.cwd(), "codevanta.sqlite");
+}
+
 export function getDb(): DatabaseSync {
   if (dbInstance) return dbInstance;
 
-  const dbPath = path.resolve(process.cwd(), "codevanta.sqlite");
+  const dbPath = getDatabasePath();
+  const parentDir = path.dirname(dbPath);
+  if (!fs.existsSync(parentDir)) {
+    try {
+      fs.mkdirSync(parentDir, { recursive: true });
+    } catch {
+      // ignore
+    }
+  }
+
   dbInstance = new DatabaseSync(dbPath);
 
-  // WAL mode & performance tuning
-  dbInstance.exec("PRAGMA journal_mode = WAL;");
-  dbInstance.exec("PRAGMA foreign_keys = ON;");
-  dbInstance.exec("PRAGMA synchronous = NORMAL;");
+  // WAL mode & performance tuning with graceful fallback
+  try {
+    dbInstance.exec("PRAGMA journal_mode = WAL;");
+  } catch {
+    try {
+      dbInstance.exec("PRAGMA journal_mode = DELETE;");
+    } catch {
+      // ignore
+    }
+  }
+
+  try {
+    dbInstance.exec("PRAGMA foreign_keys = ON;");
+    dbInstance.exec("PRAGMA synchronous = NORMAL;");
+  } catch {
+    // ignore
+  }
 
   initSchema(dbInstance);
   seedInitialData(dbInstance);

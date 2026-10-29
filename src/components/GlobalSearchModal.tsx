@@ -235,3 +235,4 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
     </div>
   );
 }
+

@@ -84,3 +84,4 @@ export const initialStudentBenefits: StudentBenefit[] = [
     updated_at: now,
   },
 ];
+
