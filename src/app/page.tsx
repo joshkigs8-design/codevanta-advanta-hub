@@ -23,6 +23,11 @@ import {
   Compass,
   Plus,
   Send,
+  BookOpen,
+  GraduationCap,
+  Wrench,
+  Clock,
+  ExternalLink,
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -82,6 +87,47 @@ export default async function HomePage() {
     ...p,
     entitlements: JSON.parse(p.entitlements || "{}"),
   }));
+  // Fetch popular / featured tutorials
+  const tutorialRows = db
+    .prepare(`
+      SELECT id, slug, title, summary, category, difficulty, estimated_minutes, last_verified_date
+      FROM tutorials
+      WHERE is_published = 1
+      ORDER BY featured DESC, created_at DESC
+      LIMIT 3
+    `)
+    .all() as Array<Record<string, any>>;
+
+  // Fetch learning paths
+  const pathRows = db
+    .prepare(`
+      SELECT id, slug, title, description, category, difficulty, estimated_hours
+      FROM learning_paths
+      WHERE is_published = 1
+      ORDER BY display_order ASC
+      LIMIT 3
+    `)
+    .all() as Array<Record<string, any>>;
+
+  // Fetch student perks
+  const studentRows = db
+    .prepare(`
+      SELECT id, slug, title, provider, description, category, benefits_included
+      FROM student_benefits
+      WHERE is_active = 1
+      LIMIT 2
+    `)
+    .all() as Array<Record<string, any>>;
+
+  // Fetch troubleshooting diagnostics
+  const troubleRows = db
+    .prepare(`
+      SELECT id, slug, error_message, affected_tool, category, step_by_step_fix
+      FROM troubleshooting_entries
+      WHERE is_published = 1
+      LIMIT 2
+    `)
+    .all() as Array<Record<string, any>>;
 
   return (
     <div className="home-cinematic space-y-24 pb-24">
@@ -517,6 +563,72 @@ export default async function HomePage() {
       </section>
 
       {/* ========================================================================= */}
+            {/* ========================================================================= */}
+      {/* SECTION: FEATURED PRACTICAL TUTORIALS & LOCAL AI BLUEPRINTS               */}
+      {/* ========================================================================= */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-white/10 pb-4">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-hub-gold font-bold mb-1">
+              <BookOpen className="w-4 h-4" />
+              <span>PRACTICAL KNOWLEDGEBASE</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              Local AI, Coding Agents &amp; Tooling Setup
+            </h2>
+            <p className="text-xs sm:text-sm text-hub-text-secondary mt-1">
+              Tested step-by-step guides for Ollama, OpenCode, Claude Code, Antigravity, and cloud deployments.
+            </p>
+          </div>
+
+          <Link
+            href="/tutorials"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-semibold bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-all group shrink-0"
+          >
+            <span>Explore all tutorials</span>
+            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {tutorialRows.map((tut) => (
+            <Link
+              key={tut.id}
+              href={`/tutorials/${tut.slug}`}
+              className="group flex flex-col justify-between p-6 rounded-2xl bg-hub-surface-card border border-white/10 hover:border-hub-gold/50 transition-all shadow-md hover:-translate-y-1 hover:shadow-card-subtle"
+            >
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider font-bold bg-hub-gold/20 text-hub-gold border border-hub-gold/30">
+                    {tut.category}
+                  </span>
+                  <div className="flex items-center gap-1 text-[11px] font-mono text-hub-text-muted">
+                    <Clock className="w-3 h-3 text-hub-gold" />
+                    <span>~{tut.estimated_minutes} min read</span>
+                  </div>
+                </div>
+
+                <h3 className="text-lg font-bold text-white group-hover:text-hub-gold transition-colors leading-snug">
+                  {tut.title}
+                </h3>
+                <p className="text-xs text-hub-text-secondary leading-relaxed line-clamp-3">
+                  {tut.summary}
+                </p>
+              </div>
+
+              <div className="mt-5 pt-4 border-t border-white/5 flex items-center justify-between text-xs">
+                <span className="text-[11px] font-mono text-white/50 capitalize">
+                  Level: {tut.difficulty}
+                </span>
+                <span className="text-hub-gold font-semibold inline-flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                  Read Guide &rarr;
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       {/* 4. SECTION: STEP-BY-STEP PROCESS JOURNEY (01 -> 06 ROADMAP)              */}
       {/* ========================================================================= */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
@@ -702,6 +814,165 @@ export default async function HomePage() {
       </section>
 
       {/* ========================================================================= */}
+            {/* ========================================================================= */}
+      {/* SECTION: LEARNING PATHWAYS, PROJECT LAB & STUDENT BENEFITS                 */}
+      {/* ========================================================================= */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+        {/* Sub-block 1: Structured Learning Paths */}
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-white/10 pb-4">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-hub-gold font-bold mb-1">
+                <Compass className="w-4 h-4" />
+                <span>STRUCTURED ROADMAPS</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                Developer Learning Pathways
+              </h2>
+              <p className="text-xs sm:text-sm text-hub-text-secondary mt-1">
+                Zero fluff, milestone-driven progressions from absolute fundamentals to production engineering.
+              </p>
+            </div>
+
+            <Link
+              href="/learning-paths"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-semibold bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-all group shrink-0"
+            >
+              <span>View all 8 pathways</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {pathRows.map((p) => (
+              <div
+                key={p.id}
+                className="p-6 rounded-2xl bg-hub-surface-card border border-white/10 hover:border-hub-gold/40 transition-all flex flex-col justify-between space-y-4"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-white/10 text-white/80">
+                      {p.category}
+                    </span>
+                    <span className="text-xs font-mono text-hub-gold">~{p.estimated_hours}h total</span>
+                  </div>
+                  <h3 className="text-lg font-bold text-white leading-snug">{p.title}</h3>
+                  <p className="text-xs text-hub-text-secondary leading-relaxed">{p.description}</p>
+                </div>
+
+                <div className="pt-4 border-t border-white/5 flex items-center justify-between">
+                  <span className="text-[11px] font-mono text-white/50 capitalize">Difficulty: {p.difficulty}</span>
+                  <Link
+                    href={`/learning-paths#${p.slug}`}
+                    className="text-xs font-semibold text-hub-gold hover:text-white transition-colors inline-flex items-center gap-1"
+                  >
+                    <span>Follow Path</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Sub-block 2: 2-Column Split: Student Developer Benefits & Troubleshooting Runbooks */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Left: Student Benefits */}
+          <div className="p-6 sm:p-8 rounded-3xl bg-hub-surface-card border border-white/10 flex flex-col justify-between space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-emerald-400 font-bold bg-emerald-950/60 px-3 py-1 rounded-full border border-emerald-800/50">
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  <span>Student Developer Pack</span>
+                </div>
+                <Link
+                  href="/students"
+                  className="text-xs font-mono text-hub-gold hover:text-white transition-colors"
+                >
+                  View All Perks &rarr;
+                </Link>
+              </div>
+
+              <h3 className="text-2xl font-black text-white tracking-tight">
+                Verified Student Developer Programs &amp; Free Cloud
+              </h3>
+              <p className="text-xs sm:text-sm text-hub-text-secondary leading-relaxed">
+                Unlock professional toolkits, cloud hosting credits, and AI subscriptions with your university email or dated student ID.
+              </p>
+
+              <div className="space-y-3 pt-2">
+                {studentRows.map((sb) => (
+                  <div key={sb.id} className="p-3.5 rounded-xl bg-black/40 border border-white/5 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-white">{sb.title}</h4>
+                      <span className="text-[10px] font-mono text-hub-gold">{sb.provider}</span>
+                    </div>
+                    <p className="text-[11px] text-hub-text-secondary leading-relaxed line-clamp-2">
+                      {sb.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Link
+              href="/students"
+              className="inline-flex items-center justify-center gap-2 w-full py-3 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-all"
+            >
+              <span>Explore Verified Student Opportunities</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          {/* Right: Troubleshooting Centre */}
+          <div className="p-6 sm:p-8 rounded-3xl bg-hub-surface-card border border-white/10 flex flex-col justify-between space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-rose-400 font-bold bg-rose-950/60 px-3 py-1 rounded-full border border-rose-800/50">
+                  <Wrench className="w-3.5 h-3.5" />
+                  <span>Diagnostic Runbooks</span>
+                </div>
+                <Link
+                  href="/troubleshooting"
+                  className="text-xs font-mono text-hub-gold hover:text-white transition-colors"
+                >
+                  View All Fixes &rarr;
+                </Link>
+              </div>
+
+              <h3 className="text-2xl font-black text-white tracking-tight">
+                Developer Troubleshooting Centre
+              </h3>
+              <p className="text-xs sm:text-sm text-hub-text-secondary leading-relaxed">
+                Step-by-step diagnostic solutions for local LLM daemon crashes, CUDA VRAM out-of-memory errors, and Next.js build timeouts.
+              </p>
+
+              <div className="space-y-3 pt-2">
+                {troubleRows.map((tr) => (
+                  <div key={tr.id} className="p-3.5 rounded-xl bg-black/40 border border-rose-900/30 space-y-1 font-mono">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-rose-300 font-bold">{tr.affected_tool}</span>
+                      <span className="text-[10px] text-white/40">{tr.category}</span>
+                    </div>
+                    <p className="text-[11px] text-rose-200/90 truncate">
+                      {tr.error_message}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Link
+              href="/troubleshooting"
+              className="inline-flex items-center justify-center gap-2 w-full py-3 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-all"
+            >
+              <span>Browse Error Fixes &amp; Stack Traces</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* 6. SECTION: MEMBERSHIP PLANS COMPARISON                                  */}
       {/* ========================================================================= */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">

@@ -17,7 +17,7 @@ export default function Footer() {
             </p>
             <div className="flex items-center gap-2 text-xs text-hub-text-muted">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>Independent editorial curation & verified free tier limits</span>
+              <span>Independent editorial curation &amp; verified free tier limits</span>
             </div>
           </div>
 
@@ -32,27 +32,37 @@ export default function Footer() {
               </li>
               <li>
                 <Link href="/tutorials" className="hover:text-hub-text-primary transition-colors">
-                  Tutorials & Setup Guides
+                  Tutorials &amp; Setup Guides
+                </Link>
+              </li>
+              <li>
+                <Link href="/learning-paths" className="hover:text-hub-text-primary transition-colors">
+                  Learning Paths
+                </Link>
+              </li>
+              <li>
+                <Link href="/projects" className="hover:text-hub-text-primary transition-colors">
+                  Project Lab
+                </Link>
+              </li>
+              <li>
+                <Link href="/troubleshooting" className="hover:text-hub-text-primary transition-colors">
+                  Troubleshooting Centre
+                </Link>
+              </li>
+              <li>
+                <Link href="/students" className="hover:text-hub-text-primary transition-colors">
+                  Student Benefits
                 </Link>
               </li>
               <li>
                 <Link href="/guides" className="hover:text-hub-text-primary transition-colors">
-                  Learning Roadmaps
+                  Starter Kits
                 </Link>
               </li>
               <li>
                 <Link href="/plans" className="hover:text-hub-text-primary transition-colors">
                   Membership Plans
-                </Link>
-              </li>
-              <li>
-                <Link href="/directory?category=public-apis" className="hover:text-hub-text-primary transition-colors">
-                  Free Developer APIs
-                </Link>
-              </li>
-              <li>
-                <Link href="/directory?category=ai-apis-models" className="hover:text-hub-text-primary transition-colors">
-                  AI & LLM Providers
                 </Link>
               </li>
               <li>
@@ -79,12 +89,12 @@ export default function Footer() {
               </li>
               <li>
                 <Link href="/refund-policy" className="hover:text-hub-text-primary transition-colors">
-                  Refund & Cancellation Policy
+                  Refund &amp; Cancellation Policy
                 </Link>
               </li>
               <li>
                 <Link href="/compliance" className="hover:text-hub-text-primary transition-colors">
-                  Compliance & Regulatory Notice
+                  Compliance &amp; Regulatory Notice
                 </Link>
               </li>
             </ul>
