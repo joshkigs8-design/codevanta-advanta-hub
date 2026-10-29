@@ -75,6 +75,99 @@ button, a, input, select {
   outline-offset: 2px;
 }
 
+.admin-shell {
+  background-image: radial-gradient(circle at 75% -10%, rgba(201, 0, 61, 0.1), transparent 28rem), radial-gradient(circle at 10% 40%, rgba(35, 67, 110, 0.08), transparent 24rem);
+}
+
+.admin-panel {
+  background: linear-gradient(145deg, rgba(20, 26, 36, 0.86), rgba(12, 16, 23, 0.92));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+}
+
+.metric-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 148px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: rgba(17, 21, 29, 0.76);
+}
+
+.metric-card::after {
+  content: "";
+  position: absolute;
+  right: -24px;
+  bottom: -34px;
+  width: 110px;
+  height: 110px;
+  border-radius: 999px;
+  opacity: 0.14;
+  filter: blur(2px);
+}
+
+.metric-blue::after { background: #3b82f6; }
+.metric-purple::after { background: #a855f7; }
+.metric-gold::after { background: #ef174e; }
+.metric-amber::after { background: #f59e0b; }
+
+.metric-icon {
+  display: flex;
+  height: 34px;
+  width: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #a2adbd;
+}
+
+.metric-gold .metric-icon { color: #ef174e; background: rgba(201, 0, 61, 0.12); }
+.metric-amber .metric-icon { color: #fbbf24; background: rgba(245, 158, 11, 0.1); }
+
+.status-pill {
+  display: inline-flex;
+  border-radius: 999px;
+  border: 1px solid rgba(201, 0, 61, 0.24);
+  background: rgba(201, 0, 61, 0.1);
+  padding: 3px 8px;
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  text-transform: capitalize;
+  color: #f284a0;
+}
+
+.action-card {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 54px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  padding: 11px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #a2adbd;
+}
+
+.action-card:hover {
+  border-color: rgba(239, 23, 78, 0.35);
+  background: rgba(201, 0, 61, 0.06);
+  color: #fff;
+}
+
+.admin-loading, .admin-empty-state {
+  display: flex;
+  min-height: 300px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #687384;
+  text-align: center;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;
@@ -99,6 +192,94 @@ button, a, input, select {
 
 .animate-subtle-zoom {
   animation: subtleZoom 28s ease-in-out infinite;
+}
+
+@keyframes heroFloat {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.55; }
+  50% { transform: translate3d(18px, -14px, 0) scale(1.08); opacity: 0.85; }
+}
+
+@keyframes heroReveal {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.hero-cinematic {
+  isolation: isolate;
+  background: #07090d;
+}
+
+.hero-backdrop {
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.hero-vignette {
+  background:
+    radial-gradient(ellipse at 50% 42%, transparent 12%, rgba(5, 7, 11, 0.15) 48%, rgba(5, 7, 11, 0.88) 100%),
+    linear-gradient(90deg, rgba(5, 7, 11, 0.5), transparent 42%, rgba(5, 7, 11, 0.38));
+}
+
+.hero-grid {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: linear-gradient(to bottom, transparent, black 20%, black 70%, transparent);
+  transform: perspective(600px) rotateX(58deg) translateY(18%);
+  transform-origin: center bottom;
+}
+
+.hero-scanlines {
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 3px,
+    rgba(255, 255, 255, 0.035) 4px,
+    transparent 5px
+  );
+  mix-blend-mode: soft-light;
+}
+
+.hero-aurora {
+  animation: heroFloat 12s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.hero-aurora-delayed {
+  animation-delay: -5s;
+  animation-duration: 16s;
+}
+
+.hero-content > * {
+  animation: heroReveal 800ms ease both;
+}
+
+.hero-content > :nth-child(2) { animation-delay: 120ms; }
+.hero-content > :nth-child(3) { animation-delay: 240ms; }
+.hero-feature { animation: heroReveal 900ms ease 380ms both; }
+
+.hero-title {
+  text-shadow: 0 0 44px rgba(255, 255, 255, 0.08), 0 20px 50px rgba(0, 0, 0, 0.45);
+}
+
+.hero-title .text-hub-gold {
+  text-shadow: 0 0 34px rgba(239, 23, 78, 0.7);
+}
+
+.hero-search {
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(255,255,255,0.03);
+}
+
+@media (max-width: 640px) {
+  .hero-vignette {
+    background: linear-gradient(to bottom, rgba(5, 7, 11, 0.35), rgba(5, 7, 11, 0.92) 78%);
+  }
+
+  .hero-grid {
+    background-size: 48px 48px;
+    opacity: 0.45;
+  }
 }
 
 .glass-pill {

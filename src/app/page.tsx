@@ -84,28 +84,32 @@ export default async function HomePage() {
   }));
 
   return (
-    <div className="space-y-24 pb-24">
+    <div className="home-cinematic space-y-24 pb-24">
       {/* ========================================================================= */}
       {/* 1. HERO SECTION WITH BESPOKE ARCHITECTURAL VISUAL ART                     */}
       {/* ========================================================================= */}
-      <section className="relative min-h-[94vh] flex flex-col justify-between overflow-hidden border-b border-white/10 pt-6 pb-12">
+      <section className="hero-cinematic relative min-h-[94vh] flex flex-col justify-between overflow-hidden border-b border-white/10 pt-6 pb-12">
         {/* Bespoke Architectural Hero Background Illustration */}
         <div className="absolute inset-0 z-0 overflow-hidden">
           <img
             src="/hero-visual.svg"
             alt="Codevanta Monolithic Developer Pavilion at Twilight"
-            className="w-full h-full object-cover object-center filter brightness-[0.95] contrast-[1.05] animate-subtle-zoom"
+            className="hero-backdrop w-full h-full object-cover object-center filter brightness-[0.78] contrast-[1.14] saturate-[0.82] animate-subtle-zoom"
           />
+          <div className="hero-aurora absolute -left-20 top-1/4 h-72 w-72 rounded-full bg-hub-gold/20 blur-[100px]" />
+          <div className="hero-aurora hero-aurora-delayed absolute right-[8%] top-[18%] h-56 w-56 rounded-full bg-indigo-400/10 blur-[90px]" />
+          <div className="hero-grid absolute inset-0 opacity-30" />
+          <div className="hero-scanlines absolute inset-0 opacity-20" />
           {/* Multi-layered dark atmospheric overlays for crisp text contrast */}
-          <div className="absolute inset-0 bg-gradient-to-t from-hub-bg via-hub-bg/60 to-black/55" />
-          <div className="absolute inset-0 bg-radial-gradient from-transparent via-black/25 to-hub-bg/85" />
+          <div className="hero-vignette absolute inset-0" />
+          <div className="absolute inset-0 bg-gradient-to-t from-hub-bg via-hub-bg/35 to-black/45" />
         </div>
 
         {/* Hero Top Content */}
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pt-4 md:pt-10">
+        <div className="hero-content relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pt-4 md:pt-10">
           {/* Signal Indicator Bar */}
           <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
-            <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-black/65 backdrop-blur-xl border border-white/15 text-[11px] font-mono text-white/95 uppercase tracking-widest shadow-xl">
+            <div className="hero-kicker inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-black/65 backdrop-blur-xl border border-white/15 text-[11px] font-mono text-white/95 uppercase tracking-widest shadow-xl">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
@@ -113,7 +117,7 @@ export default async function HomePage() {
               <span>Audited Developer Intelligence</span>
             </div>
 
-            <div className="hidden sm:inline-flex items-center gap-2.5 text-xs font-mono text-white/90 bg-black/50 backdrop-blur-xl px-4 py-1.5 rounded-full border border-white/15 shadow-lg">
+            <div className="hero-kicker hidden sm:inline-flex items-center gap-2.5 text-xs font-mono text-white/90 bg-black/50 backdrop-blur-xl px-4 py-1.5 rounded-full border border-white/15 shadow-lg">
               <span className="text-hub-gold font-bold">50+</span>
               <span>Verified Free Tiers Online</span>
             </div>
@@ -121,7 +125,7 @@ export default async function HomePage() {
 
           {/* GIGANTIC MONUMENTAL BRAND DISPLAY (MATCHING MODO ARCHITECTURAL MASTHEAD) */}
           <div className="py-2 sm:py-6">
-            <h1 className="text-[52px] sm:text-[96px] md:text-[144px] lg:text-[192px] font-black tracking-[-0.075em] text-white uppercase select-none leading-[0.84] drop-shadow-2xl font-sans">
+            <h1 className="hero-title text-[52px] sm:text-[96px] md:text-[144px] lg:text-[192px] font-black tracking-[-0.075em] text-white uppercase select-none leading-[0.84] drop-shadow-2xl font-sans">
               Codevanta<span className="text-hub-gold">.</span>
             </h1>
           </div>
@@ -129,7 +133,7 @@ export default async function HomePage() {
           {/* Subheading, Description & Action Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-end pt-2 pb-6">
             <div className="lg:col-span-7 space-y-5">
-              <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white tracking-tight leading-snug">
+              <p className="hero-subtitle text-xl sm:text-2xl md:text-3xl font-bold text-white tracking-tight leading-snug">
                 Modular developer infrastructure, tested free tiers, and production-ready blueprints.
               </p>
               <p className="text-sm sm:text-base text-hub-text-secondary max-w-xl leading-relaxed">
@@ -171,7 +175,7 @@ export default async function HomePage() {
               <form
                 action="/directory"
                 method="GET"
-                className="p-2 sm:p-2.5 rounded-2xl bg-black/60 backdrop-blur-xl border border-white/20 shadow-2xl space-y-2"
+                className="hero-search p-2 sm:p-2.5 rounded-2xl bg-black/60 backdrop-blur-xl border border-white/20 shadow-2xl space-y-2"
               >
                 <div className="relative">
                   <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-white/60" />
@@ -243,7 +247,7 @@ export default async function HomePage() {
                 <Link
                   key={idx}
                   href={card.link}
-                  className="group relative p-5 rounded-2xl glass-bento transition-all flex flex-col justify-between hover:-translate-y-1"
+                  className="hero-feature group relative p-5 rounded-2xl glass-bento transition-all flex flex-col justify-between hover:-translate-y-1"
                 >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -274,6 +278,11 @@ export default async function HomePage() {
               );
             })}
           </div>
+        </div>
+        <div className="relative z-10 mx-auto mt-8 hidden items-center gap-3 text-[10px] font-mono uppercase tracking-[0.24em] text-white/45 sm:flex">
+          <span className="h-px w-10 bg-white/25" />
+          Scroll to enter the stack
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-hub-gold" />
         </div>
       </section>
 

@@ -98,6 +98,30 @@ export function attributeReferral(
 
   if (existing) return null;
 
+  // Multi-account / Sybil velocity checks:
+  // If IP hash is provided, limit max 3 accounts from the exact same IP within 24h to prevent referral farming bots
+  if (ipHash && ipHash !== "unknown") {
+    const recentFromIp = db
+      .prepare(`
+        SELECT COUNT(*) as count 
+        FROM referral_attributions 
+        WHERE ip_address_hash = ? AND created_at >= datetime('now', '-1 day')
+      `)
+      .get(ipHash) as { count: number };
+
+    if (recentFromIp && recentFromIp.count >= 3) {
+      // Flag as invalidated due to high velocity IP abuse
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+      db.prepare(`
+        INSERT INTO referral_attributions (
+          id, referral_code, referrer_user_id, referred_user_id, ip_address_hash, user_agent_hash, status, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, 'invalidated', ?)
+      `).run(id, code, refCodeRow.user_id, newUserId, ipHash, uaHash || null, now);
+      return null;
+    }
+  }
+
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
 
@@ -139,8 +163,10 @@ export function processQualifyingReferralReward(
 
   if (!attribution) return null;
 
-  // Prevent self-referral
-  if (attribution.referrer_user_id === payerUserId) return null;
+  // Anti-fraud: Prevent invalidated or self-referral
+  if (attribution.status === "invalidated" || attribution.referrer_user_id === payerUserId) {
+    return null;
+  }
 
   // Check if this payment already generated a reward (Strict idempotency)
   const existingReward = db
@@ -198,6 +224,7 @@ export function processQualifyingReferralReward(
         INSERT INTO wallet_accounts (id, user_id, currency, pending_balance, approved_balance, withdrawn_balance, created_at, updated_at)
         VALUES (?, ?, 'KES', 0, 0, 0, ?, ?)
       `).run(walletId, attribution.referrer_user_id, nowIso, nowIso);
+
       wallet = { id: walletId, pending_balance: 0, approved_balance: 0 };
     }
 
@@ -205,20 +232,21 @@ export function processQualifyingReferralReward(
     db.prepare("UPDATE wallet_accounts SET pending_balance = ?, updated_at = ? WHERE id = ?")
       .run(newPending, nowIso, wallet.id);
 
-    // 4. Append to wallet ledger
+    // 4. Create ledger entry
     const ledgerId = crypto.randomUUID();
     db.prepare(`
       INSERT INTO wallet_ledger_entries (
-        id, wallet_id, user_id, entry_type, amount_kes, balance_after_kes, reference_type, reference_id, notes, created_at
+        id, wallet_id, user_id, entry_type, amount_kes, balance_after_kes,
+        reference_type, reference_id, notes, created_at
       ) VALUES (?, ?, ?, 'reward_pending', ?, ?, 'referral_reward', ?, ?, ?)
     `).run(
       ledgerId,
       wallet.id,
       attribution.referrer_user_id,
       rewardAmount,
-      wallet.approved_balance, // approved balance not yet changed
+      newPending,
       rewardId,
-      `Pending referral commission for ${planSlug.toUpperCase()} plan purchase (Payment: ${paymentId})`,
+      `Pending reward for referred user upgrading to ${planSlug.toUpperCase()}`,
       nowIso
     );
 
@@ -243,115 +271,101 @@ export function processQualifyingReferralReward(
   }
 }
 
-export function approveReferralReward(rewardId: string, adminUserId: string): boolean {
+export function reviewReferralReward(
+  rewardId: string,
+  action: "approve" | "reject",
+  reviewerUserId: string,
+  rejectionReason?: string
+): ReferralReward | null {
   const db = getDb();
   const reward = db
     .prepare("SELECT * FROM referral_rewards WHERE id = ?")
     .get(rewardId) as ReferralReward | undefined;
 
-  if (!reward || reward.status !== "pending") return false;
+  if (!reward || reward.status !== "pending") return null;
 
   const nowIso = new Date().toISOString();
-
   db.exec("BEGIN IMMEDIATE;");
   try {
-    // 1. Update reward status
+    const newStatus: RewardStatus = action === "approve" ? "approved" : "rejected";
+
     db.prepare(`
       UPDATE referral_rewards
-      SET status = 'approved', reviewed_by = ?, reviewed_at = ?, updated_at = ?
+      SET status = ?, reviewed_by = ?, reviewed_at = ?, rejection_reason = ?, updated_at = ?
       WHERE id = ?
-    `).run(adminUserId, nowIso, nowIso, rewardId);
+    `).run(newStatus, reviewerUserId, nowIso, rejectionReason || null, nowIso, rewardId);
 
-    // 2. Adjust wallet: move amount from pending to approved
     const wallet = db
       .prepare("SELECT id, pending_balance, approved_balance FROM wallet_accounts WHERE user_id = ?")
       .get(reward.referrer_user_id) as { id: string; pending_balance: number; approved_balance: number } | undefined;
 
     if (wallet) {
-      const newPending = Math.max(0, wallet.pending_balance - reward.reward_amount_kes);
-      const newApproved = wallet.approved_balance + reward.reward_amount_kes;
+      if (action === "approve") {
+        const newPending = Math.max(0, wallet.pending_balance - reward.reward_amount_kes);
+        const newApproved = wallet.approved_balance + reward.reward_amount_kes;
 
-      db.prepare(`
-        UPDATE wallet_accounts
-        SET pending_balance = ?, approved_balance = ?, updated_at = ?
-        WHERE id = ?
-      `).run(newPending, newApproved, nowIso, wallet.id);
+        db.prepare("UPDATE wallet_accounts SET pending_balance = ?, approved_balance = ?, updated_at = ? WHERE id = ?")
+          .run(newPending, newApproved, nowIso, wallet.id);
 
-      // 3. Append to ledger
-      const ledgerId = crypto.randomUUID();
-      db.prepare(`
-        INSERT INTO wallet_ledger_entries (
-          id, wallet_id, user_id, entry_type, amount_kes, balance_after_kes, reference_type, reference_id, notes, created_at
-        ) VALUES (?, ?, ?, 'reward_approved', ?, ?, 'referral_reward', ?, ?, ?)
-      `).run(
-        ledgerId,
-        wallet.id,
-        reward.referrer_user_id,
-        reward.reward_amount_kes,
-        newApproved,
-        rewardId,
-        `Approved referral reward for ${reward.plan_slug.toUpperCase()} plan`,
-        nowIso
-      );
+        const ledgerId = crypto.randomUUID();
+        db.prepare(`
+          INSERT INTO wallet_ledger_entries (
+            id, wallet_id, user_id, entry_type, amount_kes, balance_after_kes,
+            reference_type, reference_id, notes, created_at
+          ) VALUES (?, ?, ?, 'reward_approved', ?, ?, 'referral_reward', ?, ?, ?)
+        `).run(
+          ledgerId,
+          wallet.id,
+          reward.referrer_user_id,
+          reward.reward_amount_kes,
+          newApproved,
+          rewardId,
+          `Referral reward approved and released to withdrawable balance for ${reward.plan_slug.toUpperCase()}`,
+          nowIso
+        );
+      } else {
+        const newPending = Math.max(0, wallet.pending_balance - reward.reward_amount_kes);
+        db.prepare("UPDATE wallet_accounts SET pending_balance = ?, updated_at = ? WHERE id = ?")
+          .run(newPending, nowIso, wallet.id);
+
+        const ledgerId = crypto.randomUUID();
+        db.prepare(`
+          INSERT INTO wallet_ledger_entries (
+            id, wallet_id, user_id, entry_type, amount_kes, balance_after_kes,
+            reference_type, reference_id, notes, created_at
+          ) VALUES (?, ?, ?, 'reward_clawback', ?, ?, 'referral_reward', ?, ?, ?)
+        `).run(
+          ledgerId,
+          wallet.id,
+          reward.referrer_user_id,
+          -reward.reward_amount_kes,
+          newPending,
+          rewardId,
+          `Referral reward rejected: ${rejectionReason || "Compliance rejection"}`,
+          nowIso
+        );
+      }
     }
 
     db.exec("COMMIT;");
-    return true;
+    return {
+      ...reward,
+      status: newStatus,
+      reviewed_by: reviewerUserId,
+      reviewed_at: nowIso,
+      rejection_reason: rejectionReason,
+      updated_at: nowIso,
+    };
   } catch (err) {
     db.exec("ROLLBACK;");
     throw err;
   }
 }
+// Append helper exports to src/lib/referral.ts
+export function approveReferralReward(rewardId: string, reviewerUserId: string): boolean {
+  return reviewReferralReward(rewardId, "approve", reviewerUserId) !== null;
+}
 
-export function rejectReferralReward(rewardId: string, adminUserId: string, reason: string): boolean {
-  const db = getDb();
-  const reward = db
-    .prepare("SELECT * FROM referral_rewards WHERE id = ?")
-    .get(rewardId) as ReferralReward | undefined;
-
-  if (!reward || reward.status !== "pending") return false;
-
-  const nowIso = new Date().toISOString();
-
-  db.exec("BEGIN IMMEDIATE;");
-  try {
-    db.prepare(`
-      UPDATE referral_rewards
-      SET status = 'rejected', rejection_reason = ?, reviewed_by = ?, reviewed_at = ?, updated_at = ?
-      WHERE id = ?
-    `).run(reason, adminUserId, nowIso, nowIso, rewardId);
-
-    // Decrement pending balance
-    const wallet = db
-      .prepare("SELECT id, pending_balance, approved_balance FROM wallet_accounts WHERE user_id = ?")
-      .get(reward.referrer_user_id) as { id: string; pending_balance: number; approved_balance: number } | undefined;
-
-    if (wallet) {
-      const newPending = Math.max(0, wallet.pending_balance - reward.reward_amount_kes);
-      db.prepare("UPDATE wallet_accounts SET pending_balance = ?, updated_at = ? WHERE id = ?")
-        .run(newPending, nowIso, wallet.id);
-
-      const ledgerId = crypto.randomUUID();
-      db.prepare(`
-        INSERT INTO wallet_ledger_entries (
-          id, wallet_id, user_id, entry_type, amount_kes, balance_after_kes, reference_type, reference_id, notes, created_at
-        ) VALUES (?, ?, ?, 'reward_clawback', ?, ?, 'referral_reward', ?, ?, ?)
-      `).run(
-        ledgerId,
-        wallet.id,
-        reward.referrer_user_id,
-        -reward.reward_amount_kes,
-        wallet.approved_balance,
-        rewardId,
-        `Rejected referral reward: ${reason}`,
-        nowIso
-      );
-    }
-
-    db.exec("COMMIT;");
-    return true;
-  } catch (err) {
-    db.exec("ROLLBACK;");
-    throw err;
-  }
+export function rejectReferralReward(rewardId: string, reviewerUserId: string, reason?: string): boolean {
+  return reviewReferralReward(rewardId, "reject", reviewerUserId, reason) !== null;
 }
