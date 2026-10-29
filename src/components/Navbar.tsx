@@ -56,8 +56,9 @@ export default function Navbar() {
 
   const navLinks = [
     { href: "/directory", label: "Directory", icon: Compass },
-    { href: "/guides", label: "Learning & Blueprints", icon: BookOpen },
-    { href: "/plans", label: "Membership Plans", icon: Sparkles },
+    { href: "/tutorials", label: "Tutorials", icon: BookOpen },
+    { href: "/guides", label: "Starter Kits", icon: Sparkles },
+    { href: "/plans", label: "Membership", icon: Sparkles },
     { href: "/downloader-codes", label: "Downloader Codes", icon: Tv },
   ];
 

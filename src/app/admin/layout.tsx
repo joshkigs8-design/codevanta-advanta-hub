@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   BarChart3,
+  BookOpen,
   ChevronLeft,
   ChevronRight,
   CircleDollarSign,
@@ -38,6 +39,7 @@ const sidebarGroups = [
     links: [
       { href: "/admin/referrals", label: "Referrals", icon: Zap },
       { href: "/admin/resources", label: "Resources", icon: Package },
+      { href: "/admin/tutorials", label: "Tutorials", icon: BookOpen },
       { href: "/admin/reports", label: "Reports", icon: BarChart3 },
     ],
   },

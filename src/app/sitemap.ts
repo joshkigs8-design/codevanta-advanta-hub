@@ -6,6 +6,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const routes = [
     "",
     "/directory",
+    "/tutorials",
     "/guides",
     "/plans",
     "/downloader-codes",
@@ -18,7 +19,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return routes.map((route) => ({
     url: `${baseUrl}${route}`,
     lastModified: new Date(),
-    changeFrequency: route === "" || route === "/directory" ? "daily" : "weekly",
-    priority: route === "" ? 1.0 : route === "/directory" || route === "/plans" ? 0.9 : 0.7,
+    changeFrequency: route === "" || route === "/directory" || route === "/tutorials" ? "daily" : "weekly",
+    priority: route === "" ? 1.0 : route === "/directory" || route === "/tutorials" || route === "/plans" ? 0.9 : 0.7,
   }));
 }

@@ -2,6 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
 import fs from "node:fs";
 import bcrypt from "bcryptjs";
+import { initPhase2SchemaAndData } from "./seeds";
 import type {
   Profile,
   Resource,
@@ -40,6 +41,7 @@ export function getDb(): DatabaseSync {
 
   initSchema(dbInstance);
   seedInitialData(dbInstance);
+  initPhase2SchemaAndData(dbInstance);
 
   return dbInstance;
 }

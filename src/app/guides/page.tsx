@@ -1,246 +1,63 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { LearningGuide } from "@/types";
-import { UserEntitlements } from "@/lib/entitlements";
-import {
-  BookOpen,
-  Lock,
-  Download,
-  Clock,
-  ArrowRight,
-  CheckCircle,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { BookOpen, Clock, Search, ShieldCheck } from "lucide-react";
+
+interface Tutorial {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  category: string;
+  difficulty: string;
+  estimated_minutes: number;
+  last_verified_date?: string;
+  featured?: boolean;
+}
 
 export default function GuidesPage() {
-  const [guides, setGuides] = useState<Array<LearningGuide & { is_locked?: boolean }>>([]);
-  const [entitlements, setEntitlements] = useState<UserEntitlements | null>(null);
-  const [activeGuide, setActiveGuide] = useState<(LearningGuide & { is_locked?: boolean }) | null>(null);
+  const [tutorials, setTutorials] = useState<Tutorial[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("");
   const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    fetch("/api/guides")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.guides && data.guides.length > 0) {
-          setGuides(data.guides);
-          setActiveGuide(data.guides[0]);
-        }
-        if (data.entitlements) {
-          setEntitlements(data.entitlements);
-        }
-        if (typeof data.authenticated === "boolean") {
-          setIsAuthenticated(data.authenticated);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
-  const canAccessGuide = (guide: LearningGuide & { is_locked?: boolean }): boolean => {
-    return !guide.is_locked;
-  };
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams();
+      if (query) params.set("q", query);
+      if (category) params.set("category", category);
+      fetch(`/api/guides?${params}`)
+        .then((response) => response.json())
+        .then((data) => { setTutorials(data.guides || []); setCategories(data.categories || []); })
+        .finally(() => setLoading(false));
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [query, category]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
-      {/* Header */}
-      <div className="space-y-2 border-b border-hub-border pb-6">
-        <div className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-hub-gold font-bold">
-          <BookOpen className="w-4 h-4" />
-          <span>Curated Learning Roadmaps &amp; Blueprints</span>
-        </div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-          Practical Guides &amp; Architecture Blueprints
-        </h1>
-        <p className="text-sm text-hub-text-secondary max-w-2xl">
-          Original tutorials with production-ready code examples. Locked blueprints and starter kits are available exclusively to our membership tiers.
-        </p>
-      </div>
-
-      {/* Paywall Banner for Signed-Out Visitors */}
-      {!loading && !isAuthenticated && (
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-950/70 via-red-950/60 to-black/85 border border-amber-500/40 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
-          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="space-y-2 max-w-xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 font-mono text-xs uppercase tracking-wider font-bold">
-                <Lock className="w-3.5 h-3.5" />
-                <span>Guest Access Restricted</span>
-              </div>
-              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                Architecture Blueprints &amp; Starter Kits Are Locked
-              </h3>
-              <p className="text-sm text-hub-text-secondary leading-relaxed">
-                You are currently browsing as a guest. All full-stack starter kit ZIPs, architectural specifications, and production code repositories require signing in or a membership plan.
-              </p>
-            </div>
-            <div className="flex items-center gap-3 shrink-0 flex-wrap">
-              <Link
-                href="/login"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-hub-gold text-white hover:bg-hub-gold-hover shadow-gold-glow transition-all active:scale-95"
-              >
-                <Lock className="w-4 h-4" />
-                <span>Sign In to Access</span>
-              </Link>
-              <Link
-                href="/register"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-md transition-all active:scale-95"
-              >
-                <span>Create Free Account</span>
-              </Link>
-            </div>
-          </div>
-        </div>
+    <main className="mx-auto max-w-7xl space-y-8 px-4 py-10 sm:px-6 lg:px-8">
+      <header className="space-y-3 border-b border-hub-border pb-7">
+        <div className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-widest text-hub-gold"><BookOpen size={16} /> Practical tutorials</div>
+        <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-5xl">Learn by building.</h1>
+        <p className="max-w-2xl text-sm leading-6 text-hub-text-secondary">Original, database-backed guides for local AI, coding tools, security, and deployment. Each guide links to the official documentation used for verification.</p>
+      </header>
+      <section className="flex flex-col gap-3 sm:flex-row">
+        <div className="relative flex-1"><Search className="absolute left-3 top-3 text-hub-gold" size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search tutorials..." className="w-full rounded-xl border border-hub-border bg-hub-surface px-10 py-3 text-sm text-white outline-none focus:border-hub-gold" /></div>
+        <select value={category} onChange={(event) => setCategory(event.target.value)} className="rounded-xl border border-hub-border bg-hub-surface px-4 py-3 text-sm text-white outline-none focus:border-hub-gold"><option value="">All categories</option>{categories.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+      </section>
+      {loading ? <div className="admin-loading">Loading tutorials...</div> : (
+        <section className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {tutorials.map((tutorial) => <Link key={tutorial.id} href={`/guides/${tutorial.slug}`} className="surface-panel group rounded-2xl p-6 hover:-translate-y-1 hover:border-hub-gold/50">
+            <div className="mb-5 flex items-center justify-between"><span className="rounded-full border border-hub-gold/30 bg-hub-gold/10 px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider text-hub-gold">{tutorial.category}</span>{tutorial.featured && <span className="text-xs text-hub-gold">Featured</span>}</div>
+            <h2 className="text-xl font-bold leading-tight text-white group-hover:text-hub-gold">{tutorial.title}</h2>
+            <p className="mt-3 text-sm leading-6 text-hub-text-secondary">{tutorial.summary}</p>
+            <div className="mt-6 flex items-center gap-4 text-xs text-hub-text-muted"><span className="flex items-center gap-1"><Clock size={14} /> {tutorial.estimated_minutes} min</span><span className="capitalize">{tutorial.difficulty}</span>{tutorial.last_verified_date && <span className="ml-auto flex items-center gap-1"><ShieldCheck size={14} /> {tutorial.last_verified_date}</span>}</div>
+          </Link>)}
+        </section>
       )}
-
-      {loading ? (
-        <div className="p-16 text-center text-sm text-hub-text-muted">Loading learning modules…</div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Guides List */}
-          <div className="space-y-4">
-            <h3 className="text-xs font-mono uppercase tracking-wider text-hub-text-muted font-bold">
-              Available Modules
-            </h3>
-
-            <div className="space-y-3">
-              {guides.map((g) => {
-                const hasAccess = canAccessGuide(g);
-                const isSelected = activeGuide?.id === g.id;
-
-                return (
-                  <div
-                    key={g.id}
-                    onClick={() => setActiveGuide(g)}
-                    className={`p-4 rounded-xl border transition-all cursor-pointer ${
-                      isSelected
-                        ? "bg-hub-surface-elevated border-hub-gold shadow-md"
-                        : "bg-hub-surface-card border-hub-border hover:border-hub-gold/40"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-hub-surface text-hub-text-secondary border border-hub-border">
-                        {g.category}
-                      </span>
-
-                      {g.min_plan_tier !== "free" ? (
-                        <span
-                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded flex items-center gap-1 ${
-                            hasAccess
-                              ? "bg-emerald-950/80 text-emerald-400 border border-emerald-800"
-                              : "bg-amber-950/80 text-amber-400 border border-amber-800"
-                          }`}
-                        >
-                          {hasAccess ? <CheckCircle className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
-                          {g.min_plan_tier.toUpperCase()} TIER
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-hub-forest text-hub-gold border border-hub-gold/30">
-                          FREE ACCESS
-                        </span>
-                      )}
-                    </div>
-
-                    <h4 className="font-bold text-sm text-hub-text-primary leading-snug">
-                      {g.title}
-                    </h4>
-
-                    <div className="flex items-center gap-3 mt-3 text-[11px] text-hub-text-muted">
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {g.estimated_minutes} min read
-                      </span>
-                      <span className="capitalize">{g.difficulty}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Guide Content Display */}
-          <div className="lg:col-span-2">
-            {activeGuide ? (
-              <div className="p-6 sm:p-8 rounded-2xl bg-hub-surface border border-hub-border space-y-6">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs font-mono uppercase tracking-wider text-hub-gold font-semibold">
-                      {activeGuide.category}
-                    </span>
-                    <span className="text-hub-text-muted">•</span>
-                    <span className="text-xs text-hub-text-muted font-mono">{activeGuide.estimated_minutes} min read</span>
-                  </div>
-
-                  <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                    {activeGuide.title}
-                  </h2>
-
-                  <p className="text-sm text-hub-text-secondary mt-2">
-                    {activeGuide.summary}
-                  </p>
-                </div>
-
-                {/* Gating Check */}
-                {canAccessGuide(activeGuide) ? (
-                  <div className="space-y-6 pt-4 border-t border-hub-border">
-                    {/* Starter Kit Download Banner */}
-                    {activeGuide.starter_kit_download_url && (
-                      <div className="p-4 rounded-xl bg-hub-surface-elevated border border-hub-gold/40 flex items-center justify-between gap-4">
-                        <div className="space-y-1">
-                          <span className="text-xs font-mono uppercase text-hub-gold font-bold">
-                            Official Starter Kit Available
-                          </span>
-                          <p className="text-xs text-hub-text-secondary">
-                            Includes pre-configured repo with TypeScript, database migrations, and environment templates.
-                          </p>
-                        </div>
-                        <a
-                          href={activeGuide.starter_kit_download_url}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold bg-hub-gold text-white hover:bg-hub-gold-hover shrink-0 transition-colors"
-                        >
-                          <Download className="w-4 h-4" />
-                          Download ZIP
-                        </a>
-                      </div>
-                    )}
-
-                    <div className="prose prose-invert max-w-none text-sm text-hub-text-secondary space-y-4 leading-relaxed font-sans">
-                      <div className="whitespace-pre-line">
-                        {activeGuide.content}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-8 rounded-xl bg-hub-surface-elevated border border-hub-border text-center space-y-4 my-6">
-                    <div className="w-12 h-12 rounded-full bg-amber-950/60 border border-amber-500/40 text-amber-400 mx-auto flex items-center justify-center">
-                      <Lock className="w-6 h-6" />
-                    </div>
-                    <h3 className="text-lg font-bold text-white">
-                      {activeGuide.min_plan_tier.toUpperCase()} Membership Required
-                    </h3>
-                    <p className="text-xs text-hub-text-secondary max-w-md mx-auto">
-                      This production architecture blueprint, code files, and downloadable repository are restricted to{" "}
-                      <strong className="text-white">{activeGuide.min_plan_tier.toUpperCase()}</strong> tier members.
-                    </p>
-                    <Link
-                      href={`/plans?select=${activeGuide.min_plan_tier}`}
-                      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-xs font-semibold bg-hub-gold text-white hover:bg-hub-gold-hover shadow-gold-glow"
-                    >
-                      <span>Unlock with {activeGuide.min_plan_tier.toUpperCase()} Membership</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </Link>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="p-12 text-center text-hub-text-muted">
-                Select a learning guide from the list to view its contents.
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+      {!loading && tutorials.length === 0 && <div className="admin-empty-state">No tutorials match those filters.</div>}
+    </main>
   );
 }

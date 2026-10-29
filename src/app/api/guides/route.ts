@@ -1,64 +1,43 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
-import { getUserEntitlements } from "@/lib/entitlements";
-import { LearningGuide } from "@/types";
+import { Tutorial } from "@/types";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const user = getCurrentUser();
-    const isAuthenticated = Boolean(user);
-    const entitlements = getUserEntitlements(user ? user.id : null);
+    const { searchParams } = new URL(req.url);
+    const query = searchParams.get("q")?.trim().toLowerCase() || "";
+    const category = searchParams.get("category")?.trim() || "";
+    const sort = searchParams.get("sort") || "newest";
     const db = getDb();
-
-    const guides = db
-      .prepare(`SELECT * FROM learning_guides WHERE is_published = 1 ORDER BY created_at ASC`)
-      .all() as LearningGuide[];
-
-    // Enforce server-side paywall gating on guide content & starter kit URLs
-    const sanitizedGuides = guides.map((guide) => {
-      // Guests who are not signed in have all blueprint content locked
-      if (!isAuthenticated) {
-        return {
-          ...guide,
-          content: "",
-          starter_kit_download_url: null,
-          is_locked: true,
-          lock_reason: "Sign in or create a free account to unlock this guide and download production starter kits.",
-        };
-      }
-
-      const isFree = guide.min_plan_tier === "free";
-      const hasAccess =
-        isFree ||
-        (guide.min_plan_tier === "basic" &&
-          (entitlements.planSlug === "basic" ||
-            entitlements.planSlug === "pro" ||
-            entitlements.planSlug === "vip")) ||
-        (guide.min_plan_tier === "pro" &&
-          (entitlements.planSlug === "pro" || entitlements.planSlug === "vip")) ||
-        (guide.min_plan_tier === "vip" && entitlements.planSlug === "vip");
-
-      if (hasAccess) {
-        return guide;
-      }
-
-      // Redact full content and starter kit download if user has not unlocked this tier
-      return {
-        ...guide,
-        content: "",
-        starter_kit_download_url: null,
-        is_locked: true,
-        lock_reason: `Upgrade to ${guide.min_plan_tier.toUpperCase()} plan to access this architecture blueprint.`,
-      };
-    });
+    const conditions = ["is_published = 1"];
+    const params: string[] = [];
+    if (query) {
+      conditions.push("(LOWER(title) LIKE ? OR LOWER(summary) LIKE ? OR LOWER(category) LIKE ?)");
+      params.push(`%${query}%`, `%${query}%`, `%${query}%`);
+    }
+    if (category) {
+      conditions.push("category = ?");
+      params.push(category);
+    }
+    const order = sort === "title" ? "title ASC" : sort === "time" ? "estimated_minutes ASC" : "featured DESC, last_verified_date DESC, created_at DESC";
+    const guides = db.prepare(`SELECT * FROM tutorials WHERE ${conditions.join(" AND ")} ORDER BY ${order}`).all(...params) as Array<Record<string, unknown>>;
+    const parse = (value: unknown) => {
+      try { return JSON.parse(String(value || "[]")); } catch { return []; }
+    };
+    const tutorials = guides.map((guide) => ({
+      ...guide,
+      is_published: Boolean(guide.is_published),
+      featured: Boolean(guide.featured),
+      prerequisites: parse(guide.prerequisites),
+      supported_os: parse(guide.supported_os),
+    })) as unknown as Tutorial[];
+    const categories = db.prepare(`SELECT DISTINCT category FROM tutorials WHERE is_published = 1 ORDER BY category`).all() as Array<{ category: string }>;
 
     return NextResponse.json({
-      guides: sanitizedGuides,
-      authenticated: isAuthenticated,
-      entitlements,
+      guides: tutorials,
+      categories: categories.map((item) => item.category),
     });
   } catch (err: unknown) {
     return NextResponse.json(

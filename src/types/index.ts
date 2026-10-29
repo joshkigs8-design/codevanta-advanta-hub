@@ -164,6 +164,16 @@ export interface LearningGuide {
   min_plan_tier: "free" | "basic" | "pro" | "vip";
   starter_kit_download_url?: string;
   is_published: boolean;
+  introduction?: string;
+  prerequisites?: string[];
+  supported_operating_systems?: string[];
+  steps?: Array<{ title: string; instruction: string }>;
+  references?: Array<{ title: string; url: string }>;
+  last_verified_date?: string;
+  publication_status?: "draft" | "published" | "archived";
+  featured?: boolean;
+  related_slugs?: string[];
+  image_url?: string;
   created_at: string;
   updated_at: string;
 }
@@ -325,5 +335,109 @@ export interface ProgrammeSettings {
   key: string;
   value: string;
   description: string;
+  updated_at: string;
+}
+
+// ============================================================================
+// TUTORIALS, LEARNING PATHS, TROUBLESHOOTING & PROJECTS
+// ============================================================================
+
+export interface Tutorial {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  category: "local-ai" | "ai-coding-agents" | "ides-tools" | "cloud-remote" | "deployment";
+  difficulty: SkillLevel;
+  estimated_minutes: number;
+  prerequisites: string[]; // JSON array in DB
+  supported_os: string[]; // JSON array in DB: Windows, macOS, Linux
+  content: string; // Markdown
+  troubleshooting_notes: string;
+  security_warnings: string;
+  official_docs_url: string;
+  last_verified_date: string;
+  is_published: boolean;
+  featured: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LearningPath {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  category: string;
+  difficulty: SkillLevel;
+  icon: string;
+  estimated_hours: number;
+  display_order: number;
+  is_published: boolean;
+  milestones?: LearningPathMilestone[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LearningPathMilestone {
+  id: string;
+  path_id: string;
+  step_number: number;
+  title: string;
+  description: string;
+  target_type: "tutorial" | "project" | "resource" | "guide";
+  target_id?: string;
+  target_url?: string;
+}
+
+export interface TroubleshootingEntry {
+  id: string;
+  slug: string;
+  error_message: string;
+  affected_tool: string;
+  category: string;
+  likely_causes: string;
+  step_by_step_fix: string;
+  verification_steps: string;
+  official_docs_url: string;
+  last_verified_date: string;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GuidedProject {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  difficulty: SkillLevel;
+  estimated_hours: number;
+  prerequisites: string[];
+  tech_stack: string[];
+  expected_outcomes: string;
+  content: string;
+  starter_code_repo_url: string;
+  demo_url: string;
+  paid_services_warning: string;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StudentBenefit {
+  id: string;
+  slug: string;
+  title: string;
+  provider: string;
+  category: string;
+  description: string;
+  benefits_included: string;
+  eligibility_requirements: string;
+  application_url: string;
+  limitations: string;
+  last_verified_date: string;
+  is_active: boolean;
+  created_at: string;
   updated_at: string;
 }
