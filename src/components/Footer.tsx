@@ -50,6 +50,11 @@ export default function Footer() {
                   AI & LLM Providers
                 </Link>
               </li>
+              <li>
+                <Link href="/downloader-codes" className="hover:text-hub-text-primary transition-colors">
+                  Downloader Codes (Android TV)
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -65,6 +70,16 @@ export default function Footer() {
               <li>
                 <Link href="/privacy" className="hover:text-hub-text-primary transition-colors">
                   Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link href="/refund-policy" className="hover:text-hub-text-primary transition-colors">
+                  Refund & Cancellation Policy
+                </Link>
+              </li>
+              <li>
+                <Link href="/compliance" className="hover:text-hub-text-primary transition-colors">
+                  Compliance & Regulatory Notice
                 </Link>
               </li>
             </ul>

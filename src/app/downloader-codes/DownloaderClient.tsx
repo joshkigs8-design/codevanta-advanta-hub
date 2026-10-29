@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Tv, Copy, Check, ExternalLink, Download, Search, ShieldCheck } from "lucide-react";
+import { Tv, Copy, Check, ExternalLink, Download, Search, ShieldCheck, Lock, ArrowRight } from "lucide-react";
 
 interface DownloaderCode {
   code: string;
@@ -74,8 +74,21 @@ const DOWNLOADER_CODES: DownloaderCode[] = [
 export default function DownloaderClient() {
   const [search, setSearch] = useState("");
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [loadingAuth, setLoadingAuth] = useState<boolean>(true);
 
-  const handleCopy = (code: string) => {
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        setIsAuthenticated(Boolean(data.authenticated));
+      })
+      .catch(() => setIsAuthenticated(false))
+      .finally(() => setLoadingAuth(false));
+  }, []);
+
+  const handleCopy = (code: string, isLocked: boolean) => {
+    if (isLocked) return;
     navigator.clipboard.writeText(code);
     setCopiedCode(code);
     setTimeout(() => setCopiedCode(null), 2000);
@@ -93,28 +106,28 @@ export default function DownloaderClient() {
   });
 
   return (
-    <div className="min-h-screen py-10 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
+    <div className="min-h-screen py-10 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto space-y-10">
       {/* Header */}
-      <div className="text-center space-y-4 mb-10">
+      <div className="text-center space-y-4">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-hub-gold/10 border border-hub-gold/30 text-hub-gold text-xs font-mono">
           <Tv className="w-3.5 h-3.5" />
           <span>Android TV & Firestick Sideload Directory</span>
         </div>
-        <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-hub-text-primary">
+        <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white">
           AFTVnews <span className="text-hub-gold">Downloader Codes</span>
         </h1>
-        <p className="text-sm sm:text-base text-hub-text-secondary max-w-2xl mx-auto">
+        <p className="text-sm sm:text-base text-hub-text-secondary max-w-2xl mx-auto leading-relaxed">
           Short numerical download codes for the popular <strong>Downloader by AFTVnews</strong> app. 
           Enter any code on your Smart TV or Firestick to quickly download and install APKs and utility toolboxes.
         </p>
 
         {/* How-to banner */}
-        <div className="bg-hub-surface border border-hub-border-subtle rounded-xl p-4 sm:p-5 text-left max-w-3xl mx-auto mt-6">
-          <div className="flex items-center gap-2 font-semibold text-xs uppercase tracking-wider text-hub-gold mb-2">
+        <div className="bg-hub-surface border border-hub-border-subtle rounded-2xl p-4 sm:p-6 text-left max-w-3xl mx-auto mt-6 shadow-xl">
+          <div className="flex items-center gap-2 font-semibold text-xs uppercase tracking-wider text-hub-gold mb-3">
             <ShieldCheck className="w-4 h-4" />
             <span>How to use these codes on your TV</span>
           </div>
-          <ol className="list-decimal list-inside text-xs sm:text-sm text-hub-text-secondary space-y-1.5">
+          <ol className="list-decimal list-inside text-xs sm:text-sm text-hub-text-secondary space-y-2">
             <li>Install and open the free <strong className="text-white">Downloader</strong> app on your Android TV or Firestick.</li>
             <li>In the URL / Search input box, type the <strong className="text-hub-gold font-mono">numerical code</strong> (e.g. <span className="font-mono text-white">250931</span>).</li>
             <li>Press <strong className="text-white">Go</strong>. The app redirects to the verified APK or repository mirror.</li>
@@ -122,99 +135,161 @@ export default function DownloaderClient() {
         </div>
       </div>
 
+      {/* Paywall Banner for Signed-Out Guests */}
+      {!loadingAuth && !isAuthenticated && (
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-950/70 via-red-950/60 to-black/85 border border-amber-500/40 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
+          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="space-y-2 max-w-xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 font-mono text-xs uppercase tracking-wider font-bold">
+                <Lock className="w-3.5 h-3.5" />
+                <span>Guest Preview Mode</span>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                Unlock Complete Downloader Catalog
+              </h3>
+              <p className="text-sm text-hub-text-secondary leading-relaxed">
+                You are currently viewing 2 free sample codes as a guest. Sign in or create a free account to reveal all 6 verified short codes, one-click direct APK mirrors, and GitHub release links.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 shrink-0 flex-wrap">
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-hub-gold text-white hover:bg-hub-gold-hover shadow-gold-glow transition-all active:scale-95"
+              >
+                <Lock className="w-4 h-4" />
+                <span>Sign In to Unlock All</span>
+              </Link>
+              <Link
+                href="/register"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-md transition-all active:scale-95"
+              >
+                <span>Create Free Account</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Search */}
-      <div className="relative max-w-md mx-auto mb-8">
+      <div className="relative max-w-md mx-auto">
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-hub-text-muted" />
         <input
           type="text"
           placeholder="Search by code, app name, or keyword…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-hub-surface border border-hub-border text-sm text-hub-text-primary focus:outline-none focus:ring-2 focus:ring-hub-gold"
+          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-hub-surface border border-hub-border text-sm text-hub-text-primary focus:outline-none focus:border-hub-gold transition-colors"
         />
       </div>
 
       {/* Grid of Codes */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredCodes.map((item) => (
-          <div
-            key={item.code}
-            className="rounded-xl border border-hub-border-subtle bg-hub-surface hover:border-hub-gold/40 transition-all p-5 flex flex-col justify-between group"
-          >
-            <div>
-              {/* Top row: Code badge + Copy button */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-xl sm:text-2xl font-extrabold text-hub-gold tracking-wider">
-                    {item.code}
-                  </span>
-                  <button
-                    onClick={() => handleCopy(item.code)}
-                    className="p-1.5 rounded-md hover:bg-hub-surface-elevated text-hub-text-muted hover:text-white transition-colors"
-                    title="Copy Downloader Code"
-                  >
-                    {copiedCode === item.code ? (
-                      <Check className="w-4 h-4 text-emerald-400" />
+        {filteredCodes.map((item, index) => {
+          const isLocked = !isAuthenticated && index >= 2;
+          const displayCode = isLocked ? `${item.code.slice(0, 3)}****` : item.code;
+
+          return (
+            <div
+              key={item.code}
+              className={`rounded-2xl border transition-all p-5 flex flex-col justify-between group relative overflow-hidden ${
+                isLocked
+                  ? "border-amber-500/30 bg-hub-surface-card/70"
+                  : "border-white/10 bg-hub-surface-card hover:border-hub-gold/50 hover:shadow-card-subtle"
+              }`}
+            >
+              <div>
+                {/* Top row: Code badge + Copy button */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className={`font-mono text-xl sm:text-2xl font-black tracking-wider ${
+                      isLocked ? "text-amber-400/80" : "text-hub-gold"
+                    }`}>
+                      {displayCode}
+                    </span>
+                    {!isLocked ? (
+                      <button
+                        onClick={() => handleCopy(item.code, isLocked)}
+                        className="p-1.5 rounded-lg hover:bg-hub-surface-elevated text-hub-text-muted hover:text-white transition-colors"
+                        title="Copy Downloader Code"
+                      >
+                        {copiedCode === item.code ? (
+                          <Check className="w-4 h-4 text-emerald-400" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </button>
                     ) : (
-                      <Copy className="w-4 h-4" />
+                      <span className="p-1.5 rounded-lg bg-amber-950/40 text-amber-400" title="Locked for guests">
+                        <Lock className="w-3.5 h-3.5" />
+                      </span>
                     )}
-                  </button>
-                </div>
-                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-hub-surface-elevated border border-hub-border text-hub-text-muted">
-                  {item.category}
-                </span>
-              </div>
-
-              {/* Name & description */}
-              <h3 className="text-lg font-bold text-hub-text-primary group-hover:text-hub-gold transition-colors mb-1.5">
-                {item.name}
-              </h3>
-              <p className="text-xs text-hub-text-secondary leading-relaxed mb-4">
-                {item.description}
-              </p>
-
-              {/* Tags */}
-              <div className="flex flex-wrap gap-1.5 mb-4">
-                {item.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="text-[10px] px-2 py-0.5 rounded-md bg-hub-surface-elevated text-hub-text-muted border border-hub-border/50"
-                  >
-                    {tag}
+                  </div>
+                  <span className="text-[11px] font-mono px-2 py-0.5 rounded-lg bg-hub-surface-elevated border border-hub-border text-hub-text-muted">
+                    {item.category}
                   </span>
-                ))}
+                </div>
+
+                {/* Name & description */}
+                <h3 className="text-lg font-bold text-white group-hover:text-hub-gold transition-colors mb-1.5">
+                  {item.name}
+                </h3>
+                <p className="text-xs text-hub-text-secondary leading-relaxed mb-4">
+                  {item.description}
+                </p>
+
+                {/* Tags */}
+                <div className="flex flex-wrap gap-1.5 mb-4">
+                  {item.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="text-[10px] px-2 py-0.5 rounded-md bg-white/5 text-hub-text-muted border border-white/10"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Bottom Actions */}
+              <div className="pt-3 border-t border-hub-border/60 flex items-center justify-between text-xs">
+                <span className="text-[11px] text-hub-text-muted truncate max-w-[170px]">
+                  {item.versionNote || "Verified link"}
+                </span>
+
+                {isLocked ? (
+                  <Link
+                    href="/login"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-300 bg-amber-950/60 border border-amber-800 hover:bg-amber-900/60 transition-colors"
+                  >
+                    <Lock className="w-3 h-3" />
+                    <span>Sign In to Reveal</span>
+                  </Link>
+                ) : (
+                  <a
+                    href={`https://go.aftvnews.com/${item.code}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium text-hub-bg bg-hub-gold hover:bg-hub-gold-hover transition-colors"
+                  >
+                    <span>Direct Link</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
               </div>
             </div>
-
-            {/* Bottom Actions */}
-            <div className="pt-3 border-t border-hub-border-subtle flex items-center justify-between text-xs">
-              <span className="text-[11px] text-hub-text-muted truncate max-w-[180px]">
-                {item.versionNote || "Verified link"}
-              </span>
-              <a
-                href={`https://go.aftvnews.com/${item.code}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-hub-gold hover:text-hub-gold-hover font-medium"
-              >
-                <span>Direct Link</span>
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Back to Resources link */}
-      <div className="text-center mt-12 pt-8 border-t border-hub-border-subtle">
+      <div className="text-center pt-8 border-t border-hub-border/60">
         <Link
           href="/directory"
           className="inline-flex items-center gap-2 text-sm text-hub-text-secondary hover:text-white transition-colors"
         >
-          <span>← Browse all Developer Resources & APIs</span>
+          <span>← Browse all Developer Resources &amp; APIs</span>
         </Link>
       </div>
     </div>
   );
 }
-
