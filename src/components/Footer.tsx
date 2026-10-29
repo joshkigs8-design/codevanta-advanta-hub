@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import BrandLogo from "./BrandLogo";
-import { ShieldCheck, Heart } from "lucide-react";
+import { ShieldCheck, Heart, MessageCircle, ExternalLink } from "lucide-react";
 
 export default function Footer() {
   return (
@@ -18,6 +18,22 @@ export default function Footer() {
             <div className="flex items-center gap-2 text-xs text-hub-text-muted">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
               <span>Independent editorial curation &amp; verified free tier limits</span>
+            </div>
+
+            {/* Official WhatsApp Channel Badge */}
+            <div className="pt-2">
+              <a
+                href="https://whatsapp.com/channel/0029Vb84p6QKGGGNAp8VIB2g"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2.5 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-600/50 text-emerald-300 hover:text-white transition-all shadow-md group"
+              >
+                <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                  <MessageCircle className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+                </div>
+                <span>Join Official WhatsApp Channel</span>
+                <ExternalLink className="w-3 h-3 opacity-70" />
+              </a>
             </div>
           </div>
 
@@ -69,6 +85,17 @@ export default function Footer() {
                 <Link href="/downloader-codes" className="hover:text-hub-text-primary transition-colors">
                   Downloader Codes (Android TV)
                 </Link>
+              </li>
+              <li>
+                <a
+                  href="https://whatsapp.com/channel/0029Vb84p6QKGGGNAp8VIB2g"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-emerald-400 text-emerald-400/90 font-medium inline-flex items-center gap-1 transition-colors"
+                >
+                  <span>WhatsApp Channel (Daily Drops)</span>
+                  <ExternalLink className="w-3 h-3 opacity-70" />
+                </a>
               </li>
             </ul>
           </div>

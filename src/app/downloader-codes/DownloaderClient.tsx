@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Tv, Copy, Check, ExternalLink, Download, Search, ShieldCheck, Lock, ArrowRight } from "lucide-react";
+import { Tv, Copy, Check, ExternalLink, Download, Search, ShieldCheck, Lock, ArrowRight, MessageCircle } from "lucide-react";
 
 interface DownloaderCode {
   code: string;
@@ -132,6 +132,33 @@ export default function DownloaderClient() {
             <li>In the URL / Search input box, type the <strong className="text-hub-gold font-mono">numerical code</strong> (e.g. <span className="font-mono text-white">250931</span>).</li>
             <li>Press <strong className="text-white">Go</strong>. The app redirects to the verified APK or repository mirror.</li>
           </ol>
+        </div>
+
+        {/* WhatsApp Channel Callout */}
+        <div className="bg-gradient-to-r from-emerald-950/60 via-black/60 to-emerald-950/40 border border-emerald-500/30 rounded-2xl p-4 sm:p-5 text-left max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0">
+              <MessageCircle className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                <span>CodeVanta WhatsApp Channel</span>
+                <span className="text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30">Official</span>
+              </h4>
+              <p className="text-xs text-hub-text-secondary mt-0.5">
+                Get new APK codes, Android TV tools, and free tier drops delivered to your phone.
+              </p>
+            </div>
+          </div>
+          <a
+            href="https://whatsapp.com/channel/0029Vb84p6QKGGGNAp8VIB2g"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-md shrink-0"
+          >
+            <span>Follow Channel</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
         </div>
       </div>
 

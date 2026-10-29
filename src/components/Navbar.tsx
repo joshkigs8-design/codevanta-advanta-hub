@@ -22,6 +22,7 @@ import {
   Wrench,
   GraduationCap,
   Layers,
+  MessageCircle,
 } from "lucide-react";
 
 interface UserProfile {
@@ -103,6 +104,16 @@ export default function Navbar() {
           {/* Search Trigger & User Actions */}
           <div className="hidden md:flex items-center gap-3">
             {/* Quick Search Button */}
+            <a
+              href="https://whatsapp.com/channel/0029Vb84p6QKGGGNAp8VIB2g"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-950/70 border border-emerald-600/40 text-xs font-mono text-emerald-400 hover:text-white hover:bg-emerald-900 transition-all shadow-sm"
+              title="Join our official WhatsApp Channel"
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              <span>Channel</span>
+            </a>
             <button
               onClick={() => setSearchModalOpen(true)}
               className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 border border-white/15 text-xs text-hub-text-muted hover:text-white hover:border-hub-gold/50 transition-all font-mono shadow-sm group"

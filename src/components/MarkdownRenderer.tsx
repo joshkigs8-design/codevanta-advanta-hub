@@ -489,3 +489,4 @@ function CodeCard({ lang, code }: { lang: string; code: string }) {
     </div>
   );
 }
+
