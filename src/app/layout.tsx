@@ -3,6 +3,7 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Chatbot from "@/components/Chatbot";
+import CookieConsent from "@/components/CookieConsent";
 
 export const metadata: Metadata = {
   title: "CodeVanta Advanta Hub — Curated Developer Resources & Membership",
@@ -44,6 +45,7 @@ export default function RootLayout({
         </div>
         <Footer />
         <Chatbot />
+        <CookieConsent />
       </body>
     </html>
   );

@@ -21,6 +21,15 @@ function RegisterContent() {
   useEffect(() => {
     if (refParam) {
       setReferralCode(refParam.toUpperCase());
+    } else {
+      try {
+        const storedRef = localStorage.getItem("cv_ref_code");
+        if (storedRef) {
+          setReferralCode(storedRef.toUpperCase());
+        }
+      } catch {
+        // ignore
+      }
     }
   }, [refParam]);
 

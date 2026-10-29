@@ -143,6 +143,12 @@ export function attributeReferral(
   };
 }
 
+function normalizePhone(phone?: string | null): string {
+  if (!phone) return "";
+  const digits = phone.replace(/\D/g, "");
+  return digits.length >= 9 ? digits.slice(-9) : digits;
+}
+
 export function processQualifyingReferralReward(
   paymentId: string,
   payerUserId: string,
@@ -166,6 +172,44 @@ export function processQualifyingReferralReward(
   // Anti-fraud: Prevent invalidated or self-referral
   if (attribution.status === "invalidated" || attribution.referrer_user_id === payerUserId) {
     return null;
+  }
+
+  // Anti-fraud: Shared M-Pesa phone number between payer and referrer (Self-funding loophole prevention)
+  const paymentRow = db
+    .prepare("SELECT phone_number FROM payments WHERE id = ?")
+    .get(paymentId) as { phone_number?: string } | undefined;
+
+  const payerPhone = normalizePhone(paymentRow?.phone_number);
+
+  if (payerPhone) {
+    // Check referrer profile phone
+    const referrerProfile = db
+      .prepare("SELECT phone_number FROM profiles WHERE id = ?")
+      .get(attribution.referrer_user_id) as { phone_number?: string } | undefined;
+
+    const referrerPhone = normalizePhone(referrerProfile?.phone_number);
+
+    // Check referrer's past payments
+    const referrerPayments = db
+      .prepare("SELECT phone_number FROM payments WHERE user_id = ? AND phone_number IS NOT NULL")
+      .all(attribution.referrer_user_id) as Array<{ phone_number: string }>;
+
+    // Check referrer's withdrawal requests
+    const referrerWithdrawals = db
+      .prepare("SELECT phone_number FROM withdrawal_requests WHERE user_id = ? AND phone_number IS NOT NULL")
+      .all(attribution.referrer_user_id) as Array<{ phone_number: string }>;
+
+    const allReferrerPhones = [
+      referrerPhone,
+      ...referrerPayments.map((p) => normalizePhone(p.phone_number)),
+      ...referrerWithdrawals.map((w) => normalizePhone(w.phone_number)),
+    ].filter(Boolean);
+
+    if (allReferrerPhones.includes(payerPhone)) {
+      // Invalidate attribution due to shared financial instrument (self-referral fraud)
+      db.prepare("UPDATE referral_attributions SET status = 'invalidated' WHERE id = ?").run(attribution.id);
+      return null;
+    }
   }
 
   // Check if this payment already generated a reward (Strict idempotency)

@@ -36,13 +36,17 @@ export async function POST(req: NextRequest) {
     // Initialize user referral code
     getReferralCodeForUser(userId);
 
-    // Check & attribute referral code if provided
-    if (referralCode && typeof referralCode === "string") {
-      const ip = req.headers.get("x-forwarded-for") || "unknown";
+    // Check & attribute referral code if provided in body or stored cookie
+    const effectiveRef = (typeof referralCode === "string" && referralCode.trim())
+      ? referralCode.trim()
+      : req.cookies.get("cv_ref_code")?.value?.trim();
+
+    if (effectiveRef) {
+      const rawIp = req.headers.get("x-real-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
       const ua = req.headers.get("user-agent") || "unknown";
-      const ipHash = crypto.createHash("sha256").update(ip).digest("hex");
+      const ipHash = crypto.createHash("sha256").update(rawIp).digest("hex");
       const uaHash = crypto.createHash("sha256").update(ua).digest("hex");
-      attributeReferral(referralCode, userId, ipHash, uaHash);
+      attributeReferral(effectiveRef, userId, ipHash, uaHash);
     }
 
     const token = signToken({

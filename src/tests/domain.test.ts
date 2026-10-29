@@ -6,6 +6,7 @@ import {
   attributeReferral,
   getProgramStatus,
   setProgramStatus,
+  processQualifyingReferralReward,
 } from "../lib/referral";
 import { getWallet, submitWithdrawalRequest } from "../lib/wallet";
 import { getUserEntitlements } from "../lib/entitlements";
@@ -86,6 +87,36 @@ test("CodeVanta Advanta Hub — Comprehensive Domain Test Suite", async (t) => {
     // Duplicate attribution prevention
     const duplicateAttribution = attributeReferral(refCodeObj.code, newUserId);
     assert.strictEqual(duplicateAttribution, null, "Duplicate attribution for same user must be rejected");
+
+    // Shared Phone Number Anti-Fraud: Referrer phone registered
+    db.prepare("UPDATE profiles SET phone_number = '0712999888' WHERE id = ?").run(referrerId);
+
+    // Another new referred user
+    const botUserId = crypto.randomUUID();
+    db.prepare(`
+      INSERT INTO profiles (id, email, password_hash, full_name, role, country, created_at, updated_at)
+      VALUES (?, ?, 'hash', 'Colluding User', 'user', 'KE', ?, ?)
+    `).run(botUserId, `bot_${botUserId.slice(0, 8)}@example.com`, now, now);
+
+    const botAttribution = attributeReferral(refCodeObj.code, botUserId);
+    assert.ok(botAttribution, "Initial registration attribution accepted");
+
+    // Payment using referrer's exact phone number (e.g. with country prefix +254712999888)
+    const fraudPaymentId = crypto.randomUUID();
+    const proPlan = db.prepare("SELECT * FROM membership_plans WHERE slug = 'pro'").get() as MembershipPlan;
+    db.prepare(`
+      INSERT INTO payments (
+        id, user_id, plan_id, amount_kes, currency, provider, provider_reference,
+        phone_number, status, idempotency_key, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, 'KES', 'sandbox', 'FRAUD-PHONE-01', '+254712999888', 'completed', ?, ?, ?)
+    `).run(fraudPaymentId, botUserId, proPlan.id, proPlan.price_kes, `IDEMP-${fraudPaymentId}`, now, now);
+
+    // Process reward: Should detect shared phone and invalidate attribution
+    const fraudReward = processQualifyingReferralReward(fraudPaymentId, botUserId, "pro");
+    assert.strictEqual(fraudReward, null, "Shared M-Pesa phone number must block referral reward qualification");
+
+    const checkedAttribution = db.prepare("SELECT status FROM referral_attributions WHERE id = ?").get(botAttribution.id) as { status: string };
+    assert.strictEqual(checkedAttribution.status, "invalidated", "Attribution with matching referrer phone must be invalidated");
   });
 
   await t.test("4. Payment Processing, Webhook Idempotency & Referral Reward Ledger", () => {
@@ -203,6 +234,21 @@ test("CodeVanta Advanta Hub — Comprehensive Domain Test Suite", async (t) => {
     assert.ok(withdrawalEntry, "Ledger must record withdrawal_request entry");
     assert.strictEqual(withdrawalEntry.amount_kes, -200);
     assert.strictEqual(withdrawalEntry.balance_after_kes, 300);
+
+    // Test Concurrency Lock: A 2nd withdrawal while the 1st is still 'submitted' must be rejected
+    const concurrentWithdrawal = submitWithdrawalRequest(testUserId, 100, "0711223344", "Wallet Tester");
+    assert.strictEqual(concurrentWithdrawal.success, false, "Concurrent withdrawal must be rejected");
+    assert.ok(
+      concurrentWithdrawal.error && concurrentWithdrawal.error.includes("in progress"),
+      "Must cite existing in-progress withdrawal"
+    );
+
+    // Complete the first withdrawal
+    db.prepare("UPDATE withdrawal_requests SET status = 'completed' WHERE id = ?").run(allowedWithdrawal.request.id);
+
+    // Now a subsequent withdrawal should succeed
+    const subsequentWithdrawal = submitWithdrawalRequest(testUserId, 100, "0711223344", "Wallet Tester");
+    assert.strictEqual(subsequentWithdrawal.success, true, "Subsequent withdrawal succeeds after previous is completed");
 
     // Reset status back to compliance_review (production default)
     setProgramStatus("compliance_review", adminId);

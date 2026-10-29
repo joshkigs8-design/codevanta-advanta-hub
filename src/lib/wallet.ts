@@ -99,6 +99,18 @@ export function submitWithdrawalRequest(
     };
   }
 
+  // 4. Concurrency lock: Prevent duplicate concurrent pending withdrawals
+  const pendingWithdrawal = db
+    .prepare("SELECT id FROM withdrawal_requests WHERE user_id = ? AND status IN ('submitted', 'processing')")
+    .get(userId) as { id: string } | undefined;
+
+  if (pendingWithdrawal) {
+    return {
+      success: false,
+      error: "You already have a withdrawal request in progress. Please allow it to complete before submitting another.",
+    };
+  }
+
   const requestId = crypto.randomUUID();
   const nowIso = new Date().toISOString();
 
