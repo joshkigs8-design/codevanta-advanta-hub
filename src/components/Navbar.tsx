@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import BrandLogo from "./BrandLogo";
 import {
+  Tv,
   Compass,
   BookOpen,
   Sparkles,
@@ -57,6 +58,7 @@ export default function Navbar() {
     { href: "/directory", label: "Directory", icon: Compass },
     { href: "/guides", label: "Learning & Blueprints", icon: BookOpen },
     { href: "/plans", label: "Membership Plans", icon: Sparkles },
+    { href: "/downloader-codes", label: "Downloader Codes", icon: Tv },
   ];
 
   return (
