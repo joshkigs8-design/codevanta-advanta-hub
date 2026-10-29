@@ -1,8 +1,15 @@
 import React from "react";
 import { PricingClassification, VerificationStatus, SkillLevel } from "@/types";
 
-export function PricingBadge({ pricing }: { pricing: PricingClassification }) {
-  switch (pricing) {
+export function PricingBadge({
+  pricing,
+  classification,
+}: {
+  pricing?: PricingClassification;
+  classification?: PricingClassification;
+}) {
+  const resolved = pricing || classification;
+  switch (resolved) {
     case "free_and_open_source":
       return (
         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-800/60">

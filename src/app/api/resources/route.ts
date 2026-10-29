@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { logAdminAction } from "@/lib/audit";
+import { getUserEntitlements } from "@/lib/entitlements";
 import { Resource } from "@/types";
 import crypto from "node:crypto";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
@@ -19,6 +22,11 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "24", 10)));
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const offset = (page - 1) * limit;
+
+    const user = getCurrentUser();
+    const entitlements = getUserEntitlements(user ? user.id : null);
+    const isAuthenticated = Boolean(user);
+    const isMember = entitlements.planSlug !== "free";
 
     const db = getDb();
 
@@ -99,40 +107,59 @@ export async function GET(req: NextRequest) {
 
     const rows = db.prepare(sql).all(...params) as unknown as Array<Record<string, any>>;
 
-    const resources: Resource[] = rows.map((r) => ({
-      id: r.id,
-      name: r.name,
-      slug: r.slug,
-      short_description: r.short_description,
-      detailed_description: r.detailed_description,
-      official_website: r.official_website,
-      documentation_url: r.documentation_url,
-      category_id: r.category_id,
-      category_name: r.category_name,
-      category_slug: r.category_slug,
-      pricing_classification: r.pricing_classification,
-      free_tier_details: r.free_tier_details,
-      api_key_required: Boolean(r.api_key_required),
-      account_required: Boolean(r.account_required),
-      credit_card_required: Boolean(r.credit_card_required),
-      usage_limits: r.usage_limits,
-      license_info: r.license_info,
-      commercial_use_allowed: Boolean(r.commercial_use_allowed),
-      skill_level: r.skill_level,
-      platforms: JSON.parse(r.platforms || "[]"),
-      programming_languages: JSON.parse(r.programming_languages || "[]"),
-      alternatives: JSON.parse(r.alternatives || "[]"),
-      last_verification_date: r.last_verification_date,
-      verification_status: r.verification_status,
-      editorial_notes: r.editorial_notes,
-      featured: Boolean(r.featured),
-      click_count: r.click_count,
-      created_at: r.created_at,
-      updated_at: r.updated_at,
-    }));
+    // GATING RULES FOR SIGNED-OUT & FREE USERS:
+    // Signed-out guests are locked out of directory resources unless signed in.
+    // Free authenticated users get preview access to the first 6 verified tools; remaining require membership.
+    const resources: Array<Resource & { is_locked?: boolean; lock_reason?: string }> = rows.map((r, index) => {
+      const isLockedForGuest = !isAuthenticated;
+      const isLockedForFree = isAuthenticated && !isMember && index >= 6;
+      const isLocked = isLockedForGuest || isLockedForFree;
+
+      return {
+        id: r.id,
+        name: r.name,
+        slug: r.slug,
+        short_description: r.short_description,
+        detailed_description: isLocked
+          ? "Detailed architectural specifications, verification logs, and setup documentation are reserved for verified CodeVanta members."
+          : r.detailed_description,
+        official_website: isLocked ? "" : r.official_website,
+        documentation_url: isLocked ? "" : r.documentation_url,
+        category_id: r.category_id,
+        category_name: r.category_name,
+        category_slug: r.category_slug,
+        pricing_classification: r.pricing_classification,
+        free_tier_details: isLocked ? "Sign in to unlock verified quota details" : r.free_tier_details,
+        api_key_required: Boolean(r.api_key_required),
+        account_required: Boolean(r.account_required),
+        credit_card_required: Boolean(r.credit_card_required),
+        usage_limits: isLocked ? "Member access required" : r.usage_limits,
+        license_info: isLocked ? "" : r.license_info,
+        commercial_use_allowed: Boolean(r.commercial_use_allowed),
+        skill_level: r.skill_level,
+        platforms: JSON.parse(r.platforms || "[]"),
+        programming_languages: JSON.parse(r.programming_languages || "[]"),
+        alternatives: isLocked ? [] : JSON.parse(r.alternatives || "[]"),
+        last_verification_date: r.last_verification_date,
+        verification_status: r.verification_status,
+        editorial_notes: isLocked ? "" : r.editorial_notes,
+        featured: Boolean(r.featured),
+        click_count: r.click_count,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+        is_locked: isLocked,
+        lock_reason: isLockedForGuest
+          ? "Join CodeVanta for free or sign in to explore our full directory of 50+ verified tools."
+          : isLockedForFree
+          ? "Upgrade to Basic, Pro, or VIP to unlock unrestricted catalog access and advanced filters."
+          : undefined,
+      };
+    });
 
     return NextResponse.json({
       resources,
+      authenticated: isAuthenticated,
+      isMember,
       pagination: {
         total,
         page,
@@ -174,18 +201,22 @@ export async function POST(req: NextRequest) {
       alternatives,
       editorial_notes,
       featured,
+      verification_status,
     } = body;
 
-    if (!name || !official_website || !category_id || !pricing_classification) {
-      return NextResponse.json({ error: "Missing required resource fields." }, { status: 400 });
+    if (!name || !short_description || !official_website || !category_id) {
+      return NextResponse.json({ error: "Required fields missing" }, { status: 400 });
     }
 
-    const id = crypto.randomUUID();
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    const db = getDb();
+    const id = "res-" + crypto.randomUUID().slice(0, 8);
+    const slug = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
     const now = new Date().toISOString();
     const today = now.split("T")[0];
 
-    const db = getDb();
     db.prepare(`
       INSERT INTO resources (
         id, name, slug, short_description, detailed_description, official_website, documentation_url,
@@ -193,23 +224,17 @@ export async function POST(req: NextRequest) {
         credit_card_required, usage_limits, license_info, commercial_use_allowed, skill_level,
         platforms, programming_languages, alternatives, last_verification_date, verification_status,
         editorial_notes, featured, click_count, created_at, updated_at
-      ) VALUES (
-        ?, ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, 'verified',
-        ?, ?, 0, ?, ?
-      )
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
     `).run(
       id,
       name,
       slug,
-      short_description || "",
+      short_description,
       detailed_description || "",
       official_website,
-      documentation_url || official_website,
+      documentation_url || "",
       category_id,
-      pricing_classification,
+      pricing_classification || "freemium",
       free_tier_details || "",
       api_key_required ? 1 : 0,
       account_required ? 1 : 0,
@@ -222,15 +247,16 @@ export async function POST(req: NextRequest) {
       JSON.stringify(programming_languages || []),
       JSON.stringify(alternatives || []),
       today,
+      verification_status || "verified",
       editorial_notes || "",
       featured ? 1 : 0,
       now,
       now
     );
 
-    logAdminAction(user.id, "create_resource", "resources", id, { name, slug, pricing_classification });
+    logAdminAction(user.id, "create_resource", "resources", id, { name, slug });
 
-    return NextResponse.json({ success: true, id, slug });
+    return NextResponse.json({ id, slug, message: "Resource created successfully" }, { status: 201 });
   } catch (err: unknown) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Internal Server Error" }, { status: 500 });
   }

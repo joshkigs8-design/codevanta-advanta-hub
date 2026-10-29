@@ -103,6 +103,52 @@ export default async function HomePage() {
           {/* Multi-layered dark atmospheric overlays for crisp text contrast */}
           <div className="hero-vignette absolute inset-0" />
           <div className="absolute inset-0 bg-gradient-to-t from-hub-bg via-hub-bg/35 to-black/45" />
+
+          {/* Monumental Faded Architectural Logo Watermark Overlay */}
+          <div
+            className="pointer-events-none select-none absolute left-1/2 top-[44%] -translate-x-1/2 -translate-y-1/2 w-[720px] sm:w-[980px] lg:w-[1300px] aspect-square flex items-center justify-center opacity-[0.08] mix-blend-screen z-[2] blur-[0.5px]"
+            aria-hidden="true"
+          >
+            <svg
+              viewBox="0 0 64 64"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-full h-full drop-shadow-[0_0_140px_rgba(201,0,61,0.5)] transform -rotate-6 scale-105"
+            >
+              <defs>
+                <linearGradient id="heroWatermarkRuby" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#ff2a5f" />
+                  <stop offset="50%" stopColor="#c9003d" />
+                  <stop offset="100%" stopColor="#7a0024" />
+                </linearGradient>
+                <linearGradient id="heroWatermarkTop" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
+                  <stop offset="100%" stopColor="#ffffff" stopOpacity="0.3" />
+                </linearGradient>
+                <linearGradient id="heroWatermarkLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#64748b" />
+                  <stop offset="100%" stopColor="#1e293b" />
+                </linearGradient>
+                <radialGradient id="heroWatermarkAura" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stopColor="#c9003d" stopOpacity="0.45" />
+                  <stop offset="60%" stopColor="#c9003d" stopOpacity="0.1" />
+                  <stop offset="100%" stopColor="#080a0f" stopOpacity="0" />
+                </radialGradient>
+              </defs>
+              {/* Luminous Ruby Core Aura */}
+              <circle cx="32" cy="30" r="28" fill="url(#heroWatermarkAura)" />
+              {/* Monolithic Hexagonal Prism Geometry */}
+              <path d="M32 10 L50 20 L32 30 L14 20 Z" fill="url(#heroWatermarkTop)" />
+              <path d="M14 20 L32 30 V52 L14 42 Z" fill="url(#heroWatermarkLeft)" />
+              <path d="M32 30 L50 20 V42 L32 52 Z" fill="url(#heroWatermarkRuby)" />
+              <path d="M32 22 L42 27.5 L32 33 L22 27.5 Z" fill="#080a0f" opacity="0.95" />
+              <circle cx="32" cy="27.5" r="2.5" fill="#ffffff" />
+              <circle cx="32" cy="27.5" r="1.2" fill="#ff2a5f" />
+            </svg>
+          </div>
+
+          {/* Cinematic Atmospheric Lighting Layers */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-hub-bg pointer-events-none z-[3]" />
         </div>
 
         {/* Hero Top Content */}
@@ -125,9 +171,22 @@ export default async function HomePage() {
 
           {/* GIGANTIC MONUMENTAL BRAND DISPLAY (MATCHING MODO ARCHITECTURAL MASTHEAD) */}
           <div className="py-2 sm:py-6">
-            <h1 className="hero-title text-[52px] sm:text-[96px] md:text-[144px] lg:text-[192px] font-black tracking-[-0.075em] text-white uppercase select-none leading-[0.84] drop-shadow-2xl font-sans">
-              Codevanta<span className="text-hub-gold">.</span>
+            <h1 className="hero-title text-[52px] sm:text-[96px] md:text-[144px] lg:text-[192px] font-black tracking-[-0.075em] text-white uppercase select-none leading-[0.84] drop-shadow-[0_20px_45px_rgba(0,0,0,0.9)] font-sans">
+              Codevanta<span className="text-hub-gold drop-shadow-[0_0_30px_rgba(201,0,61,0.8)]">.</span>
             </h1>
+            {/* Cinematic Live Ticker Strip */}
+            <div className="mt-3 flex items-center gap-4 text-[10px] sm:text-[11px] font-mono tracking-widest uppercase text-white/60 overflow-hidden">
+              <span className="inline-flex items-center gap-1.5 text-emerald-400 font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                TELEMETRY: NOMINAL
+              </span>
+              <span className="text-white/20">/</span>
+              <span className="hidden sm:inline">50+ AUDITED APIS</span>
+              <span className="hidden sm:inline text-white/20">/</span>
+              <span className="hidden md:inline">0 CREDIT CARDS REQUIRED</span>
+              <span className="hidden md:inline text-white/20">/</span>
+              <span className="text-hub-gold">NAIROBI &amp; GLOBAL EDGE</span>
+            </div>
           </div>
 
           {/* Subheading, Description & Action Grid */}
@@ -386,8 +445,21 @@ export default async function HomePage() {
       {/* ========================================================================= */}
       {/* 3. SECTION: READY-TO-SHIP STACKS / CATALOG (3 LARGE CARDS + STATS PILL)   */}
       {/* ========================================================================= */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-white/10 pb-4">
+      <section className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+        {/* Architectural Background Watermark */}
+        <div
+          className="pointer-events-none select-none absolute right-[-100px] top-1/2 -translate-y-1/2 w-[550px] h-[550px] opacity-[0.04] blur-[0.5px] z-0 overflow-hidden"
+          aria-hidden="true"
+        >
+          <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full transform rotate-12">
+            <path d="M32 10 L50 20 L32 30 L14 20 Z" fill="#ffffff" />
+            <path d="M14 20 L32 30 V52 L14 42 Z" fill="#64748b" />
+            <path d="M32 30 L50 20 V42 L32 52 Z" fill="#c9003d" />
+            <circle cx="32" cy="27.5" r="2.5" fill="#ffffff" />
+          </svg>
+        </div>
+
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-white/10 pb-4">
           <div>
             <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-hub-gold font-bold mb-1">
               <Sparkles className="w-4 h-4" />

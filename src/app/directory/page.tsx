@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, Suspense } from "react";
+import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Resource, Category, PricingClassification, SkillLevel } from "@/types";
 import ResourceCard from "@/components/ResourceCard";
@@ -16,6 +17,8 @@ import {
   SlidersHorizontal,
   RotateCcw,
   Loader2,
+  Lock,
+  ArrowRight,
 } from "lucide-react";
 
 function DirectoryContent() {
@@ -38,6 +41,7 @@ function DirectoryContent() {
   const [noApiKey, setNoApiKey] = useState(false);
   const [sort, setSort] = useState("featured");
   const [totalCount, setTotalCount] = useState(0);
+  const [authStatus, setAuthStatus] = useState<{ authenticated: boolean; isMember: boolean }>({ authenticated: false, isMember: false });
 
   // Fetch categories on mount
   useEffect(() => {
@@ -79,6 +83,9 @@ function DirectoryContent() {
       if (res.ok) {
         setResources(data.resources || []);
         setTotalCount(data.pagination?.total || 0);
+        if (typeof data.authenticated === "boolean") {
+          setAuthStatus({ authenticated: data.authenticated, isMember: Boolean(data.isMember) });
+        }
       }
     } catch {
       setResources([]);
@@ -270,6 +277,65 @@ function DirectoryContent() {
           </span>
         )}
       </div>
+
+      {/* Paywall Banner for Signed-Out Visitors */}
+      {!loading && !authStatus.authenticated && (
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-950/70 via-red-950/60 to-black/85 border border-amber-500/40 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
+          <div className="absolute -right-12 -bottom-12 w-56 h-56 rounded-full bg-amber-500/15 blur-3xl pointer-events-none" />
+          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="space-y-2 max-w-xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 font-mono text-xs uppercase tracking-wider font-bold">
+                <Lock className="w-3.5 h-3.5" />
+                <span>Guest Access Restricted</span>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                Directory Tools Are Locked Behind Sign In
+              </h3>
+              <p className="text-sm text-hub-text-secondary leading-relaxed">
+                You are currently browsing as a guest. All directory resources, verified quota specs, and direct access links are locked. Sign in or create a free account to unlock our verified developer catalog.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 shrink-0 flex-wrap">
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-hub-gold text-white hover:bg-hub-gold-hover shadow-gold-glow transition-all active:scale-95"
+              >
+                <Lock className="w-4 h-4" />
+                <span>Sign In to Unlock</span>
+              </Link>
+              <Link
+                href="/register"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-md transition-all active:scale-95"
+              >
+                <span>Create Free Account</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upgrade Banner for Free Tier Users */}
+      {!loading && authStatus.authenticated && !authStatus.isMember && (
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-950/40 via-purple-950/30 to-black/70 border border-blue-500/30 p-5 sm:p-6 backdrop-blur-xl">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <span className="text-xs font-mono uppercase tracking-wider text-blue-400 font-bold">
+                Free Account Active
+              </span>
+              <p className="text-sm text-hub-text-secondary">
+                You have preview access to basic developer tools. Upgrade to Basic, Pro, or VIP to unlock our entire 50+ enterprise tool catalog and unlimited blueprints.
+              </p>
+            </div>
+            <Link
+              href="/plans"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold bg-white text-black hover:bg-hub-gold hover:text-white transition-all shrink-0"
+            >
+              <span>View Plans</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Resources Grid */}
       {resources.length > 0 ? (
