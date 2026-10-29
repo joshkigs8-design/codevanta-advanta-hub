@@ -197,8 +197,41 @@ export default function TutorialDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Formatted Markdown Guide */}
         <article className="lg:col-span-8 space-y-8 min-w-0">
-          <div className="bg-hub-surface-card border border-white/10 rounded-2xl p-6 sm:p-10 shadow-xl">
+          <div className="bg-hub-surface-card border border-white/10 rounded-2xl p-6 sm:p-10 shadow-xl relative overflow-hidden">
             <MarkdownRenderer content={tutorial.content} />
+
+            {/* In-article Paywall Lock for Non-Members */}
+            {tutorial.is_locked && (
+              <div className="mt-8 pt-8 border-t border-amber-500/30 rounded-2xl bg-gradient-to-b from-amber-950/20 via-black/80 to-black p-6 sm:p-10 text-center backdrop-blur-md shadow-2xl space-y-4">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center mx-auto shadow-lg">
+                  <Lock className="w-6 h-6" />
+                </div>
+                <span className="text-xs font-mono uppercase tracking-widest text-amber-400 font-bold">
+                  Member-Exclusive Content (Preview Mode)
+                </span>
+                <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                  Unlock Complete Step-by-Step Instructions &amp; CLI Commands
+                </h3>
+                <p className="text-xs sm:text-sm text-hub-text-secondary max-w-lg mx-auto leading-relaxed">
+                  The complete implementation steps, terminal commands, configuration files, and troubleshooting runbooks for this guide are reserved for CodeVanta Members.
+                </p>
+                <div className="pt-2 flex items-center justify-center gap-3 flex-wrap">
+                  <Link
+                    href="/plans"
+                    className="px-6 py-3 rounded-xl text-sm font-semibold bg-hub-gold text-white hover:bg-hub-gold-hover shadow-gold-glow transition-all active:scale-95 flex items-center gap-2"
+                  >
+                    <Lock className="w-4 h-4" />
+                    <span>Unlock with CodeVanta Membership (From KES 150)</span>
+                  </Link>
+                  <Link
+                    href="/login"
+                    className="px-6 py-3 rounded-xl text-sm font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-md transition-all active:scale-95"
+                  >
+                    <span>Sign In</span>
+                  </Link>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Troubleshooting Section */}

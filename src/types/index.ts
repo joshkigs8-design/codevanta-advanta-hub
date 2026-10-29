@@ -359,6 +359,9 @@ export interface Tutorial {
   last_verified_date: string;
   is_published: boolean;
   featured: boolean;
+  is_locked?: boolean;
+  is_preview?: boolean;
+  lock_reason?: string;
   created_at: string;
   updated_at: string;
 }

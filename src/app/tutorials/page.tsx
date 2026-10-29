@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   X,
   Loader2,
+  Lock,
 } from "lucide-react";
 
 const CATEGORIES = [
@@ -35,11 +36,13 @@ function TutorialsContent() {
   const searchParams = useSearchParams();
   const initialCategory = searchParams.get("category") || "";
 
-  const [tutorials, setTutorials] = useState<Tutorial[]>([]);
+  const [tutorials, setTutorials] = useState<Array<Tutorial & { is_locked?: boolean }>>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [selectedDifficulty, setSelectedDifficulty] = useState("");
+  const [isMember, setIsMember] = useState(false);
+  const [authenticated, setAuthenticated] = useState(false);
 
   const fetchTutorials = useCallback(async () => {
     setLoading(true);
@@ -52,6 +55,8 @@ function TutorialsContent() {
       const res = await fetch(`/api/tutorials?${params.toString()}`);
       const data = await res.json();
       setTutorials(data.tutorials || []);
+      if (typeof data.isMember === "boolean") setIsMember(data.isMember);
+      if (typeof data.authenticated === "boolean") setAuthenticated(data.authenticated);
     } catch {
       setTutorials([]);
     } finally {
@@ -188,63 +193,116 @@ function TutorialsContent() {
         )}
       </div>
 
+      {/* Paywall Banner for Non-Members / Guests */}
+      {!loading && !isMember && (
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-950/70 via-red-950/60 to-black/85 border border-amber-500/40 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
+          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="space-y-2 max-w-xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 font-mono text-xs uppercase tracking-wider font-bold">
+                <Lock className="w-3.5 h-3.5" />
+                <span>{authenticated ? "Membership Paywall" : "Guest Preview Mode"}</span>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                Unlock Complete Technical Tutorial Library
+              </h3>
+              <p className="text-sm text-hub-text-secondary leading-relaxed">
+                You are currently viewing preview guides. Upgrade to CodeVanta Basic, Pro, or VIP to unlock all verified installation steps, hardware matrices, terminal runbooks, and offline PDF guide exports.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 shrink-0 flex-wrap">
+              <Link
+                href="/plans"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-hub-gold text-white hover:bg-hub-gold-hover shadow-gold-glow transition-all active:scale-95"
+              >
+                <Lock className="w-4 h-4" />
+                <span>Upgrade to Unlock All Guides</span>
+              </Link>
+              {!authenticated && (
+                <Link
+                  href="/login"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-md transition-all active:scale-95"
+                >
+                  <span>Sign In</span>
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tutorials Grid */}
       {tutorials.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {tutorials.map((tut) => (
-            <Link
-              key={tut.id}
-              href={`/tutorials/${tut.slug}`}
-              className="group relative flex flex-col justify-between rounded-2xl bg-hub-surface-card border border-white/10 hover:border-hub-gold/50 transition-all p-6 shadow-md hover:-translate-y-1 hover:shadow-card-subtle overflow-hidden"
-            >
-              <div className="space-y-4">
-                {/* Top Badge Row */}
-                <div className="flex items-center justify-between gap-2">
-                  {getDifficultyBadge(tut.difficulty)}
-                  <div className="flex items-center gap-1 text-[11px] font-mono text-hub-text-muted">
-                    <Clock className="w-3 h-3 text-hub-gold" />
-                    <span>{tut.estimated_minutes} min read</span>
-                  </div>
-                </div>
+          {tutorials.map((tut) => {
+            const isLocked = Boolean(tut.is_locked);
 
-                {/* Title & Summary */}
-                <div>
-                  <h3 className="text-lg font-bold text-white group-hover:text-hub-gold transition-colors leading-snug">
-                    {tut.title}
-                  </h3>
-                  <p className="text-xs text-hub-text-secondary mt-2 line-clamp-3 leading-relaxed">
-                    {tut.summary}
-                  </p>
-                </div>
-
-                {/* Supported OS Badges */}
-                {tut.supported_os && tut.supported_os.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {tut.supported_os.map((os) => (
-                      <span
-                        key={os}
-                        className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-white/70"
-                      >
-                        {os}
+            return (
+              <Link
+                key={tut.id}
+                href={`/tutorials/${tut.slug}`}
+                className={`group relative flex flex-col justify-between rounded-2xl border transition-all p-6 shadow-md overflow-hidden ${
+                  isLocked
+                    ? "bg-hub-surface-card/75 border-amber-500/30"
+                    : "bg-hub-surface-card border-white/10 hover:border-hub-gold/50 hover:-translate-y-1 hover:shadow-card-subtle"
+                }`}
+              >
+                <div className="space-y-4">
+                  {/* Top Badge Row */}
+                  <div className="flex items-center justify-between gap-2">
+                    {isLocked ? (
+                      <span className="px-2 py-0.5 rounded text-[11px] font-mono uppercase font-bold bg-amber-950/80 text-amber-300 border border-amber-600/50 flex items-center gap-1">
+                        <Lock className="w-3 h-3" /> Member Guide
                       </span>
-                    ))}
+                    ) : (
+                      getDifficultyBadge(tut.difficulty)
+                    )}
+                    <div className="flex items-center gap-1 text-[11px] font-mono text-hub-text-muted">
+                      <Clock className="w-3 h-3 text-hub-gold" />
+                      <span>{tut.estimated_minutes} min read</span>
+                    </div>
                   </div>
-                )}
-              </div>
 
-              {/* Card Footer */}
-              <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-1.5 text-emerald-400 text-[11px] font-mono">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Verified {tut.last_verified_date}</span>
+                  {/* Title & Summary */}
+                  <div>
+                    <h3 className="text-lg font-bold text-white group-hover:text-hub-gold transition-colors leading-snug">
+                      {tut.title}
+                    </h3>
+                    <p className="text-xs text-hub-text-secondary mt-2 line-clamp-3 leading-relaxed">
+                      {tut.summary}
+                    </p>
+                  </div>
+
+                  {/* Supported OS Badges */}
+                  {tut.supported_os && tut.supported_os.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {tut.supported_os.map((os) => (
+                        <span
+                          key={os}
+                          className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-white/70"
+                        >
+                          {os}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-1 text-hub-gold font-semibold group-hover:translate-x-0.5 transition-transform">
-                  <span>Read Guide</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+
+                {/* Card Footer */}
+                <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-1.5 text-emerald-400 text-[11px] font-mono">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Verified {tut.last_verified_date}</span>
+                  </div>
+                  <div className={`flex items-center gap-1 font-semibold group-hover:translate-x-0.5 transition-transform ${
+                    isLocked ? "text-amber-400" : "text-hub-gold"
+                  }`}>
+                    <span>{isLocked ? "Read Preview" : "Read Guide"}</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </div>
                 </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       ) : (
         <div className="text-center py-16 space-y-4 rounded-2xl bg-hub-surface border border-hub-border p-8">
