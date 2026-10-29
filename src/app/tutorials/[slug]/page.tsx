@@ -20,6 +20,9 @@ import {
   AlertTriangle,
   Loader2,
   Share2,
+  Lock,
+  ArrowRight,
+  X,
 } from "lucide-react";
 
 export default function TutorialDetailPage() {
@@ -31,6 +34,17 @@ export default function TutorialDetailPage() {
   const [related, setRelated] = useState<Tutorial[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isMember, setIsMember] = useState(false);
+  const [showPaywallNotice, setShowPaywallNotice] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        setIsMember(Boolean(data.authenticated && data.entitlements?.planSlug !== "free"));
+      })
+      .catch(() => setIsMember(false));
+  }, []);
 
   useEffect(() => {
     if (!slug) return;
@@ -51,6 +65,10 @@ export default function TutorialDetailPage() {
   }, [slug]);
 
   const handlePrintPdf = () => {
+    if (!isMember) {
+      setShowPaywallNotice(true);
+      return;
+    }
     window.print();
   };
 
@@ -102,6 +120,11 @@ export default function TutorialDetailPage() {
           >
             <FileDown className="w-3.5 h-3.5 text-hub-gold" />
             <span>Download PDF Guide</span>
+            {!isMember && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono font-bold flex items-center gap-0.5">
+                <Lock className="w-2.5 h-2.5" /> Pro
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -251,6 +274,60 @@ export default function TutorialDetailPage() {
           </div>
         </aside>
       </div>
+
+      {/* Paywall Modal for Non-Members */}
+      {showPaywallNotice && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+          onClick={() => setShowPaywallNotice(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-md rounded-2xl bg-hub-surface-card border border-amber-500/40 p-6 sm:p-8 shadow-2xl shadow-black/80 space-y-5"
+          >
+            <button
+              onClick={() => setShowPaywallNotice(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg text-hub-text-muted hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center shadow-lg">
+              <Lock className="w-6 h-6" />
+            </div>
+
+            <div className="space-y-2">
+              <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-amber-400">
+                Member-Exclusive Perk
+              </span>
+              <h3 className="text-xl font-bold text-white tracking-tight">
+                Offline PDF Guides &amp; Starter Kits
+              </h3>
+              <p className="text-xs text-hub-text-secondary leading-relaxed">
+                Offline PDF export, cloneable GitHub starter repositories, and architecture blueprint files are reserved for CodeVanta Pro &amp; VIP members. Upgrade today for instant lifetime access.
+              </p>
+            </div>
+
+            <div className="pt-2 flex flex-col gap-2.5">
+              <Link
+                href="/plans"
+                className="w-full py-3 rounded-xl text-center text-xs font-semibold bg-hub-gold hover:bg-hub-gold-hover text-white transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
+              >
+                <span>View Membership Plans (From KES 150)</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+              <button
+                onClick={() => setShowPaywallNotice(false)}
+                className="w-full py-2.5 rounded-xl text-xs font-medium text-hub-text-muted hover:text-white transition-colors"
+              >
+                Continue Reading Online
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Related Tutorials Strip */}
       {related && related.length > 0 && (

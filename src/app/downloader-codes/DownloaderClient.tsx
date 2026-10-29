@@ -75,15 +75,22 @@ export default function DownloaderClient() {
   const [search, setSearch] = useState("");
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isMember, setIsMember] = useState<boolean>(false);
   const [loadingAuth, setLoadingAuth] = useState<boolean>(true);
 
   useEffect(() => {
     fetch("/api/auth/me")
       .then((res) => res.json())
       .then((data) => {
-        setIsAuthenticated(Boolean(data.authenticated));
+        const authed = Boolean(data.authenticated);
+        setIsAuthenticated(authed);
+        const member = authed && data.entitlements?.planSlug && data.entitlements.planSlug !== "free";
+        setIsMember(Boolean(member));
       })
-      .catch(() => setIsAuthenticated(false))
+      .catch(() => {
+        setIsAuthenticated(false);
+        setIsMember(false);
+      })
       .finally(() => setLoadingAuth(false));
   }, []);
 
@@ -162,36 +169,38 @@ export default function DownloaderClient() {
         </div>
       </div>
 
-      {/* Paywall Banner for Signed-Out Guests */}
-      {!loadingAuth && !isAuthenticated && (
+      {/* Paywall Banner for Non-Members / Guests */}
+      {!loadingAuth && !isMember && (
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-950/70 via-red-950/60 to-black/85 border border-amber-500/40 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
           <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="space-y-2 max-w-xl">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 font-mono text-xs uppercase tracking-wider font-bold">
                 <Lock className="w-3.5 h-3.5" />
-                <span>Guest Preview Mode</span>
+                <span>{isAuthenticated ? "Membership Paywall" : "Guest Preview Mode"}</span>
               </div>
               <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                Unlock Complete Downloader Catalog
+                Unlock Complete Downloader &amp; Sideload Catalog
               </h3>
               <p className="text-sm text-hub-text-secondary leading-relaxed">
-                You are currently viewing 2 free sample codes as a guest. Sign in or create a free account to reveal all 6 verified short codes, one-click direct APK mirrors, and GitHub release links.
+                You are currently viewing 2 free sample codes. Upgrade to CodeVanta Basic, Pro, or VIP to unlock all verified short codes, one-click direct APK mirrors, and GitHub release links.
               </p>
             </div>
             <div className="flex items-center gap-3 shrink-0 flex-wrap">
               <Link
-                href="/login"
+                href="/plans"
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-hub-gold text-white hover:bg-hub-gold-hover shadow-gold-glow transition-all active:scale-95"
               >
                 <Lock className="w-4 h-4" />
-                <span>Sign In to Unlock All</span>
+                <span>Upgrade to Unlock All Codes</span>
               </Link>
-              <Link
-                href="/register"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-md transition-all active:scale-95"
-              >
-                <span>Create Free Account</span>
-              </Link>
+              {!isAuthenticated && (
+                <Link
+                  href="/login"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-md transition-all active:scale-95"
+                >
+                  <span>Sign In</span>
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -212,7 +221,7 @@ export default function DownloaderClient() {
       {/* Grid of Codes */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {filteredCodes.map((item, index) => {
-          const isLocked = !isAuthenticated && index >= 2;
+          const isLocked = !isMember && index >= 2;
           const displayCode = isLocked ? `${item.code.slice(0, 3)}****` : item.code;
 
           return (
@@ -285,11 +294,11 @@ export default function DownloaderClient() {
 
                 {isLocked ? (
                   <Link
-                    href="/login"
+                    href={isAuthenticated ? "/plans" : "/login"}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-300 bg-amber-950/60 border border-amber-800 hover:bg-amber-900/60 transition-colors"
                   >
                     <Lock className="w-3 h-3" />
-                    <span>Sign In to Reveal</span>
+                    <span>{isAuthenticated ? "Upgrade to Reveal" : "Sign In to Reveal"}</span>
                   </Link>
                 ) : (
                   <a
