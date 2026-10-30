@@ -699,4 +699,128 @@ USING (auth.uid() = id);
     created_at: now,
     updated_at: now,
   },
+  {
+    id: "tut-moviebox-tui-vlc-iptv",
+    slug: "moviebox-tui-vlc-iptv-streaming-setup",
+    title: "MovieBox-TUI & VLC IPTV: Setup Terminal Streaming and 8,000+ Free Live TV Channels",
+    summary: "Step-by-step setup guide for MovieBox-TUI (Rust) and VLC Media Player to stream movies, series, anime, and global legal IPTV channels directly from the command line.",
+    category: "ides-tools",
+    difficulty: "beginner",
+    estimated_minutes: 25,
+    prerequisites: [
+      "Windows 10/11, macOS, Linux, or Android Termux",
+      "VLC Media Player or mpv installed locally",
+      "Basic terminal or PowerShell knowledge",
+      "Optional: Scoop on Windows or Homebrew on macOS",
+    ],
+    supported_os: ["Windows 10/11", "macOS", "Linux", "Android (Termux)"],
+    content: `# MovieBox-TUI & VLC IPTV: Terminal Streaming and Live TV Guide
+
+> **Overview:** Stream movies, series, anime, and thousands of free, legal live television broadcasts directly from your command line using MovieBox-TUI and VLC Media Player.
+
+---
+
+## 1. What is MovieBox-TUI?
+
+**[MovieBox-TUI](https://github.com/mesamirh/MovieBox-Tui)** is an open-source, high-performance terminal user interface written in Rust. It enables developers to browse, search, and stream multimedia content without opening heavy web browsers or ad-cluttered websites.
+
+### Key Capabilities:
+- **Zero Ads / Zero Popups:** Bypasses browser trackers and ad networks by directly extracting clean media streams.
+- **Hardware-Accelerated External Players:** Automatically launches **VLC**, **mpv**, or **IINA** with proper user-agent headers and cookie forwarding.
+- **Resolution Control:** Pick your stream quality (4K, 1080p, 720p, 480p, or Auto) before playback.
+- **Batch Downloading:** Download entire seasons or individual episodes concurrently via \`yt-dlp\` and \`ffmpeg\`.
+- **Live IPTV & M3U Playlists:** Integrated IPTV player with category filtering, search, and Electronic Program Guide (EPG).
+
+---
+
+## 2. Installing MovieBox-TUI
+
+### Windows (Recommended via Scoop)
+\`\`\`powershell
+# Add the MovieBox Scoop bucket
+scoop bucket add moviebox https://github.com/mesamirh/MovieBox-Tui
+
+# Install the application
+scoop install moviebox-tui
+\`\`\`
+
+### Windows / Linux (via Cargo / Rust)
+\`\`\`bash
+cargo install --git https://github.com/mesamirh/MovieBox-Tui
+\`\`\`
+
+### macOS & Linux (via Homebrew)
+\`\`\`bash
+brew tap mesamirh/moviebox-tui https://github.com/mesamirh/MovieBox-Tui
+brew install moviebox-tui
+\`\`\`
+
+### Linux / macOS (One-Line Automated Script)
+\`\`\`bash
+curl -fsSL https://raw.githubusercontent.com/mesamirh/MovieBox-Tui/main/install.sh | bash
+\`\`\`
+
+### Arch Linux (via AUR)
+\`\`\`bash
+yay -S moviebox-tui
+\`\`\`
+
+---
+
+## 3. Configuring VLC Media Player as the Default Player
+
+MovieBox-TUI requires a local media player engine to render video streams. While **mpv** is lightweight, **VLC Media Player** offers the widest codec compatibility.
+
+1. Install VLC from [videolan.org](https://www.videolan.org/vlc/) or via winget:
+   \`\`\`powershell
+   winget install VideoLAN.VLC
+   \`\`\`
+2. Verify VLC is accessible in your PATH, or launch MovieBox-TUI and open the settings dialog (\`/settings\` or press \`S\`).
+3. Set **Default Video Player** to \`vlc\`.
+4. Now, selecting any movie, anime, or series episode will automatically launch VLC in borderless or fullscreen mode with synced subtitles!
+
+---
+
+## 4. Streaming 8,000+ Legal Live TV Channels with VLC & IPTV-Org
+
+**[IPTV-Org](https://github.com/iptv-org/iptv)** is a community project indexing publicly available, legal broadcast streams from television networks across the globe (news, sports, nature, public access, and regional stations).
+
+### Method A: Direct Streaming in VLC
+1. Open VLC Media Player.
+2. Click **Media** (top menu) ➔ **Open Network Stream...** (Shortcut: \`Ctrl + N\` on Windows/Linux, \`Cmd + N\` on Mac).
+3. Paste one of the official verified IPTV-Org playlist URLs:
+   - **Global Master Playlist:** \`https://iptv-org.github.io/iptv/index.m3u\`
+   - **English Language Channels:** \`https://iptv-org.github.io/iptv/languages/eng.m3u\`
+   - **News Channels Only:** \`https://iptv-org.github.io/iptv/categories/news.m3u\`
+   - **Sports Channels Only:** \`https://iptv-org.github.io/iptv/categories/sports.m3u\`
+4. Click **Play**.
+5. Press \`Ctrl + L\` (or \`Cmd + L\` on Mac) to view the channel playlist drawer. Double-click any channel to start streaming instantly.
+
+### Method B: Streaming IPTV inside MovieBox-TUI
+1. Launch MovieBox-TUI:
+   \`\`\`bash
+   moviebox-tui
+   \`\`\`
+2. Navigate to the **Live TV / IPTV** tab using the arrow keys or Vim keys (\`h\`, \`j\`, \`k\`, \`l\`).
+3. Press \`A\` to add a custom M3U source and enter:
+   \`https://iptv-org.github.io/iptv/index.m3u\`
+4. Search or filter by country or category and hit \`Enter\` to launch your selected channel directly in VLC!
+
+---
+
+## 5. Troubleshooting Common Issues
+
+- **Stream Buffering or Freezing:** Free public broadcast streams rely on host server bandwidth. If a stream freezes, switch to a regional mirror or check another channel in the playlist.
+- **Playlist Lag in VLC:** The master \`index.m3u\` contains over 8,000 entries and may take a few seconds to parse. For faster performance, use language or category-specific M3U links.
+- **Font / Icon Glitches:** MovieBox-TUI looks best with a Nerd Font (such as JetBrains Mono Nerd Font or FiraCode Nerd Font) installed in your terminal emulator.
+`,
+    troubleshooting_notes: "If VLC fails to launch from MovieBox-TUI, confirm `vlc` is in your system PATH or specify the full path to `vlc.exe` in the configuration file `~/.config/moviebox/config.toml`.",
+    security_warnings: "Only use verified public broadcast playlists from trusted repositories like iptv-org/iptv. Never download suspicious third-party playlist executables or untrusted player binaries.",
+    official_docs_url: "https://github.com/mesamirh/MovieBox-Tui",
+    last_verified_date: "2026-10-30",
+    is_published: true,
+    featured: true,
+    created_at: now,
+    updated_at: now,
+  },
 ];

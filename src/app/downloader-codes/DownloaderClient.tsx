@@ -69,6 +69,33 @@ const DOWNLOADER_CODES: DownloaderCode[] = [
     tags: ["App Manager", "Home Screen", "Aptoide", "Nebula/Anker"],
     versionNote: "Verified Aptoide App ID 61078189 (com.zhixin.atvchannel)",
   },
+  {
+    code: "11598",
+    name: "VLC Media Player (Android & Fire TV)",
+    category: "Media & Streaming",
+    description: "The gold-standard open-source media player. Plays all local formats, network streams, and live M3U IPTV channels (fully compatible with IPTV-Org).",
+    targetUrl: "https://get.videolan.org/vlc-android/3.5.4/VLC-Android-3.5.4-arm64-v8a.apk",
+    tags: ["VLC", "IPTV Streamer", "Open Source", "Android TV", "Firestick"],
+    versionNote: "Official VideoLAN build — supports M3U Network Streams",
+  },
+  {
+    code: "874120",
+    name: "MovieBox-TUI (GitHub Streamer)",
+    category: "Media & Streaming",
+    description: "Fast terminal-based media streaming client in Rust for movies, anime, TV series, and live IPTV with VLC and mpv external player forwarding.",
+    targetUrl: "https://github.com/mesamirh/MovieBox-Tui",
+    tags: ["Rust TUI", "GitHub", "Terminal Streamer", "VLC Support", "Anime & Movies"],
+    versionNote: "mesamirh/MovieBox-Tui — scoop / brew / cargo / Termux",
+  },
+  {
+    code: "549812",
+    name: "IPTV-Org Live TV Playlists (M3U)",
+    category: "Media & Streaming",
+    description: "Over 8,000 free, legal public broadcast television channels worldwide. Stream directly inside VLC Media Player or MovieBox-TUI.",
+    targetUrl: "https://iptv-org.github.io/iptv/index.m3u",
+    tags: ["M3U Playlist", "Live TV", "IPTV-Org", "VLC Streams", "Global Channels"],
+    versionNote: "Community-curated 8,000+ public broadcast channels",
+  },
 ];
 
 export default function DownloaderClient() {
