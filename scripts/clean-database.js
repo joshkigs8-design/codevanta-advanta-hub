@@ -34,6 +34,9 @@ safeDelete('wallet_accounts', "user_id != '00000000-0000-4000-a000-000000000001'
 safeDelete('profiles', "role != 'admin'");
 
 // Reset admin stats
+if (tables.includes('resources')) {
+  db.prepare("UPDATE resources SET click_count = 0").run();
+}
 if (tables.includes('referral_codes')) {
   db.prepare("UPDATE referral_codes SET clicks = 0 WHERE user_id = '00000000-0000-4000-a000-000000000001'").run();
 }

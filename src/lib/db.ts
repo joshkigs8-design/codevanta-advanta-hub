@@ -2090,7 +2090,7 @@ function seedInitialData(db: DatabaseSync) {
       verification_status: "verified",
       editorial_notes: "Strongest free quota for text and vision processing. Requires Google account; does not demand credit card for standard Studio API keys.",
       featured: 1,
-      click_count: 240,
+      click_count: 0,
     },
     {
       id: "res-groq",
@@ -2117,7 +2117,7 @@ function seedInitialData(db: DatabaseSync) {
       verification_status: "verified",
       editorial_notes: "Fastest free inference API available. Excellent for real-time voice and streaming chat UX.",
       featured: 1,
-      click_count: 185,
+      click_count: 0,
     },
     {
       id: "res-supabase",
@@ -2144,7 +2144,7 @@ function seedInitialData(db: DatabaseSync) {
       verification_status: "verified",
       editorial_notes: "Standard choice for modern web and mobile apps. Generous free tier with genuine Postgres power.",
       featured: 1,
-      click_count: 310,
+      click_count: 0,
     },
     {
       id: "res-neon",
@@ -2171,7 +2171,7 @@ function seedInitialData(db: DatabaseSync) {
       verification_status: "verified",
       editorial_notes: "Perfect for preview deployments and staging databases with instant zero-cost branching.",
       featured: 0,
-      click_count: 120,
+      click_count: 0,
     },
     {
       id: "res-turso",
@@ -2198,7 +2198,7 @@ function seedInitialData(db: DatabaseSync) {
       verification_status: "verified",
       editorial_notes: "Outstanding free tier limits (up to 500 databases and 9 GB total data).",
       featured: 0,
-      click_count: 95,
+      click_count: 0,
     },
     {
       id: "res-render",
@@ -2225,7 +2225,7 @@ function seedInitialData(db: DatabaseSync) {
       verification_status: "verified",
       editorial_notes: "Dependable Heroku alternative. Free tier requires no credit card for hobbyist projects.",
       featured: 1,
-      click_count: 220,
+      click_count: 0,
     },
     {
       id: "res-cloudflare-pages",
@@ -2252,7 +2252,7 @@ function seedInitialData(db: DatabaseSync) {
       verification_status: "verified",
       editorial_notes: "The only major provider offering unlimited free egress bandwidth without sudden bill surprises.",
       featured: 1,
-      click_count: 275,
+      click_count: 0,
     },
     {
       id: "res-clerk",
@@ -2279,7 +2279,7 @@ function seedInitialData(db: DatabaseSync) {
       verification_status: "verified",
       editorial_notes: "Highest developer velocity for Next.js authentication. Beautiful default components.",
       featured: 0,
-      click_count: 160,
+      click_count: 0,
     },
     {
       id: "res-daraja",
@@ -2306,7 +2306,7 @@ function seedInitialData(db: DatabaseSync) {
       verification_status: "verified",
       editorial_notes: "Essential for Kenyan e-commerce and SaaS products. Sandbox has zero fee; live transactions incur standard Safaricom tariff.",
       featured: 1,
-      click_count: 380,
+      click_count: 0,
     },
     {
       id: "res-paystack",
@@ -2333,7 +2333,7 @@ function seedInitialData(db: DatabaseSync) {
       verification_status: "verified",
       editorial_notes: "Superb documentation, instant test mode keys, and reliable webhook signatures.",
       featured: 0,
-      click_count: 190,
+      click_count: 0,
     },
     {
       id: "res-github-pack",
@@ -2360,7 +2360,7 @@ function seedInitialData(db: DatabaseSync) {
       verification_status: "verified",
       editorial_notes: "The single highest-value student developer benefit in existence. Recommended for every Kenyan university student.",
       featured: 1,
-      click_count: 420,
+      click_count: 0,
     },
     {
       id: "res-portswigger-academy",
@@ -2387,7 +2387,7 @@ function seedInitialData(db: DatabaseSync) {
       verification_status: "verified",
       editorial_notes: "Gold standard for ethical hacking education. Completely free with zero paywalls.",
       featured: 1,
-      click_count: 175,
+      click_count: 0,
     },
     {
       id: "res-tryhackme",
@@ -2414,7 +2414,7 @@ function seedInitialData(db: DatabaseSync) {
       verification_status: "verified",
       editorial_notes: "Very beginner friendly. You can connect your own Kali Linux machine via OpenVPN for free.",
       featured: 0,
-      click_count: 145,
+      click_count: 0,
     },
     {
       id: "res-postman",
@@ -2441,7 +2441,7 @@ function seedInitialData(db: DatabaseSync) {
       verification_status: "verified",
       editorial_notes: "Industry standard for API inspection. Bruno and Hoppscotch are great open-source alternatives.",
       featured: 0,
-      click_count: 130,
+      click_count: 0,
     },
     {
       id: "res-hoppscotch",
@@ -2468,7 +2468,7 @@ function seedInitialData(db: DatabaseSync) {
       verification_status: "verified",
       editorial_notes: "Runs instantly in browser without login. Great for developers on low-bandwidth connections.",
       featured: 1,
-      click_count: 165,
+      click_count: 0,
     },
     {
       id: "res-openrouter",
@@ -2495,7 +2495,7 @@ function seedInitialData(db: DatabaseSync) {
       verification_status: "verified",
       editorial_notes: "Extremely useful for swapping between models with one line of code change in OpenAI SDK.",
       featured: 0,
-      click_count: 155,
+      click_count: 0,
     },
     {
       id: "res-open-weather-map",
@@ -2522,7 +2522,7 @@ function seedInitialData(db: DatabaseSync) {
       verification_status: "verified",
       editorial_notes: "Classic API for student and portfolio projects. Open-Meteo is an alternative that requires no API key.",
       featured: 0,
-      click_count: 110,
+      click_count: 0,
     },
     {
       id: "res-open-meteo",
@@ -2549,7 +2549,7 @@ function seedInitialData(db: DatabaseSync) {
       verification_status: "verified",
       editorial_notes: "Zero authentication friction. The easiest API to test in tutorials and coding interviews.",
       featured: 1,
-      click_count: 140,
+      click_count: 0,
     },
     {
       id: "res-resend",
@@ -2576,7 +2576,7 @@ function seedInitialData(db: DatabaseSync) {
       verification_status: "verified",
       editorial_notes: "Best developer experience for transactional emails in Next.js applications.",
       featured: 0,
-      click_count: 135,
+      click_count: 0,
     },
     {
       id: "res-shadcn-ui",
@@ -2603,7 +2603,7 @@ function seedInitialData(db: DatabaseSync) {
       verification_status: "verified",
       editorial_notes: "The dominant UI pattern in modern React development today.",
       featured: 1,
-      click_count: 390,
+      click_count: 0,
     },
     {
       id: "res-next-starter-kit",
@@ -2630,7 +2630,7 @@ function seedInitialData(db: DatabaseSync) {
       verification_status: "verified",
       editorial_notes: "Official starter kit maintained for CodeVanta Advanta Hub members.",
       featured: 1,
-      click_count: 510,
+      click_count: 0,
     },
   ];
 

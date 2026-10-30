@@ -1,6 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  BarChart3,
+  Download,
+  Users,
+  CreditCard,
+  Gem,
+  Zap,
+  Loader2,
+  TrendingUp,
+} from "lucide-react";
 
 export default function AdminReportsPage() {
   const [period, setPeriod] = useState("30");
@@ -46,19 +56,24 @@ export default function AdminReportsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+    <div className="space-y-7">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-white/10 pb-5">
         <div>
-          <h1 className="text-2xl font-bold text-hub-text-primary">Reports & Analytics</h1>
-          <p className="text-sm text-hub-text-muted mt-1">
-            Track user registrations, revenue by tier, popular resources, and referral funnels.
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-hub-gold/10 border border-hub-gold/20 text-xs font-mono text-hub-gold mb-2">
+            <BarChart3 className="w-3.5 h-3.5" />
+            <span>REAL-TIME PLATFORM INTELLIGENCE</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Reports &amp; Analytics</h1>
+          <p className="text-sm text-hub-text-secondary mt-1 max-w-2xl">
+            Live telemetry tracking active members, subscription revenue, tool interactions, and referral loops.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2.5">
           <select
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
-            className="bg-hub-surface border border-hub-border rounded px-3 py-1.5 text-xs text-hub-text-primary"
+            className="bg-[#141923] border border-white/15 rounded-xl px-3.5 py-2 text-xs font-mono text-white focus:outline-none focus:border-hub-gold"
           >
             <option value="7">Last 7 Days</option>
             <option value="30">Last 30 Days</option>
@@ -67,78 +82,146 @@ export default function AdminReportsPage() {
           </select>
           <button
             onClick={handleExportCSV}
-            className="bg-hub-surface-elevated border border-hub-border px-3 py-1.5 rounded text-xs text-hub-text-secondary hover:text-white"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-mono font-semibold bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-all active:scale-95 shadow-sm"
           >
-            Export CSV
+            <Download className="w-3.5 h-3.5 text-hub-gold" />
+            <span>Export CSV</span>
           </button>
         </div>
       </div>
 
       {loading ? (
-        <div className="p-12 text-center text-sm text-hub-text-muted">Loading analytics…</div>
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Revenue By Plan */}
-          <div className="bg-hub-surface rounded-lg border border-hub-border-subtle p-5">
-            <h3 className="text-sm font-semibold text-hub-text-primary mb-4">Revenue Breakdown by Tier</h3>
-            <div className="space-y-3">
-              {data?.revenueByPlan?.length > 0 ? (
-                data.revenueByPlan.map((r: any) => (
-                  <div key={r.plan_name} className="flex justify-between items-center text-sm">
-                    <span className="text-hub-text-secondary">{r.plan_name}</span>
-                    <span className="font-mono font-bold text-hub-gold">KES {r.total_kes?.toLocaleString()}</span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs text-hub-text-muted">No revenue recorded yet.</p>
-              )}
-            </div>
-          </div>
-
-          {/* Membership Distribution */}
-          <div className="bg-hub-surface rounded-lg border border-hub-border-subtle p-5">
-            <h3 className="text-sm font-semibold text-hub-text-primary mb-4">Active Member Distribution</h3>
-            <div className="space-y-3">
-              {data?.membershipDistribution?.length > 0 ? (
-                data.membershipDistribution.map((m: any) => (
-                  <div key={m.plan_name} className="flex justify-between items-center text-sm">
-                    <span className="text-hub-text-secondary">{m.plan_name}</span>
-                    <span className="font-mono font-bold text-cyan-400">{m.count} members</span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs text-hub-text-muted">No active memberships found.</p>
-              )}
-            </div>
-          </div>
-
-          {/* Top Clicked Resources */}
-          <div className="bg-hub-surface rounded-lg border border-hub-border-subtle p-5 md:col-span-2">
-            <h3 className="text-sm font-semibold text-hub-text-primary mb-4">Most Engaged Developer Tools</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-hub-surface-elevated text-xs uppercase text-hub-text-muted">
-                  <tr>
-                    <th className="px-4 py-2">Resource</th>
-                    <th className="px-4 py-2">Category</th>
-                    <th className="px-4 py-2 text-right">Total Outbound Clicks</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-hub-border-subtle">
-                  {data?.topResources?.map((res: any) => (
-                    <tr key={res.id}>
-                      <td className="px-4 py-2.5 font-medium text-hub-text-primary">{res.name}</td>
-                      <td className="px-4 py-2.5 text-xs text-hub-text-muted">{res.category_name}</td>
-                      <td className="px-4 py-2.5 font-mono text-right text-hub-gold font-bold">{res.click_count}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+        <div className="p-20 text-center text-hub-gold flex items-center justify-center gap-2">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span className="text-xs font-mono">Loading telemetry data…</span>
         </div>
+      ) : (
+        <>
+          {/* Summary Metric Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono text-hub-text-secondary">TOTAL USERS</span>
+                <Users className="w-4 h-4 text-blue-400" />
+              </div>
+              <p className="text-2xl font-extrabold text-white font-mono">
+                {data?.summary?.totalUsers ?? 0}
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono text-hub-text-secondary">ACTIVE SUBSCRIBERS</span>
+                <Gem className="w-4 h-4 text-purple-400" />
+              </div>
+              <p className="text-2xl font-extrabold text-purple-300 font-mono">
+                {data?.summary?.activeMembers ?? 0}
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono text-hub-text-secondary">REVENUE CAPTURED</span>
+                <CreditCard className="w-4 h-4 text-hub-gold" />
+              </div>
+              <p className="text-2xl font-extrabold text-hub-gold font-mono">
+                KES {(data?.summary?.totalRevenue ?? 0).toLocaleString()}
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono text-hub-text-secondary">REFERRAL SIGNUPS</span>
+                <Zap className="w-4 h-4 text-emerald-400" />
+              </div>
+              <p className="text-2xl font-extrabold text-emerald-400 font-mono">
+                {data?.referralPerformance?.total_attributions ?? 0}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Revenue By Plan */}
+            <div className="bg-white/[0.02] rounded-2xl border border-white/10 p-6 space-y-4">
+              <h3 className="text-sm font-semibold text-white">Revenue Breakdown by Tier</h3>
+              <div className="space-y-3">
+                {data?.revenueByPlan?.length > 0 ? (
+                  data.revenueByPlan.map((r: any) => (
+                    <div key={r.plan_name} className="flex justify-between items-center text-sm p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                      <span className="text-hub-text-secondary">{r.plan_name}</span>
+                      <span className="font-mono font-bold text-hub-gold">KES {r.total_kes?.toLocaleString()}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="py-8 text-center text-xs font-mono text-hub-text-muted">
+                    No payment revenue recorded yet.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Membership Distribution */}
+            <div className="bg-white/[0.02] rounded-2xl border border-white/10 p-6 space-y-4">
+              <h3 className="text-sm font-semibold text-white">Active Member Distribution</h3>
+              <div className="space-y-3">
+                {data?.membershipDistribution?.length > 0 ? (
+                  data.membershipDistribution.map((m: any) => (
+                    <div key={m.plan_name} className="flex justify-between items-center text-sm p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                      <span className="text-hub-text-secondary">{m.plan_name}</span>
+                      <span className="font-mono font-bold text-cyan-400">{m.count} active</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="py-8 text-center text-xs font-mono text-hub-text-muted">
+                    No active memberships found.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Top Clicked Resources */}
+            <div className="bg-white/[0.02] rounded-2xl border border-white/10 p-6 space-y-4 md:col-span-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-white">Most Engaged Developer Tools</h3>
+                  <p className="text-xs text-hub-text-muted mt-0.5">Real outbound link clicks initiated by developers exploring the catalog.</p>
+                </div>
+              </div>
+
+              {data?.topResources && data.topResources.length > 0 ? (
+                <div className="overflow-x-auto rounded-xl border border-white/10">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-white/[0.04] text-xs font-mono uppercase text-hub-text-muted">
+                      <tr>
+                        <th className="px-4 py-3">Resource</th>
+                        <th className="px-4 py-3">Category</th>
+                        <th className="px-4 py-3 text-right">Total Outbound Clicks</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {data.topResources.map((res: any) => (
+                        <tr key={res.id} className="hover:bg-white/[0.02]">
+                          <td className="px-4 py-3 font-medium text-white">{res.name}</td>
+                          <td className="px-4 py-3 text-xs text-hub-text-muted">{res.category_name}</td>
+                          <td className="px-4 py-3 font-mono text-right text-hub-gold font-bold">{res.click_count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="py-12 text-center space-y-2 rounded-xl bg-white/[0.01] border border-dashed border-white/10">
+                  <TrendingUp className="w-6 h-6 text-hub-text-muted mx-auto" />
+                  <p className="text-xs font-mono text-hub-text-secondary">No outbound clicks recorded yet.</p>
+                  <p className="text-[11px] text-hub-text-muted">
+                    Outbound click metrics will populate here in real-time as users browse and launch tools from the directory.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
 }
-

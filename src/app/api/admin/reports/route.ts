@@ -36,11 +36,12 @@ export async function GET(req: NextRequest) {
        ORDER BY total_kes DESC`
     ).all();
 
-    // Top resources by click count
+    // Top resources by click count (only active clicks)
     const topResources = db.prepare(
       `SELECT r.id, r.name, r.click_count, c.name as category_name
        FROM resources r
        JOIN categories c ON c.id = r.category_id
+       WHERE r.click_count > 0
        ORDER BY r.click_count DESC
        LIMIT 10`
     ).all();
@@ -66,7 +67,17 @@ export async function GET(req: NextRequest) {
       `
     ).get();
 
+    // Summary stats
+    const totalUsers = (db.prepare(`SELECT COUNT(*) as count FROM profiles`).get() as any)?.count || 0;
+    const totalRevenue = (db.prepare(`SELECT COALESCE(SUM(amount_kes), 0) as total FROM payments WHERE status = 'completed'`).get() as any)?.total || 0;
+    const activeMembers = (db.prepare(`SELECT COUNT(*) as count FROM memberships WHERE status = 'active'`).get() as any)?.count || 0;
+
     return NextResponse.json({
+      summary: {
+        totalUsers,
+        totalRevenue,
+        activeMembers,
+      },
       userGrowth,
       revenueByPlan,
       topResources,
