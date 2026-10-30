@@ -120,6 +120,7 @@ export function getFirebaseErrorMessage(code: string): string {
     case "auth/user-not-found":
     case "auth/wrong-password":
     case "auth/invalid-credential":
+    case "auth/invalid-login-credentials":
       return "Invalid email or password. Please verify your credentials.";
     case "auth/email-already-in-use":
       return "An account with this email already exists. Please sign in instead.";

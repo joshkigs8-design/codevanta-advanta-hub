@@ -41,32 +41,38 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
+    const cleanEmail = email.toLowerCase().trim();
+    const isAdmin = cleanEmail === "joshkigs8@gmail.com";
+
     try {
       if (isFirebaseConfigured()) {
         try {
-          await loginWithEmail(email, password);
-          router.push("/dashboard");
+          await loginWithEmail(cleanEmail, password);
+          router.push(isAdmin ? "/admin" : "/dashboard");
           router.refresh();
           return;
         } catch (firebaseErr: any) {
-          // If Firebase account does not exist yet but exists in local seed/backend, try local backend
-          if (
-            firebaseErr?.code === "auth/user-not-found" ||
-            firebaseErr?.code === "auth/invalid-credential"
-          ) {
+          console.warn("Firebase login failed, trying backend authentication:", firebaseErr?.code);
+          
+          // Try local backend login fallback
+          try {
             const res = await fetch("/api/auth/login", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ email, password }),
+              body: JSON.stringify({ email: cleanEmail, password }),
             });
             const data = await res.json();
             if (res.ok) {
-              router.push("/dashboard");
+              const targetRoute = data.user?.role === "admin" || isAdmin ? "/admin" : "/dashboard";
+              router.push(targetRoute);
               router.refresh();
               return;
             }
+          } catch {
+            // ignore
           }
-          setError(getFirebaseErrorMessage(firebaseErr?.code || ""));
+
+          setError(getFirebaseErrorMessage(firebaseErr?.code || "auth/invalid-credential"));
           return;
         }
       }
@@ -75,14 +81,15 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: cleanEmail, password }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Login failed");
+        setError(data.error || "Invalid email or password.");
       } else {
-        router.push("/dashboard");
+        const targetRoute = data.user?.role === "admin" || isAdmin ? "/admin" : "/dashboard";
+        router.push(targetRoute);
         router.refresh();
       }
     } catch {
@@ -97,8 +104,9 @@ export default function LoginPage() {
     setError("");
 
     try {
-      await loginWithGoogle();
-      router.push("/dashboard");
+      const user = await loginWithGoogle();
+      const isAdmin = user.email?.toLowerCase().trim() === "joshkigs8@gmail.com";
+      router.push(isAdmin ? "/admin" : "/dashboard");
       router.refresh();
     } catch (err: any) {
       if (err?.code !== "auth/popup-closed-by-user") {
