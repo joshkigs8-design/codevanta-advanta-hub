@@ -10,7 +10,8 @@
     "test": "npx tsx --test src/tests/domain.test.ts",
     "firebase": "firebase",
     "deploy:firestore": "firebase deploy --only firestore",
-    "deploy:rules": "firebase deploy --only firestore:rules"
+    "deploy:rules": "firebase deploy --only firestore:rules",
+    "deploy:data": "node scripts/deploy-database-to-firebase.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
