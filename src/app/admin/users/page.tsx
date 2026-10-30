@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { RefreshCw } from "lucide-react";
 
 interface UserProfile {
   id: string;
@@ -30,6 +31,7 @@ export default function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState<number | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [accessPlan, setAccessPlan] = useState("pro");
@@ -38,6 +40,7 @@ export default function AdminUsersPage() {
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const q = new URLSearchParams({
         page: page.toString(),
@@ -50,6 +53,7 @@ export default function AdminUsersPage() {
       if (!res.ok) throw new Error(data.error || "Failed to load users");
       setUsers(data.users || []);
       setTotalPages(data.totalPages || 1);
+      setTotalUsers(typeof data.total === "number" ? data.total : (data.users?.length || 0));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error fetching users");
     } finally {
@@ -126,9 +130,16 @@ export default function AdminUsersPage() {
         <div>
           <h1 className="text-2xl font-bold text-hub-text-primary">User Management</h1>
           <p className="text-sm text-hub-text-muted mt-1">
+            {totalUsers !== null ? `${totalUsers} registered user${totalUsers === 1 ? "" : "s"} total.` : "Loading registered members…"}{" "}
             Search, inspect, and update roles or access for registered members.
           </p>
         </div>
+        <button
+          onClick={() => fetchUsers()}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded bg-hub-surface-elevated border border-hub-border text-hub-text-secondary hover:text-white hover:border-hub-gold/40 self-start sm:self-auto transition-colors"
+        >
+          <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Refresh
+        </button>
       </div>
 
       {/* Filters */}
@@ -163,7 +174,15 @@ export default function AdminUsersPage() {
         {loading ? (
           <div className="p-12 text-center text-sm text-hub-text-muted">Loading users…</div>
         ) : error ? (
-          <div className="p-8 text-center text-sm text-red-400">{error}</div>
+          <div className="p-8 text-center space-y-3">
+            <p className="text-sm text-red-400">{error}</p>
+            <button
+              onClick={() => fetchUsers()}
+              className="px-4 py-2 text-xs font-semibold rounded bg-hub-gold text-black hover:bg-hub-gold/90 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
         ) : users.length === 0 ? (
           <div className="p-12 text-center text-sm text-hub-text-muted">No users found matching query.</div>
         ) : (

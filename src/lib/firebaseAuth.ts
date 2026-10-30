@@ -50,46 +50,50 @@ export async function syncUserWithFirestoreAndBackend(
     referralCode?: string;
   }
 ): Promise<void> {
-  if (!isFirebaseConfigured() || !firestore) return;
+  if (isFirebaseConfigured() && firestore) {
+    try {
+      const userRef = doc(firestore, "users", user.uid);
+      const docSnap = await getDoc(userRef);
 
-  const userRef = doc(firestore, "users", user.uid);
-  const docSnap = await getDoc(userRef);
+      let referralCode = "";
+      if (!docSnap.exists()) {
+        // Generate new unique referral code
+        referralCode = generateReferralCode();
+        const cleanEmail = user.email || "";
+        const cleanName = additionalData?.displayName || user.displayName || cleanEmail.split("@")[0] || "Developer";
 
-  let referralCode = "";
-  if (!docSnap.exists()) {
-    // Generate new unique referral code
-    referralCode = generateReferralCode();
-    const cleanEmail = user.email || "";
-    const cleanName = additionalData?.displayName || user.displayName || cleanEmail.split("@")[0] || "Developer";
-
-    await setDoc(userRef, {
-      uid: user.uid,
-      email: cleanEmail,
-      displayName: cleanName,
-      photoURL: user.photoURL || null,
-      role: "user", // Security constraint: default role is always user
-      planId: "free",
-      emailVerified: Boolean(user.emailVerified),
-      referralCode,
-      referredBy: additionalData?.referralCode || null,
-      accountStatus: "active",
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-  } else {
-    // Firestore rules require email verification before a user profile update.
-    // The backend session still needs to be synchronized for unverified users.
-    if (user.emailVerified) {
-      await setDoc(
-        userRef,
-        {
-          displayName: user.displayName || docSnap.data().displayName,
-          photoURL: user.photoURL || docSnap.data().photoURL,
-          emailVerified: true,
+        await setDoc(userRef, {
+          uid: user.uid,
+          email: cleanEmail,
+          displayName: cleanName,
+          photoURL: user.photoURL || null,
+          role: "user", // Security constraint: default role is always user
+          planId: "free",
+          emailVerified: Boolean(user.emailVerified),
+          referralCode,
+          referredBy: additionalData?.referralCode || null,
+          accountStatus: "active",
+          createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+        });
+      } else {
+        // Firestore rules require email verification before a user profile update.
+        // The backend session still needs to be synchronized for unverified users.
+        if (user.emailVerified) {
+          await setDoc(
+            userRef,
+            {
+              displayName: user.displayName || docSnap.data().displayName,
+              photoURL: user.photoURL || docSnap.data().photoURL,
+              emailVerified: true,
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+        }
+      }
+    } catch (fsErr) {
+      console.warn("Firestore user sync warning:", fsErr);
     }
   }
 

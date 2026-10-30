@@ -42,9 +42,33 @@ export function getCurrentUser(): Profile | null {
   if (!session) return null;
 
   const db = getDb();
-  const row = db
+  let row = db
     .prepare("SELECT id, email, full_name, avatar_url, role, phone_number, country, email_verified, created_at, updated_at FROM profiles WHERE id = ?")
     .get(session.userId) as any;
+
+  if (!row && session.email) {
+    row = db
+      .prepare("SELECT id, email, full_name, avatar_url, role, phone_number, country, email_verified, created_at, updated_at FROM profiles WHERE email = ?")
+      .get(session.email.toLowerCase().trim()) as any;
+  }
+
+  const adminEmails = [
+    "joshkigs8@gmail.com",
+    (process.env.ADMIN_DEFAULT_EMAIL || "").toLowerCase().trim(),
+  ].filter(Boolean);
+
+  if (!row && session.email && adminEmails.includes(session.email.toLowerCase().trim())) {
+    const now = new Date().toISOString();
+    const id = session.userId || "00000000-0000-4000-a000-000000000001";
+    db.prepare(`
+      INSERT OR REPLACE INTO profiles (id, email, password_hash, full_name, role, country, email_verified, created_at, updated_at)
+      VALUES (?, ?, 'ADMIN_SESSION', ?, 'admin', 'KE', 1, ?, ?)
+    `).run(id, session.email.toLowerCase().trim(), session.fullName || "Admin", now, now);
+
+    row = db
+      .prepare("SELECT id, email, full_name, avatar_url, role, phone_number, country, email_verified, created_at, updated_at FROM profiles WHERE id = ?")
+      .get(id) as any;
+  }
 
   if (!row) return null;
 

@@ -8,23 +8,26 @@ rules_version = '2';
 //
 // Collection: users/{userId}
 //   - Document ID: matches Firebase Auth uid
-//   - Fields: uid (string), email (string), fullName (string),
+//   - Fields: uid (string), email (string), fullName / displayName (string),
 //             role (string: 'user' | 'member' | 'admin'),
-//             planId (string), accountStatus (string), paymentStatus (string),
-//             referralRewards (number/map), referredBy (string), createdAt (timestamp)
+//             planId (string: 'free' | 'basic' | 'pro' | 'vip'),
+//             accountStatus (string: 'active' | 'suspended' | 'pending'),
+//             paymentStatus (string: 'unpaid' | 'paid' | 'refunded'),
+//             referralCode (string), referredBy (string), referralRewards (number/map),
+//             createdAt (timestamp/string), updatedAt (timestamp/string)
 //
 // Collection: resources/{resourceId}
 //   - Fields: name (string), slug (string), published (bool),
 //             category_id (string), pricing_classification (string), etc.
 //
 // Collection: categories/{categoryId}
-//   - Fields: name (string), slug (string), description (string), icon (string)
+//   - Fields: name (string), slug (string), description (string), icon (string), display_order (number)
 //
 // Collection: tutorials/{tutorialId}
 //   - Fields: title (string), slug (string), published (bool), content (string), etc.
 //
 // Collection: plans/{planId}
-//   - Fields: name (string), slug (string), price_kes (number), billing_cycle (string)
+//   - Fields: name (string), slug (string), price_kes (number), billing_cycle (string), entitlements (map)
 //
 // Collection: subscriptions/{subId}
 //   - Fields: userId (string), planId (string), status (string), amount_paid_kes (number)
@@ -39,10 +42,25 @@ rules_version = '2';
 //   - Fields: userId (string), amount_kes (number), provider (string), status (string)
 //
 // Collection: bookmarks/{bookmarkId}
-//   - Fields: userId (string), resourceId (string), notes (string)
+//   - Fields: userId (string), resourceId (string), resourceName (string), notes (string)
 //
 // Collection: auditLogs/{logId}
 //   - Fields: admin_user_id (string), action (string), target_entity (string), details (string)
+//
+// Collection: learning_paths/{pathId}
+//   - Fields: title (string), slug (string), published (bool), description (string)
+//
+// Collection: projects/{projectId}
+//   - Fields: title (string), slug (string), published (bool), summary (string)
+//
+// Collection: troubleshooting/{entryId}
+//   - Fields: error_message (string), slug (string), published (bool), step_by_step_fix (string)
+//
+// Collection: resource_submissions/{submissionId}
+//   - Fields: submitted_by (string), resource_name (string), status (string)
+//
+// Collection: withdrawals/{withdrawalId}
+//   - Fields: userId (string), amount_kes (number), status (string)
 //
 // ===============================================================
 
@@ -63,14 +81,22 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Check if the user possesses admin privileges via token claims or role
+    // Check if the user possesses admin privileges via bootstrap email or custom token claims
     function isAdmin() {
-      return isAuthenticated() && (request.auth.token.admin == true || request.auth.token.role == 'admin');
+      return isAuthenticated() && (
+        request.auth.token.email == 'joshkigs8@gmail.com' ||
+        request.auth.token.admin == true ||
+        request.auth.token.role == 'admin'
+      );
     }
 
     // Check if the user's email address is verified or user has admin privileges
     function isEmailVerified() {
-      return isAuthenticated() && (request.auth.token.email_verified == true || isAdmin());
+      return isAuthenticated() && (
+        request.auth.token.email_verified == true ||
+        isAdmin() ||
+        request.auth.token.email == 'joshkigs8@gmail.com'
+      );
     }
 
     // ===============================================================
@@ -78,29 +104,33 @@ service cloud.firestore {
     // ===============================================================
 
     // 1. Users Collection
-    // Read: Owner or Admin only (PII protected)
-    // Create: Owner only on initial signup; unverified users can bootstrap profile without privileged roles
-    // Update: Owner must be email-verified to update profile; cannot modify privileged/system fields
+    // Read: Owner or Admin only (PII protected; Admin has full list & read access)
+    // Create: Admin or Owner on initial signup; unverified users can bootstrap profile without privileged roles
+    // Update: Admin has full write access; Owner must be email-verified and cannot escalate role or edit system fields
     // Delete: Admin only
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       
-      allow create: if isAuthenticated() &&
-                    isOwner(userId) &&
-                    request.resource.data.uid == userId &&
-                    (!request.resource.data.keys().hasAny(['role', 'planId']) || request.resource.data.role == 'user');
+      allow create: if isAdmin() || (
+        isAuthenticated() &&
+        isOwner(userId) &&
+        request.resource.data.uid == userId &&
+        (!request.resource.data.keys().hasAny(['role', 'planId']) || request.resource.data.role == 'user')
+      );
                     
-      allow update: if (isOwner(userId) &&
-                        isEmailVerified() &&
-                        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-                          'role', 'planId', 'accountStatus', 'paymentStatus', 'referralRewards', 'referredBy', 'createdAt'
-                        ])) || isAdmin();
+      allow update: if isAdmin() || (
+        isOwner(userId) &&
+        isEmailVerified() &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'role', 'planId', 'accountStatus', 'paymentStatus', 'referralRewards', 'referredBy', 'createdAt'
+        ])
+      );
                         
       allow delete: if isAdmin();
     }
 
     // 2. Resources Collection
-    // Read: Publicly readable if published == true; unpublished accessible only to admins
+    // Read: Publicly readable if published == true; Admin can list/read all (published & drafts)
     // Create: Strictly admin, or verified users submitting unpublished proposal drafts
     // Update / Delete: Strictly admin-only
     match /resources/{resourceId} {
@@ -118,7 +148,7 @@ service cloud.firestore {
     }
 
     // 4. Tutorials Collection
-    // Read: Publicly readable if published == true; drafts accessible only to admins
+    // Read: Publicly readable if published == true; Admin can list/read all (published & drafts)
     // Write: Strictly admin-only
     match /tutorials/{tutorialId} {
       allow read: if resource.data.published == true || isAdmin();
@@ -134,16 +164,16 @@ service cloud.firestore {
     }
 
     // 6. Subscriptions Collection
-    // Read: Subscriber (owner) or admin only
-    // Write: Admin / trusted server-side only (prevents unauthorized activations/updates)
+    // Read: Subscriber (owner) or Admin (Admin has full list & read access across all subscriptions)
+    // Write: Admin only (prevents unauthorized activations/updates from regular clients)
     match /subscriptions/{subId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
       allow write: if isAdmin();
     }
 
     // 7. Referrals Collection
-    // Read: Referrer, referred user, or admin
-    // Create: Authenticated & email-verified referred user attributing themselves to a distinct referrer (prevents self-referral & unverified spam)
+    // Read: Referrer, referred user, or Admin (Admin has full list & read access)
+    // Create: Admin, or authenticated & email-verified referred user attributing themselves to a distinct referrer
     // Update / Delete: Strictly admin-only
     match /referrals/{refId} {
       allow read: if isAuthenticated() && (
@@ -151,44 +181,90 @@ service cloud.firestore {
         resource.data.referredId == request.auth.uid ||
         isAdmin()
       );
-      allow create: if isEmailVerified() &&
-                    request.resource.data.referredId == request.auth.uid &&
-                    request.resource.data.referrerId != request.auth.uid;
+      allow create: if isAdmin() || (
+        isEmailVerified() &&
+        request.resource.data.referredId == request.auth.uid &&
+        request.resource.data.referrerId != request.auth.uid
+      );
       allow update, delete: if isAdmin();
     }
 
     // 8. Commissions Collection
-    // Read: Owning user or admin
-    // Write: Admin / server ledger only (zero client-side writes allowed)
+    // Read: Owning user or Admin (Admin has full list & read access)
+    // Write: Admin only (zero client-side writes allowed)
     match /commissions/{commId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
       allow write: if isAdmin();
     }
 
     // 9. Payments Collection
-    // Read: Owning user or admin
-    // Write: Admin / server webhook only (zero client-side writes allowed)
+    // Read: Owning user or Admin (Admin has full list & read access across all payments)
+    // Write: Admin only (zero client-side writes allowed)
     match /payments/{paymentId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
       allow write: if isAdmin();
     }
 
     // 10. Bookmarks Collection
-    // Read: Owning user or admin
-    // Create: Owning verified user only
-    // Update: Owning verified user without ownership hijacking or admin
-    // Delete: Owning verified user or admin
+    // Read: Owning user or Admin (Admin has full list & read access)
+    // Create: Owning verified user or Admin
+    // Update: Owning verified user without ownership hijacking or Admin
+    // Delete: Owning verified user or Admin
     match /bookmarks/{bookmarkId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isOwner(request.resource.data.userId) && isEmailVerified();
-      allow update: if (isOwner(resource.data.userId) && isOwner(request.resource.data.userId) && isEmailVerified()) || isAdmin();
-      allow delete: if (isOwner(resource.data.userId) && isEmailVerified()) || isAdmin();
+      allow create: if isAdmin() || (isOwner(request.resource.data.userId) && isEmailVerified());
+      allow update: if isAdmin() || (isOwner(resource.data.userId) && isOwner(request.resource.data.userId) && isEmailVerified());
+      allow delete: if isAdmin() || (isOwner(resource.data.userId) && isEmailVerified());
     }
 
     // 11. Audit Logs Collection
-    // Read & Write: Strictly admin-only
+    // Read & Write: Strictly admin-only (Admin has full list, read, and write permissions)
     match /auditLogs/{logId} {
       allow read, write: if isAdmin();
+    }
+
+    // 12. Learning Paths Collection
+    // Read: Publicly readable if published == true; Admin can list/read all
+    // Write: Strictly admin-only
+    match /learning_paths/{pathId} {
+      allow read: if resource.data.published == true || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // 13. Guided Projects Collection
+    // Read: Publicly readable if published == true; Admin can list/read all
+    // Write: Strictly admin-only
+    match /projects/{projectId} {
+      allow read: if resource.data.published == true || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // 14. Troubleshooting Entries Collection
+    // Read: Publicly readable if published == true; Admin can list/read all
+    // Write: Strictly admin-only
+    match /troubleshooting/{entryId} {
+      allow read: if resource.data.published == true || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // 15. Resource Submissions Collection
+    // Read: Submitting user or Admin
+    // Create: Verified user submitting for themselves or Admin
+    // Update / Delete: Strictly admin-only
+    match /resource_submissions/{submissionId} {
+      allow read: if (isAuthenticated() && resource.data.submitted_by == request.auth.uid) || isAdmin();
+      allow create: if isAdmin() || (isEmailVerified() && request.resource.data.submitted_by == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    // 16. Withdrawal Requests Collection
+    // Read: Requesting user or Admin
+    // Create: Verified user submitting for themselves or Admin
+    // Update / Delete: Strictly admin-only
+    match /withdrawals/{withdrawalId} {
+      allow read: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow create: if isAdmin() || (isEmailVerified() && request.resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
     }
 
     // ===============================================================

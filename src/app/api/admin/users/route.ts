@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
     const totalPages = Math.max(1, Math.ceil(total / limit));
     const offset = (page - 1) * limit;
 
-    // Fetch users with latest active membership
+    // Fetch users with latest active membership (grouped to prevent duplicate user rows)
     const users = db
       .prepare(
         `SELECT
@@ -70,7 +70,12 @@ export async function GET(req: NextRequest) {
           m.id as membership_id, m.plan_slug, m.plan_name, m.status as membership_status,
           m.amount_paid_kes, m.starts_at, m.expires_at
         FROM profiles p
-        LEFT JOIN memberships m ON m.user_id = p.id AND m.status = 'active'
+        LEFT JOIN (
+          SELECT user_id, id, plan_slug, plan_name, status, amount_paid_kes, starts_at, expires_at
+          FROM memberships
+          WHERE status = 'active'
+          GROUP BY user_id
+        ) m ON m.user_id = p.id
         ${whereClause}
         ORDER BY ${sortColumn} ${order}
         LIMIT ? OFFSET ?`

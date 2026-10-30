@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
       const id = uid || crypto.randomUUID();
 
       db.prepare(`
-        INSERT INTO profiles (id, email, password_hash, full_name, avatar_url, role, phone_number, country, email_verified, created_at, updated_at)
+        INSERT OR REPLACE INTO profiles (id, email, password_hash, full_name, avatar_url, role, phone_number, country, email_verified, created_at, updated_at)
         VALUES (?, ?, 'FIREBASE_AUTH', ?, NULL, ?, NULL, 'KE', ?, ?, ?)
       `).run(id, cleanEmail, cleanName, role, isEmailVerified ? 1 : 0, now, now);
 
