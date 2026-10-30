@@ -1773,9 +1773,8 @@ function seedInitialData(db: DatabaseSync) {
     now
   );
 
-  // 2. Default Administrator & Demo Member Accounts
+  // 2. Default Administrator Account
   const adminPasswordHash = bcrypt.hashSync("AdminSecurePass2026!", 10);
-  const userPasswordHash = bcrypt.hashSync("MemberPass2026!", 10);
 
   const insertProfile = db.prepare(`
     INSERT INTO profiles (id, email, password_hash, full_name, avatar_url, role, phone_number, country, created_at, updated_at)
@@ -1783,7 +1782,6 @@ function seedInitialData(db: DatabaseSync) {
   `);
 
   const adminId = "00000000-0000-4000-a000-000000000001";
-  const memberId = "00000000-0000-4000-a000-000000000002";
 
   insertProfile.run(
     adminId,
@@ -1798,39 +1796,16 @@ function seedInitialData(db: DatabaseSync) {
     now
   );
 
-  insertProfile.run(
-    memberId,
-    "dev@codevanta.com",
-    userPasswordHash,
-    "Amina Otieno",
-    "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
-    "member",
-    "+254711223344",
-    "KE",
-    now,
-    now
-  );
-
   // Seed Admin Referral Code & Wallet
   db.prepare(`
     INSERT INTO referral_codes (id, user_id, code, clicks, created_at)
     VALUES (?, ?, ?, ?, ?)
-  `).run("ref-code-admin", adminId, "VANTA26", 12, now);
-
-  db.prepare(`
-    INSERT INTO referral_codes (id, user_id, code, clicks, created_at)
-    VALUES (?, ?, ?, ?, ?)
-  `).run("ref-code-member", memberId, "AMINA50", 4, now);
+  `).run("ref-code-admin", adminId, "VANTA26", 0, now);
 
   db.prepare(`
     INSERT INTO wallet_accounts (id, user_id, currency, pending_balance, approved_balance, withdrawn_balance, created_at, updated_at)
     VALUES (?, ?, 'KES', 0.0, 0.0, 0.0, ?, ?)
   `).run("wallet-admin", adminId, now, now);
-
-  db.prepare(`
-    INSERT INTO wallet_accounts (id, user_id, currency, pending_balance, approved_balance, withdrawn_balance, created_at, updated_at)
-    VALUES (?, ?, 'KES', 0.0, 0.0, 0.0, ?, ?)
-  `).run("wallet-member", memberId, now, now);
 
   // 3. Membership Plans (Basic: KES 150, Pro: KES 250, VIP: KES 350)
   const insertPlan = db.prepare(`
@@ -1907,11 +1882,7 @@ function seedInitialData(db: DatabaseSync) {
     now
   );
 
-  // Give sample member a Pro membership
-  db.prepare(`
-    INSERT INTO memberships (id, user_id, plan_id, plan_slug, plan_name, status, amount_paid_kes, starts_at, expires_at, payment_reference, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, 'active', 250, ?, NULL, 'SEED-TXN-PRO-001', ?, ?)
-  `).run("mem-seed-001", memberId, "plan-pro-250", "pro", "Pro Tier", now, now, now);
+
 
   // 4. Seed Categories
   const insertCat = db.prepare(`

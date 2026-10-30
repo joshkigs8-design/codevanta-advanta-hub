@@ -1,0 +1,197 @@
+rules_version = '2';
+
+// ===============================================================
+// CodeVanta Hub - Cloud Firestore Security Rules
+// ===============================================================
+//
+// Assumed Data Models:
+//
+// Collection: users/{userId}
+//   - Document ID: matches Firebase Auth uid
+//   - Fields: uid (string), email (string), fullName (string),
+//             role (string: 'user' | 'member' | 'admin'),
+//             planId (string), accountStatus (string), paymentStatus (string),
+//             referralRewards (number/map), referredBy (string), createdAt (timestamp)
+//
+// Collection: resources/{resourceId}
+//   - Fields: name (string), slug (string), published (bool),
+//             category_id (string), pricing_classification (string), etc.
+//
+// Collection: categories/{categoryId}
+//   - Fields: name (string), slug (string), description (string), icon (string)
+//
+// Collection: tutorials/{tutorialId}
+//   - Fields: title (string), slug (string), published (bool), content (string), etc.
+//
+// Collection: plans/{planId}
+//   - Fields: name (string), slug (string), price_kes (number), billing_cycle (string)
+//
+// Collection: subscriptions/{subId}
+//   - Fields: userId (string), planId (string), status (string), amount_paid_kes (number)
+//
+// Collection: referrals/{refId}
+//   - Fields: referrerId (string), referredId (string), referral_code (string), status (string)
+//
+// Collection: commissions/{commId}
+//   - Fields: userId (string), amount (number), status (string)
+//
+// Collection: payments/{paymentId}
+//   - Fields: userId (string), amount_kes (number), provider (string), status (string)
+//
+// Collection: bookmarks/{bookmarkId}
+//   - Fields: userId (string), resourceId (string), notes (string)
+//
+// Collection: auditLogs/{logId}
+//   - Fields: admin_user_id (string), action (string), target_entity (string), details (string)
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    // Check if the request is from an authenticated user
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if the authenticated user is the designated document owner
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Check if the user possesses admin privileges via token claims or role
+    function isAdmin() {
+      return isAuthenticated() && (request.auth.token.admin == true || request.auth.token.role == 'admin');
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    // 1. Users Collection
+    // Read: Owner or Admin only (PII protected)
+    // Create: Owner only, cannot self-assign privileged roles or plans
+    // Update: Owner can update non-privileged profile fields; cannot elevate role or change planId/statuses
+    // Delete: Admin only
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      
+      allow create: if isAuthenticated() &&
+                    isOwner(userId) &&
+                    request.resource.data.uid == userId &&
+                    (!request.resource.data.keys().hasAny(['role', 'planId']) || request.resource.data.role == 'user');
+                    
+      allow update: if (isOwner(userId) &&
+                        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+                          'role', 'planId', 'accountStatus', 'paymentStatus', 'referralRewards', 'referredBy', 'createdAt'
+                        ])) || isAdmin();
+                        
+      allow delete: if isAdmin();
+    }
+
+    // 2. Resources Collection
+    // Read: Publicly readable if published == true; unpublished accessible only to admins
+    // Write: Strictly admin-only
+    match /resources/{resourceId} {
+      allow read: if resource.data.published == true || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // 3. Categories Collection
+    // Read: Public directory categorization
+    // Write: Strictly admin-only
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 4. Tutorials Collection
+    // Read: Publicly readable if published == true; drafts accessible only to admins
+    // Write: Strictly admin-only
+    match /tutorials/{tutorialId} {
+      allow read: if resource.data.published == true || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // 5. Membership Plans Collection
+    // Read: Publicly viewable pricing tiers and entitlements
+    // Write: Strictly admin-only
+    match /plans/{planId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 6. Subscriptions Collection
+    // Read: Subscriber (owner) or admin only
+    // Write: Admin / trusted server-side only (prevents unauthorized activations/updates)
+    match /subscriptions/{subId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // 7. Referrals Collection
+    // Read: Referrer, referred user, or admin
+    // Create: Authenticated referred user attributing themselves to a distinct referrer (prevents self-referral)
+    // Update / Delete: Strictly admin-only
+    match /referrals/{refId} {
+      allow read: if isAuthenticated() && (
+        resource.data.referrerId == request.auth.uid ||
+        resource.data.referredId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isAuthenticated() &&
+                    request.resource.data.referredId == request.auth.uid &&
+                    request.resource.data.referrerId != request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // 8. Commissions Collection
+    // Read: Owning user or admin
+    // Write: Admin / server ledger only (zero client-side writes allowed)
+    match /commissions/{commId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // 9. Payments Collection
+    // Read: Owning user or admin
+    // Write: Admin / server webhook only (zero client-side writes allowed)
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // 10. Bookmarks Collection
+    // Read: Owning user or admin
+    // Create: Owning user only
+    // Update: Owning user only without ownership hijacking
+    // Delete: Owning user or admin
+    match /bookmarks/{bookmarkId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        (resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // 11. Audit Logs Collection
+    // Read & Write: Strictly admin-only
+    match /auditLogs/{logId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ===============================================================
+    // Default Deny Rule
+    // ===============================================================
+    // Any unspecified collection or document path is closed to all reads and writes.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

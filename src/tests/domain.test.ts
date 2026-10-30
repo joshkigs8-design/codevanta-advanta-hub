@@ -1,3 +1,5 @@
+process.env.DATABASE_PATH = ":memory:";
+
 import test from "node:test";
 import assert from "node:assert";
 import { getDb } from "../lib/db";
@@ -17,6 +19,28 @@ import { MembershipPlan, ReferralReward } from "../types";
 test("CodeVanta Advanta Hub — Comprehensive Domain Test Suite", async (t) => {
   const db = getDb();
   assert.ok(db, "Database initialized and schema migrated successfully");
+
+  // In-memory test fixtures
+  const fixtureNow = new Date().toISOString();
+  db.prepare(`
+    INSERT OR REPLACE INTO profiles (id, email, password_hash, full_name, avatar_url, role, phone_number, country, created_at, updated_at)
+    VALUES ('00000000-0000-4000-a000-000000000002', 'test-fixture@codevanta.test', 'testhash', 'Test Fixture Member', NULL, 'member', '+254700000002', 'KE', ?, ?)
+  `).run(fixtureNow, fixtureNow);
+
+  db.prepare(`
+    INSERT OR REPLACE INTO referral_codes (id, user_id, code, clicks, created_at)
+    VALUES ('ref-code-fixture', '00000000-0000-4000-a000-000000000002', 'FIXTURE50', 0, ?)
+  `).run(fixtureNow);
+
+  db.prepare(`
+    INSERT OR REPLACE INTO wallet_accounts (id, user_id, currency, pending_balance, approved_balance, withdrawn_balance, created_at, updated_at)
+    VALUES ('wallet-fixture', '00000000-0000-4000-a000-000000000002', 'KES', 0.0, 0.0, 0.0, ?, ?)
+  `).run(fixtureNow, fixtureNow);
+
+  db.prepare(`
+    INSERT OR REPLACE INTO memberships (id, user_id, plan_id, plan_slug, plan_name, status, amount_paid_kes, starts_at, expires_at, payment_reference, created_at, updated_at)
+    VALUES ('mem-fixture-001', '00000000-0000-4000-a000-000000000002', 'plan-pro-250', 'pro', 'Pro Tier', 'active', 250, ?, NULL, 'FIXTURE-TXN-001', ?, ?)
+  `).run(fixtureNow, fixtureNow, fixtureNow);
 
   await t.test("1. Database Seed Verification", () => {
     const categoriesCount = db.prepare("SELECT COUNT(*) as count FROM categories").get() as { count: number };

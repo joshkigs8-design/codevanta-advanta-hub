@@ -4,7 +4,22 @@ import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import BrandLogo from "@/components/BrandLogo";
-import { Lock, Mail, User, ArrowRight, Loader2, AlertCircle, Share2, ShieldCheck } from "lucide-react";
+import {
+  Lock,
+  Mail,
+  User,
+  ArrowRight,
+  Loader2,
+  AlertCircle,
+  Share2,
+  ShieldCheck,
+} from "lucide-react";
+import {
+  registerWithEmail,
+  loginWithGoogle,
+  getFirebaseErrorMessage,
+} from "@/lib/firebaseAuth";
+import { isFirebaseConfigured } from "@/lib/firebase";
 
 function RegisterContent() {
   const router = useRouter();
@@ -16,6 +31,7 @@ function RegisterContent() {
   const [password, setPassword] = useState("");
   const [referralCode, setReferralCode] = useState(refParam || "");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -39,6 +55,24 @@ function RegisterContent() {
     setError("");
 
     try {
+      if (isFirebaseConfigured()) {
+        try {
+          await registerWithEmail(
+            email,
+            password,
+            fullName,
+            referralCode.trim() || undefined
+          );
+          router.push("/dashboard");
+          router.refresh();
+          return;
+        } catch (firebaseErr: any) {
+          setError(getFirebaseErrorMessage(firebaseErr?.code || ""));
+          return;
+        }
+      }
+
+      // Fallback direct backend registration
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -64,6 +98,23 @@ function RegisterContent() {
     }
   };
 
+  const handleGoogleSignUp = async () => {
+    setGoogleLoading(true);
+    setError("");
+
+    try {
+      await loginWithGoogle(referralCode.trim() || undefined);
+      router.push("/dashboard");
+      router.refresh();
+    } catch (err: any) {
+      if (err?.code !== "auth/popup-closed-by-user") {
+        setError(getFirebaseErrorMessage(err?.code || ""));
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-[85vh] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md p-6 sm:p-8 rounded-2xl bg-hub-surface border border-hub-border shadow-2xl space-y-6">
@@ -71,9 +122,11 @@ function RegisterContent() {
           <div className="flex justify-center mb-2">
             <BrandLogo />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Create Free Developer Account</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">
+            Create Free Developer Account
+          </h1>
           <p className="text-xs text-hub-text-secondary">
-            Join CodeVanta Advanta Hub for verified APIs, AI tools, and blueprints.
+            Join CodeVanta Hub for verified APIs, AI tools, and blueprints.
           </p>
         </div>
 
@@ -82,7 +135,8 @@ function RegisterContent() {
           <div className="p-3 rounded-lg bg-emerald-950/60 border border-emerald-800/60 text-xs text-emerald-300 flex items-center gap-2">
             <Share2 className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>
-              Invited via referral code: <strong className="font-mono text-white">{referralCode}</strong>
+              Invited via referral code:{" "}
+              <strong className="font-mono text-white">{referralCode}</strong>
             </span>
           </div>
         )}
@@ -94,9 +148,50 @@ function RegisterContent() {
           </div>
         )}
 
+        {/* Google Authentication Button */}
+        <button
+          type="button"
+          onClick={handleGoogleSignUp}
+          disabled={googleLoading || loading}
+          className="w-full py-2.5 px-4 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-white font-medium text-xs flex items-center justify-center gap-3 transition-all active:scale-95 shadow-md"
+        >
+          {googleLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin text-hub-gold" />
+          ) : (
+            <svg className="w-4 h-4" viewBox="0 0 24 24">
+              <path
+                fill="#4285F4"
+                d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+              />
+            </svg>
+          )}
+          <span>Sign up with Google</span>
+        </button>
+
+        <div className="relative flex items-center justify-center">
+          <div className="border-t border-hub-border w-full" />
+          <span className="bg-hub-surface px-3 text-[11px] font-mono text-hub-text-muted uppercase tracking-wider absolute">
+            or email
+          </span>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-hub-text-secondary mb-1">Full Name</label>
+            <label className="block text-xs font-medium text-hub-text-secondary mb-1">
+              Full Name
+            </label>
             <div className="relative">
               <User className="w-4 h-4 absolute left-3 top-3 text-hub-text-muted" />
               <input
@@ -111,7 +206,9 @@ function RegisterContent() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-hub-text-secondary mb-1">Email Address</label>
+            <label className="block text-xs font-medium text-hub-text-secondary mb-1">
+              Email Address
+            </label>
             <div className="relative">
               <Mail className="w-4 h-4 absolute left-3 top-3 text-hub-text-muted" />
               <input
@@ -165,8 +262,8 @@ function RegisterContent() {
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full py-2.5 rounded-lg font-bold text-sm bg-hub-gold text-hub-forest-dark hover:bg-hub-gold-hover shadow-gold-glow flex items-center justify-center gap-2 active:scale-95"
+            disabled={loading || googleLoading}
+            className="w-full py-2.5 rounded-lg font-bold text-sm bg-hub-gold text-hub-forest-dark hover:bg-hub-gold-hover shadow-gold-glow flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Create Account</span>}
             <ArrowRight className="w-4 h-4" />
