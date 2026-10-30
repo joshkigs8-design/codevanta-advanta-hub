@@ -83,8 +83,40 @@ export default function TutorialDetailPage({ params }: { params: { slug: string 
     );
   }
 
+  const articleJsonLd = tutorial
+    ? {
+        "@context": "https://schema.org",
+        "@type": "TechArticle",
+        headline: tutorial.title,
+        description: tutorial.summary,
+        url: `https://www.codevanta.online/guides/${params.slug}`,
+        datePublished: tutorial.last_verified_date || "2026-10-30",
+        author: {
+          "@type": "Organization",
+          name: "CodeVanta Ventures",
+          url: "https://www.codevanta.online",
+        },
+        publisher: {
+          "@type": "Organization",
+          name: "CodeVanta Ventures",
+          logo: {
+            "@type": "ImageObject",
+            url: "https://www.codevanta.online/favicon.svg",
+          },
+        },
+        proficiencyLevel: tutorial.difficulty,
+        dependencies: tutorial.prerequisites?.join(", "),
+      }
+    : null;
+
   return (
     <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 space-y-8">
+      {articleJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+        />
+      )}
       {/* Top Bar */}
       <div className="no-print flex items-center justify-between gap-4 flex-wrap border-b border-white/10 pb-4">
         <Link

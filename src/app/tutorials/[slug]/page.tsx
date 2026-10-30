@@ -99,8 +99,41 @@ export default function TutorialDetailPage() {
     );
   }
 
+  const articleJsonLd = tutorial
+    ? {
+        "@context": "https://schema.org",
+        "@type": "TechArticle",
+        headline: tutorial.title,
+        description: tutorial.summary,
+        url: `https://www.codevanta.online/tutorials/${slug}`,
+        datePublished: tutorial.created_at,
+        dateModified: tutorial.updated_at || tutorial.created_at,
+        author: {
+          "@type": "Organization",
+          name: "CodeVanta Ventures",
+          url: "https://www.codevanta.online",
+        },
+        publisher: {
+          "@type": "Organization",
+          name: "CodeVanta Ventures",
+          logo: {
+            "@type": "ImageObject",
+            url: "https://www.codevanta.online/favicon.svg",
+          },
+        },
+        proficiencyLevel: tutorial.difficulty,
+        dependencies: tutorial.prerequisites?.join(", "),
+      }
+    : null;
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+      {articleJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+        />
+      )}
       {/* Top Navigation & Action Controls */}
       <div className="no-print flex items-center justify-between gap-4 flex-wrap border-b border-white/10 pb-4">
         <Link
