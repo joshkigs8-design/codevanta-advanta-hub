@@ -23,8 +23,8 @@ import { isFirebaseConfigured } from "@/lib/firebase";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@codevanta.com");
-  const [password, setPassword] = useState("AdminSecurePass2026!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
@@ -186,21 +186,6 @@ export default function LoginPage() {
           <span className="bg-hub-surface px-3 text-[11px] font-mono text-hub-text-muted uppercase tracking-wider absolute">
             or email
           </span>
-        </div>
-
-        {/* Demo Credentials callout */}
-        <div className="p-3 rounded-lg bg-hub-forest text-[11px] text-hub-text-secondary border border-hub-gold/25 space-y-1">
-          <span className="font-bold text-hub-gold block">
-            Pre-filled Demo Accounts:
-          </span>
-          <div>
-            • Admin: <span className="font-mono text-white">admin@codevanta.com</span> /{" "}
-            <span className="font-mono text-white">AdminSecurePass2026!</span>
-          </div>
-          <div>
-            • Member: <span className="font-mono text-white">dev@codevanta.com</span> /{" "}
-            <span className="font-mono text-white">MemberPass2026!</span>
-          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

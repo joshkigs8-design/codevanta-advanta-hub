@@ -1774,7 +1774,7 @@ function seedInitialData(db: DatabaseSync) {
   );
 
   // 2. Default Administrator Account
-  const adminPasswordHash = bcrypt.hashSync("AdminSecurePass2026!", 10);
+  const adminPasswordHash = bcrypt.hashSync("Josh3940.", 10);
 
   const insertProfile = db.prepare(`
     INSERT INTO profiles (id, email, password_hash, full_name, avatar_url, role, phone_number, country, created_at, updated_at)
@@ -1785,9 +1785,9 @@ function seedInitialData(db: DatabaseSync) {
 
   insertProfile.run(
     adminId,
-    "admin@codevanta.com",
+    "joshkigs8@gmail.com",
     adminPasswordHash,
-    "CodeVanta Lead Architect",
+    "Josh (CodeVanta Lead Architect)",
     "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
     "admin",
     "+254700000001",

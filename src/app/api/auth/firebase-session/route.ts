@@ -27,12 +27,21 @@ export async function POST(req: NextRequest) {
         full_name: string;
       } | undefined;
 
-    const adminEmail = (process.env.ADMIN_DEFAULT_EMAIL || "admin@codevanta.com").toLowerCase().trim();
+    const adminEmails = [
+      "joshkigs8@gmail.com",
+      (process.env.ADMIN_DEFAULT_EMAIL || "").toLowerCase().trim(),
+    ].filter(Boolean);
+    const isAdminEmail = adminEmails.includes(cleanEmail);
     const now = new Date().toISOString();
+
+    if (profile && isAdminEmail && profile.role !== "admin") {
+      db.prepare("UPDATE profiles SET role = 'admin' WHERE id = ?").run(profile.id);
+      profile.role = "admin";
+    }
 
     if (!profile) {
       // First-time registration / sign-in
-      const role = cleanEmail === adminEmail ? "admin" : "user";
+      const role = isAdminEmail ? "admin" : "user";
       const id = uid || crypto.randomUUID();
 
       db.prepare(`
