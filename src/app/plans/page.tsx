@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { MembershipPlan } from "@/types";
 import CheckoutModal from "@/components/CheckoutModal";
+import PromoCodeRedeemBox from "@/components/PromoCodeRedeemBox";
 import {
   Sparkles,
   CheckCircle2,
@@ -159,6 +160,8 @@ function PlansContent() {
           })}
         </div>
       )}
+
+      <PromoCodeRedeemBox className="my-6" />
 
       {/* Transparency Guarantee Box */}
       <div className="p-6 sm:p-8 rounded-2xl bg-hub-surface border border-hub-border space-y-4">

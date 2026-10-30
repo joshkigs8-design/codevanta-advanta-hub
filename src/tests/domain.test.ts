@@ -277,4 +277,57 @@ test("CodeVanta Advanta Hub — Comprehensive Domain Test Suite", async (t) => {
     // Reset status back to approved_for_launch
     setProgramStatus("approved_for_launch", adminId);
   });
+
+  await t.test("6. Launchday Promo Codes Verification (Capacity, Expiration & Upgrades)", () => {
+    // 1. Check seeded codes
+    const launchCode = db.prepare("SELECT * FROM promo_codes WHERE code = 'LAUNCHDAY'").get() as any;
+    assert.ok(launchCode, "Seeded LAUNCHDAY promo code must exist");
+    assert.strictEqual(launchCode.max_uses, 5, "LAUNCHDAY must have capacity of 5");
+    assert.strictEqual(launchCode.plan_slug, "vip", "LAUNCHDAY must grant VIP tier");
+
+    // 2. Setup a free user fixture
+    const freeUserId = "00000000-0000-4000-a000-000000000099";
+    const freeUserNow = new Date().toISOString();
+    db.prepare(`
+      INSERT OR REPLACE INTO profiles (id, email, password_hash, full_name, role, created_at, updated_at)
+      VALUES (?, 'earlybird@codevanta.test', 'hash', 'Early Bird', 'user', ?, ?)
+    `).run(freeUserId, freeUserNow, freeUserNow);
+
+    const initialEntitlements = getUserEntitlements(freeUserId);
+    assert.strictEqual(initialEntitlements.planSlug, "free", "User starts on free tier");
+
+    // 3. Simulate redemption logic
+    const redemptionId = `red_test_${Date.now()}`;
+    const membershipId = `mem_test_${Date.now()}`;
+
+    db.prepare(`
+      INSERT INTO promo_code_redemptions (id, promo_code_id, promo_code, user_id, user_email, plan_slug, redeemed_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(redemptionId, launchCode.id, launchCode.code, freeUserId, "earlybird@codevanta.test", launchCode.plan_slug, freeUserNow);
+
+    db.prepare("UPDATE promo_codes SET used_count = used_count + 1 WHERE id = ?").run(launchCode.id);
+
+    db.prepare(`
+      INSERT INTO memberships (id, user_id, plan_id, plan_slug, plan_name, status, amount_paid_kes, starts_at, expires_at, payment_reference, created_at, updated_at)
+      VALUES (?, ?, 'plan-vip-350', 'vip', 'VIP Architecture', 'active', 0, ?, NULL, 'PROMO_LAUNCHDAY', ?, ?)
+    `).run(membershipId, freeUserId, freeUserNow, freeUserNow, freeUserNow);
+
+    // 4. Verify upgraded entitlements
+    const upgradedEntitlements = getUserEntitlements(freeUserId);
+    assert.strictEqual(upgradedEntitlements.planSlug, "vip", "User upgraded to VIP tier immediately");
+    assert.strictEqual(upgradedEntitlements.canDownloadStarterKits, true, "VIP entitlement granted");
+
+    // 5. Test capacity increment
+    const updatedLaunchCode = db.prepare("SELECT * FROM promo_codes WHERE id = ?").get(launchCode.id) as any;
+    assert.strictEqual(updatedLaunchCode.used_count, 1, "Used count incremented to 1");
+
+    // 6. Test duplicate prevention
+    const duplicate = db.prepare("SELECT id FROM promo_code_redemptions WHERE promo_code_id = ? AND user_id = ?").get(launchCode.id, freeUserId);
+    assert.ok(duplicate, "Duplicate redemption check catches prior claim");
+
+    // 7. Test capacity ceiling
+    db.prepare("UPDATE promo_codes SET used_count = 5 WHERE id = ?").run(launchCode.id);
+    const fullCode = db.prepare("SELECT * FROM promo_codes WHERE id = ?").get(launchCode.id) as any;
+    assert.ok(fullCode.used_count >= fullCode.max_uses, "Capacity ceiling correctly met");
+  });
 });

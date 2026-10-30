@@ -438,6 +438,33 @@ function initSchema(db: DatabaseSync) {
       description TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS promo_codes (
+      id TEXT PRIMARY KEY,
+      code TEXT UNIQUE NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      plan_slug TEXT NOT NULL,
+      max_uses INTEGER NOT NULL DEFAULT 5,
+      used_count INTEGER NOT NULL DEFAULT 0,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      expires_at TEXT,
+      created_by TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS promo_code_redemptions (
+      id TEXT PRIMARY KEY,
+      promo_code_id TEXT NOT NULL,
+      promo_code TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      user_email TEXT NOT NULL,
+      plan_slug TEXT NOT NULL,
+      redeemed_at TEXT NOT NULL,
+      FOREIGN KEY (promo_code_id) REFERENCES promo_codes(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,
+      UNIQUE (promo_code_id, user_id)
+    );
   `);
 }
 
@@ -1798,6 +1825,22 @@ function seedAdditionalResources(db: DatabaseSync) {
       now
     );
   }
+
+  seedInitialPromoCodes(db);
+}
+
+function seedInitialPromoCodes(db: DatabaseSync) {
+  const check = db.prepare("SELECT COUNT(*) as count FROM promo_codes").get() as { count: number };
+  if (!check || check.count === 0) {
+    const now = new Date().toISOString();
+    const insert = db.prepare(`
+      INSERT OR IGNORE INTO promo_codes (
+        id, code, description, plan_slug, max_uses, used_count, is_active, expires_at, created_by, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    insert.run("promo-launchday", "LAUNCHDAY", "Launchday VIP Free Pass (First 5 members)", "vip", 5, 0, 1, null, "admin", now, now);
+    insert.run("promo-codevanta-pro", "CODEVANTA2026", "CodeVanta Pro Developer Pass (First 10 members)", "pro", 10, 0, 1, null, "admin", now, now);
+  }
 }
 
 function seedInitialData(db: DatabaseSync) {
@@ -1805,6 +1848,7 @@ function seedInitialData(db: DatabaseSync) {
   const check = db.prepare("SELECT COUNT(*) as count FROM categories").get() as { count: number };
   if (check && check.count > 0) {
     seedAdditionalResources(db);
+    seedInitialPromoCodes(db);
     return;
   }
 
@@ -2747,4 +2791,6 @@ To prevent hitting the 15 RPM limit on spikes, implement an in-memory or Redis t
       now
     );
   }
+
+  seedInitialPromoCodes(db);
 }

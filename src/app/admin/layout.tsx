@@ -19,6 +19,7 @@ import {
   Package,
   Settings,
   ShieldCheck,
+  Ticket,
   Users,
   X,
   Zap,
@@ -37,6 +38,7 @@ const sidebarGroups = [
   {
     label: "Growth",
     links: [
+      { href: "/admin/promocodes", label: "Promo codes", icon: Ticket },
       { href: "/admin/referrals", label: "Referrals", icon: Zap },
       { href: "/admin/resources", label: "Resources", icon: Package },
       { href: "/admin/tutorials", label: "Tutorials", icon: BookOpen },

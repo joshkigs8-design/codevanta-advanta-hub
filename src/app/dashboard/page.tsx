@@ -1,5 +1,6 @@
 "use client";
 import { getResourceLogo } from '@/lib/resourceImages';
+import PromoCodeRedeemBox from '@/components/PromoCodeRedeemBox';
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
@@ -347,6 +348,8 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
+
+          <PromoCodeRedeemBox onSuccess={() => window.location.reload()} />
 
           {/* Entitlements Details */}
           <div className="p-6 rounded-2xl bg-hub-surface border border-hub-border space-y-4">

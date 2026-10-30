@@ -18,3 +18,4 @@ export const metadata: Metadata = {
 export default function TroubleshootingLayout({ children }: { children: React.ReactNode }) {
   return children;
 }
+

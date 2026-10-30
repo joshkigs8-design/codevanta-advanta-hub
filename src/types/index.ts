@@ -153,6 +153,31 @@ export interface Membership {
   updated_at: string;
 }
 
+export interface PromoCode {
+  id: string;
+  code: string;
+  description: string;
+  plan_slug: PlanSlug;
+  max_uses: number;
+  used_count: number;
+  is_active: boolean | number;
+  expires_at?: string | null;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+  redemptions?: PromoCodeRedemption[];
+}
+
+export interface PromoCodeRedemption {
+  id: string;
+  promo_code_id: string;
+  promo_code: string;
+  user_id: string;
+  user_email: string;
+  plan_slug: PlanSlug;
+  redeemed_at: string;
+}
+
 export interface LearningGuide {
   id: string;
   slug: string;
