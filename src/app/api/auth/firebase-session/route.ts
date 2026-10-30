@@ -7,7 +7,7 @@ import crypto from "node:crypto";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { uid, email, displayName, referralCode } = body;
+    const { uid, email, displayName, referralCode, emailVerified } = body;
 
     if (!email) {
       return NextResponse.json({ error: "Email is required." }, { status: 400 });
@@ -15,6 +15,7 @@ export async function POST(req: NextRequest) {
 
     const cleanEmail = email.toLowerCase().trim();
     const cleanName = displayName?.trim() || cleanEmail.split("@")[0];
+    const isEmailVerified = Boolean(emailVerified);
     const db = getDb();
 
     // Check if user exists in local database
@@ -25,6 +26,7 @@ export async function POST(req: NextRequest) {
         email: string;
         role: "user" | "member" | "admin";
         full_name: string;
+        email_verified?: number;
       } | undefined;
 
     const adminEmails = [
@@ -34,9 +36,15 @@ export async function POST(req: NextRequest) {
     const isAdminEmail = adminEmails.includes(cleanEmail);
     const now = new Date().toISOString();
 
-    if (profile && isAdminEmail && profile.role !== "admin") {
-      db.prepare("UPDATE profiles SET role = 'admin' WHERE id = ?").run(profile.id);
-      profile.role = "admin";
+    if (profile) {
+      if (isAdminEmail && profile.role !== "admin") {
+        db.prepare("UPDATE profiles SET role = 'admin' WHERE id = ?").run(profile.id);
+        profile.role = "admin";
+      }
+      if (isEmailVerified && !profile.email_verified) {
+        db.prepare("UPDATE profiles SET email_verified = 1, updated_at = ? WHERE id = ?").run(now, profile.id);
+        profile.email_verified = 1;
+      }
     }
 
     if (!profile) {
@@ -45,15 +53,16 @@ export async function POST(req: NextRequest) {
       const id = uid || crypto.randomUUID();
 
       db.prepare(`
-        INSERT INTO profiles (id, email, password_hash, full_name, avatar_url, role, phone_number, country, created_at, updated_at)
-        VALUES (?, ?, 'FIREBASE_AUTH', ?, NULL, ?, NULL, 'KE', ?, ?)
-      `).run(id, cleanEmail, cleanName, role, now, now);
+        INSERT INTO profiles (id, email, password_hash, full_name, avatar_url, role, phone_number, country, email_verified, created_at, updated_at)
+        VALUES (?, ?, 'FIREBASE_AUTH', ?, NULL, ?, NULL, 'KE', ?, ?, ?)
+      `).run(id, cleanEmail, cleanName, role, isEmailVerified ? 1 : 0, now, now);
 
       profile = {
         id,
         email: cleanEmail,
         role,
         full_name: cleanName,
+        email_verified: isEmailVerified ? 1 : 0,
       };
 
       // Generate user referral code
@@ -76,6 +85,7 @@ export async function POST(req: NextRequest) {
       email: profile.email,
       role: profile.role,
       fullName: profile.full_name,
+      emailVerified: Boolean(isEmailVerified || profile.email_verified),
     });
 
     const response = NextResponse.json({
@@ -85,6 +95,7 @@ export async function POST(req: NextRequest) {
         email: profile.email,
         full_name: profile.full_name,
         role: profile.role,
+        email_verified: Boolean(isEmailVerified || profile.email_verified),
       },
     });
 
@@ -98,10 +109,7 @@ export async function POST(req: NextRequest) {
 
     return response;
   } catch (err: unknown) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Internal Server Error" },
-      { status: 500 }
-    );
+    console.error("Firebase session sync error:", err);
+    return NextResponse.json({ error: "Failed to establish session." }, { status: 500 });
   }
 }
-

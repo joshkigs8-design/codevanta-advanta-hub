@@ -63,7 +63,7 @@ function RegisterContent() {
             fullName,
             referralCode.trim() || undefined
           );
-          router.push("/dashboard");
+          router.push("/verify-email?new=true");
           router.refresh();
           return;
         } catch (firebaseErr: any) {

@@ -12,6 +12,7 @@ export interface Profile {
   role: UserRole;
   phone_number?: string;
   country: string; // e.g. "KE"
+  email_verified?: boolean;
   created_at: string;
   updated_at: string;
 }

@@ -9,6 +9,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (!user.email_verified && user.role !== "admin") {
+      return NextResponse.json(
+        { error: "Email verification is required before requesting payouts. Please verify your email address to unlock withdrawals." },
+        { status: 403 }
+      );
+    }
+
     const body = await req.json();
     const { amount, phoneNumber, accountName, paymentMethod } = body;
 

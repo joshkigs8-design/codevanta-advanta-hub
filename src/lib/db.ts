@@ -115,6 +115,11 @@ export function getDb(): DatabaseSync {
   }
 
   initSchema(dbInstance);
+  try {
+    dbInstance.exec("ALTER TABLE profiles ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0;");
+  } catch {
+    // column already exists
+  }
   seedInitialData(dbInstance);
   initPhase2SchemaAndData(dbInstance);
 
@@ -132,6 +137,7 @@ function initSchema(db: DatabaseSync) {
       role TEXT NOT NULL DEFAULT 'user',
       phone_number TEXT,
       country TEXT NOT NULL DEFAULT 'KE',
+      email_verified INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );

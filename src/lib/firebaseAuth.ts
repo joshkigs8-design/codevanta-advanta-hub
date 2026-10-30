@@ -4,6 +4,8 @@ import {
   signInWithPopup,
   signOut,
   sendPasswordResetEmail,
+  sendEmailVerification,
+  reload,
   updateProfile,
   User,
 } from "firebase/auth";
@@ -17,6 +19,7 @@ export interface FirebaseUserProfile {
   photoURL: string | null;
   role: "user" | "member" | "admin";
   planId: "free" | "basic" | "pro" | "vip";
+  emailVerified: boolean;
   referralCode: string;
   referredBy?: string | null;
   accountStatus: "active" | "suspended" | "pending";
@@ -47,7 +50,7 @@ export async function syncUserWithFirestoreAndBackend(
     referralCode?: string;
   }
 ): Promise<void> {
-  if (!isFirebaseConfigured()) return;
+  if (!isFirebaseConfigured() || !firestore) return;
 
   const userRef = doc(firestore, "users", user.uid);
   const docSnap = await getDoc(userRef);
@@ -66,6 +69,7 @@ export async function syncUserWithFirestoreAndBackend(
       photoURL: user.photoURL || null,
       role: "user", // Security constraint: default role is always user
       planId: "free",
+      emailVerified: Boolean(user.emailVerified),
       referralCode,
       referredBy: additionalData?.referralCode || null,
       accountStatus: "active",
@@ -73,12 +77,13 @@ export async function syncUserWithFirestoreAndBackend(
       updatedAt: serverTimestamp(),
     });
   } else {
-    // Update last login timestamp without overwriting role or planId
+    // Update last login timestamp and emailVerified without overwriting role or planId
     await setDoc(
       userRef,
       {
         displayName: user.displayName || docSnap.data().displayName,
         photoURL: user.photoURL || docSnap.data().photoURL,
+        emailVerified: Boolean(user.emailVerified),
         updatedAt: serverTimestamp(),
       },
       { merge: true }
@@ -95,6 +100,7 @@ export async function syncUserWithFirestoreAndBackend(
         email: user.email,
         displayName: additionalData?.displayName || user.displayName,
         referralCode: additionalData?.referralCode,
+        emailVerified: Boolean(user.emailVerified),
       }),
     });
   } catch (err) {
@@ -126,7 +132,11 @@ export function getFirebaseErrorMessage(code: string): string {
     case "auth/network-request-failed":
       return "Network error. Please check your internet connection.";
     case "auth/too-many-requests":
-      return "Too many failed attempts. Please wait a few moments before trying again.";
+      return "Too many requests. Please wait a few moments before trying again.";
+    case "auth/invalid-action-code":
+      return "This verification link is invalid, expired, or has already been used.";
+    case "auth/expired-action-code":
+      return "This verification link has expired. Please request a new verification email.";
     default:
       return "An authentication error occurred. Please try again.";
   }
@@ -154,12 +164,48 @@ export async function registerWithEmail(
     }
   }
 
+  // 1. Send verification email immediately on registration
+  try {
+    await sendEmailVerification(credential.user);
+  } catch (emailErr) {
+    console.warn("Could not dispatch verification email automatically:", emailErr);
+  }
+
+  // 2. Synchronize with Firestore & backend session
   await syncUserWithFirestoreAndBackend(credential.user, {
     displayName: fullName.trim(),
     referralCode,
   });
 
   return credential.user;
+}
+
+/**
+ * Resends the email verification link to the current user
+ */
+export async function resendVerificationEmail(): Promise<void> {
+  if (!auth.currentUser) {
+    throw new Error("No active user session. Please sign in first.");
+  }
+  await sendEmailVerification(auth.currentUser);
+}
+
+/**
+ * Refreshes the Firebase user and returns the actual emailVerified boolean.
+ * Uses reload(user) to ensure fresh authentication state from Firebase.
+ */
+export async function checkEmailVerification(): Promise<boolean> {
+  if (!auth.currentUser) {
+    return false;
+  }
+  await reload(auth.currentUser);
+  const verified = auth.currentUser.emailVerified;
+
+  if (verified) {
+    await syncUserWithFirestoreAndBackend(auth.currentUser);
+  }
+
+  return verified;
 }
 
 export async function loginWithGoogle(referralCode?: string): Promise<User> {
@@ -180,4 +226,3 @@ export async function logoutUser(): Promise<void> {
     // ignore
   }
 }
-

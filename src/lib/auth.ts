@@ -11,6 +11,7 @@ export interface SessionPayload {
   email: string;
   role: UserRole;
   fullName: string;
+  emailVerified?: boolean;
 }
 
 export function signToken(payload: SessionPayload): string {
@@ -41,11 +42,16 @@ export function getCurrentUser(): Profile | null {
   if (!session) return null;
 
   const db = getDb();
-  const profile = db
-    .prepare("SELECT id, email, full_name, avatar_url, role, phone_number, country, created_at, updated_at FROM profiles WHERE id = ?")
-    .get(session.userId) as Profile | undefined;
+  const row = db
+    .prepare("SELECT id, email, full_name, avatar_url, role, phone_number, country, email_verified, created_at, updated_at FROM profiles WHERE id = ?")
+    .get(session.userId) as any;
 
-  return profile || null;
+  if (!row) return null;
+
+  return {
+    ...row,
+    email_verified: Boolean(row.email_verified),
+  };
 }
 
 export function requireAuth(): Profile {

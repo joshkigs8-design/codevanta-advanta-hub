@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import {
   UserEntitlements,
 } from "@/lib/entitlements";
+import { auth, isFirebaseConfigured } from "@/lib/firebase";
+import { syncUserWithFirestoreAndBackend } from "@/lib/firebaseAuth";
 import {
   Profile,
   Bookmark,
@@ -80,6 +82,17 @@ export default function DashboardPage() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    // Live Firebase Auth verification status sync
+    if (isFirebaseConfigured()) {
+      const unsub = auth.onAuthStateChanged(async (currentUser) => {
+        if (currentUser && currentUser.emailVerified) {
+          setUser((prev) => (prev ? { ...prev, email_verified: true } : prev));
+          await syncUserWithFirestoreAndBackend(currentUser);
+        }
+      });
+      // Continue cleanup
+    }
+
     // 1. Fetch current user & entitlements
     fetch("/api/auth/me")
       .then((res) => res.json())
@@ -179,6 +192,35 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+      {/* Email Verification Reminder Banner */}
+      {user && !user.email_verified && user.role !== "admin" && (
+        <div className="p-4 rounded-2xl bg-amber-950/40 border border-amber-600/40 text-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg shadow-black/20">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0 text-amber-400">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                <span>Please verify your email address</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  Action Required
+                </span>
+              </h3>
+              <p className="text-xs text-amber-200/80 mt-0.5">
+                We sent a link to <strong className="font-mono text-white">{user.email}</strong>. Verifying your email unlocks M-Pesa payouts and secures your account.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/verify-email"
+            className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-black transition-all shrink-0 flex items-center gap-1.5 shadow-md shadow-amber-500/10 active:scale-95"
+          >
+            <span>Verify Email Now</span>
+            <ArrowUpRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      )}
+
       {/* Dashboard Top Header */}
       <div className="p-6 rounded-2xl bg-hub-surface border border-hub-border flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
@@ -604,7 +646,7 @@ export default function DashboardPage() {
               <div className="sm:col-span-3">
                 <button
                   type="submit"
-                  disabled={withdrawLoading}
+                  disabled={withdrawLoading || (!user.email_verified && user.role !== "admin")}
                   className="px-6 py-2.5 rounded-lg text-xs font-bold bg-hub-gold text-hub-forest-dark hover:bg-hub-gold-hover shadow-gold-glow flex items-center gap-2"
                 >
                   {withdrawLoading && <Loader2 className="w-4 h-4 animate-spin" />}

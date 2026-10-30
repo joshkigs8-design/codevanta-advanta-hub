@@ -68,14 +68,19 @@ service cloud.firestore {
       return isAuthenticated() && (request.auth.token.admin == true || request.auth.token.role == 'admin');
     }
 
+    // Check if the user's email address is verified or user has admin privileges
+    function isEmailVerified() {
+      return isAuthenticated() && (request.auth.token.email_verified == true || isAdmin());
+    }
+
     // ===============================================================
     // Collection Rules
     // ===============================================================
 
     // 1. Users Collection
     // Read: Owner or Admin only (PII protected)
-    // Create: Owner only, cannot self-assign privileged roles or plans
-    // Update: Owner can update non-privileged profile fields; cannot elevate role or change planId/statuses
+    // Create: Owner only on initial signup; unverified users can bootstrap profile without privileged roles
+    // Update: Owner must be email-verified to update profile; cannot modify privileged/system fields
     // Delete: Admin only
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
@@ -86,6 +91,7 @@ service cloud.firestore {
                     (!request.resource.data.keys().hasAny(['role', 'planId']) || request.resource.data.role == 'user');
                     
       allow update: if (isOwner(userId) &&
+                        isEmailVerified() &&
                         !request.resource.data.diff(resource.data).affectedKeys().hasAny([
                           'role', 'planId', 'accountStatus', 'paymentStatus', 'referralRewards', 'referredBy', 'createdAt'
                         ])) || isAdmin();
@@ -95,10 +101,12 @@ service cloud.firestore {
 
     // 2. Resources Collection
     // Read: Publicly readable if published == true; unpublished accessible only to admins
-    // Write: Strictly admin-only
+    // Create: Strictly admin, or verified users submitting unpublished proposal drafts
+    // Update / Delete: Strictly admin-only
     match /resources/{resourceId} {
       allow read: if resource.data.published == true || isAdmin();
-      allow write: if isAdmin();
+      allow create: if isAdmin() || (isEmailVerified() && request.resource.data.published == false);
+      allow update, delete: if isAdmin();
     }
 
     // 3. Categories Collection
@@ -135,7 +143,7 @@ service cloud.firestore {
 
     // 7. Referrals Collection
     // Read: Referrer, referred user, or admin
-    // Create: Authenticated referred user attributing themselves to a distinct referrer (prevents self-referral)
+    // Create: Authenticated & email-verified referred user attributing themselves to a distinct referrer (prevents self-referral & unverified spam)
     // Update / Delete: Strictly admin-only
     match /referrals/{refId} {
       allow read: if isAuthenticated() && (
@@ -143,7 +151,7 @@ service cloud.firestore {
         resource.data.referredId == request.auth.uid ||
         isAdmin()
       );
-      allow create: if isAuthenticated() &&
+      allow create: if isEmailVerified() &&
                     request.resource.data.referredId == request.auth.uid &&
                     request.resource.data.referrerId != request.auth.uid;
       allow update, delete: if isAdmin();
@@ -167,17 +175,14 @@ service cloud.firestore {
 
     // 10. Bookmarks Collection
     // Read: Owning user or admin
-    // Create: Owning user only
-    // Update: Owning user only without ownership hijacking
-    // Delete: Owning user or admin
+    // Create: Owning verified user only
+    // Update: Owning verified user without ownership hijacking or admin
+    // Delete: Owning verified user or admin
     match /bookmarks/{bookmarkId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update: if isAuthenticated() && (
-        (resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid) ||
-        isAdmin()
-      );
-      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isOwner(request.resource.data.userId) && isEmailVerified();
+      allow update: if (isOwner(resource.data.userId) && isOwner(request.resource.data.userId) && isEmailVerified()) || isAdmin();
+      allow delete: if (isOwner(resource.data.userId) && isEmailVerified()) || isAdmin();
     }
 
     // 11. Audit Logs Collection
