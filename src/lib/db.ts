@@ -123,6 +123,24 @@ export function getDb(): DatabaseSync {
   seedInitialData(dbInstance);
   initPhase2SchemaAndData(dbInstance);
 
+  try {
+    const adminUser = dbInstance.prepare("SELECT id FROM profiles WHERE role = 'admin' OR email = 'joshkigs8@gmail.com'").get() as { id: string } | undefined;
+    if (adminUser) {
+      const activeMem = dbInstance.prepare("SELECT id FROM memberships WHERE user_id = ? AND status = 'active'").get(adminUser.id);
+      if (!activeMem) {
+        const nowIso = new Date().toISOString();
+        dbInstance.prepare(`
+          INSERT OR REPLACE INTO memberships (
+            id, user_id, plan_id, plan_slug, plan_name, status, amount_paid_kes,
+            starts_at, expires_at, payment_reference, created_at, updated_at
+          ) VALUES (?, ?, 'plan-vip-350', 'vip', 'VIP Tier', 'active', 0, ?, NULL, 'SYSTEM-ADMIN-LIFETIME-VIP', ?, ?)
+        `).run("mem-admin-vip", adminUser.id, nowIso, nowIso, nowIso);
+      }
+    }
+  } catch {
+    // ignore
+  }
+
   return dbInstance;
 }
 
@@ -1888,7 +1906,13 @@ function seedInitialData(db: DatabaseSync) {
     now
   );
 
-
+  // Seed Lifetime VIP Membership for Admin
+  db.prepare(`
+    INSERT OR REPLACE INTO memberships (
+      id, user_id, plan_id, plan_slug, plan_name, status, amount_paid_kes,
+      starts_at, expires_at, payment_reference, created_at, updated_at
+    ) VALUES (?, ?, 'plan-vip-350', 'vip', 'VIP Tier', 'active', 0, ?, NULL, 'SYSTEM-ADMIN-LIFETIME-VIP', ?, ?)
+  `).run("mem-admin-vip", adminId, now, now, now);
 
   // 4. Seed Categories
   const insertCat = db.prepare(`

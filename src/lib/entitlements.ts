@@ -31,6 +31,24 @@ export function getUserEntitlements(userId?: string | null): UserEntitlements {
   if (!userId) return freeDefaults;
 
   const db = getDb();
+
+  // Admin role unconditionally possesses full VIP Architect Tier entitlements
+  const profile = db.prepare("SELECT role, email FROM profiles WHERE id = ?").get(userId) as { role: string; email: string } | undefined;
+  if (profile?.role === "admin" || profile?.email === "joshkigs8@gmail.com") {
+    return {
+      planSlug: "vip",
+      planName: "VIP Tier",
+      canAccessBasicDirectory: true,
+      canUseAdvancedSearch: true,
+      canAccessCuratedCollections: true,
+      canAccessLearningPaths: true,
+      canAccessOriginalBlueprints: true,
+      canDownloadStarterKits: true,
+      canAccessEarlyReleases: true,
+      maxBookmarks: 9999,
+    };
+  }
+
   const membership = db
     .prepare(`
       SELECT * FROM memberships

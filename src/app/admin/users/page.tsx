@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Copy, Check } from "lucide-react";
 
 interface UserProfile {
   id: string;
@@ -11,6 +11,7 @@ interface UserProfile {
   role: "user" | "member" | "admin";
   phone_number?: string;
   country: string;
+  referral_code?: string;
   created_at: string;
   membership?: {
     id: string;
@@ -37,6 +38,7 @@ export default function AdminUsersPage() {
   const [accessPlan, setAccessPlan] = useState("pro");
   const [accessDuration, setAccessDuration] = useState("month");
   const [accessError, setAccessError] = useState("");
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -79,11 +81,11 @@ export default function AdminUsersPage() {
       } else {
         await fetchUsers();
         if (selectedUser?.id === userId) {
-          setSelectedUser((prev) => (prev ? { ...prev, role: newRole as any } : null));
+          setSelectedUser((prev) => (prev ? { ...prev, role: newRole as "user" | "member" | "admin" } : null));
         }
       }
-    } catch (e) {
-      alert("Network error");
+    } catch {
+      alert("Network error updating role");
     } finally {
       setUpdatingId(null);
     }
@@ -124,6 +126,12 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleCopyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(null), 2000);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
@@ -131,7 +139,7 @@ export default function AdminUsersPage() {
           <h1 className="text-2xl font-bold text-hub-text-primary">User Management</h1>
           <p className="text-sm text-hub-text-muted mt-1">
             {totalUsers !== null ? `${totalUsers} registered user${totalUsers === 1 ? "" : "s"} total.` : "Loading registered members…"}{" "}
-            Search, inspect, and update roles or access for registered members.
+            Inspect registered accounts, referral codes, and manage tier access.
           </p>
         </div>
         <button
@@ -192,52 +200,87 @@ export default function AdminUsersPage() {
                 <tr>
                   <th className="px-5 py-3 font-medium">User</th>
                   <th className="px-5 py-3 font-medium">Role</th>
-                  <th className="px-5 py-3 font-medium">Plan</th>
+                  <th className="px-5 py-3 font-medium">Tier / Plan</th>
+                  <th className="px-5 py-3 font-medium">Referral Code</th>
                   <th className="px-5 py-3 font-medium">Joined</th>
                   <th className="px-5 py-3 font-medium text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-hub-border-subtle">
-                {users.map((u) => (
-                  <tr key={u.id} className="hover:bg-hub-surface-elevated/50 transition-colors">
-                    <td className="px-5 py-3">
-                      <div className="font-medium text-hub-text-primary">{u.full_name}</div>
-                      <div className="text-xs text-hub-text-muted font-mono">{u.email}</div>
-                    </td>
-                    <td className="px-5 py-3">
-                      <select
-                        disabled={updatingId === u.id}
-                        value={u.role}
-                        onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                        className="bg-hub-surface-elevated border border-hub-border rounded px-2 py-1 text-xs text-hub-text-primary focus:ring-1 focus:ring-hub-gold disabled:opacity-50"
-                      >
-                        <option value="user">User</option>
-                        <option value="member">Member</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                    </td>
-                    <td className="px-5 py-3 whitespace-nowrap">
-                      {u.membership ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-hub-gold/10 text-hub-gold border border-hub-gold/30">
-                          {u.membership.plan_name}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-hub-text-muted">None</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3 text-xs text-hub-text-muted whitespace-nowrap">
-                      {new Date(u.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-5 py-3 text-right">
-                      <button
-                        onClick={() => setSelectedUser(u)}
-                        className="px-2.5 py-1 text-xs rounded bg-hub-surface-elevated border border-hub-border text-hub-text-secondary hover:text-hub-text-primary hover:border-hub-gold/40"
-                      >
-                        Details
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {users.map((u) => {
+                  const isVip = u.membership?.plan_slug === "vip" || u.role === "admin" || u.email === "joshkigs8@gmail.com";
+                  const isPro = u.membership?.plan_slug === "pro";
+                  const isBasic = u.membership?.plan_slug === "basic";
+
+                  return (
+                    <tr key={u.id} className="hover:bg-hub-surface-elevated/50 transition-colors">
+                      <td className="px-5 py-3">
+                        <div className="font-medium text-hub-text-primary">{u.full_name}</div>
+                        <div className="text-xs text-hub-text-muted font-mono">{u.email}</div>
+                      </td>
+                      <td className="px-5 py-3">
+                        <select
+                          disabled={updatingId === u.id}
+                          value={u.role}
+                          onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                          className="bg-hub-surface-elevated border border-hub-border rounded px-2 py-1 text-xs text-hub-text-primary focus:ring-1 focus:ring-hub-gold disabled:opacity-50"
+                        >
+                          <option value="user">User</option>
+                          <option value="member">Member</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      </td>
+                      <td className="px-5 py-3 whitespace-nowrap">
+                        {isVip ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-bold bg-hub-gold/15 text-hub-gold border border-hub-gold/40 shadow-sm">
+                            VIP Tier
+                          </span>
+                        ) : isPro ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-medium bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                            Pro Tier
+                          </span>
+                        ) : isBasic ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                            Basic Tier
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-medium bg-slate-700/40 text-slate-300 border border-slate-600/30">
+                            Free Tier
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3 whitespace-nowrap">
+                        {u.referral_code ? (
+                          <button
+                            onClick={() => handleCopyCode(u.referral_code!)}
+                            title="Click to copy referral code"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-hub-surface-elevated border border-hub-border font-mono text-xs text-hub-gold hover:border-hub-gold/40 transition-colors"
+                          >
+                            <span>{u.referral_code}</span>
+                            {copiedCode === u.referral_code ? (
+                              <Check size={11} className="text-emerald-400" />
+                            ) : (
+                              <Copy size={11} className="text-hub-text-muted" />
+                            )}
+                          </button>
+                        ) : (
+                          <span className="text-xs text-hub-text-muted italic">Pending</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3 text-xs text-hub-text-muted whitespace-nowrap">
+                        {new Date(u.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <button
+                          onClick={() => setSelectedUser(u)}
+                          className="px-2.5 py-1 text-xs rounded bg-hub-surface-elevated border border-hub-border text-hub-text-secondary hover:text-hub-text-primary hover:border-hub-gold/40"
+                        >
+                          Details
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -300,9 +343,15 @@ export default function AdminUsersPage() {
                 <span className="text-hub-text-primary font-bold uppercase">{selectedUser.role}</span>
               </div>
               <div>
+                <span className="text-hub-text-muted block">Referral Code:</span>
+                <span className="text-hub-gold font-mono font-bold">{selectedUser.referral_code || "Pending"}</span>
+              </div>
+              <div>
                 <span className="text-hub-text-muted block">Current Plan:</span>
-                <span className="text-hub-text-primary">
-                  {selectedUser.membership ? selectedUser.membership.plan_name : "Free User"}
+                <span className="text-hub-text-primary font-semibold">
+                  {selectedUser.membership?.plan_slug === "vip" || selectedUser.role === "admin"
+                    ? "VIP Tier"
+                    : selectedUser.membership?.plan_name || "Free Tier"}
                 </span>
               </div>
               <div>
@@ -316,7 +365,7 @@ export default function AdminUsersPage() {
             <div className="border-t border-hub-border pt-4 space-y-3">
               <div>
                 <h4 className="text-sm font-semibold text-hub-text-primary">Grant membership access</h4>
-                <p className="text-xs text-hub-text-muted mt-1">This replaces the user&apos;s current active membership.</p>
+                <p className="text-xs text-hub-text-muted mt-1">This updates the user&apos;s active membership.</p>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <select
@@ -350,7 +399,7 @@ export default function AdminUsersPage() {
             <div className="border-t border-hub-border pt-4 flex justify-end gap-2">
               <button
                 onClick={() => setSelectedUser(null)}
-                className="px-4 py-1.5 text-xs rounded bg-hub-surface-elevated border border-hub-border text-hub-text-secondary"
+                className="px-4 py-2 text-xs rounded bg-hub-surface-elevated border border-hub-border text-hub-text-secondary hover:text-white"
               >
                 Close
               </button>
