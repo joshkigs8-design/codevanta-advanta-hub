@@ -211,6 +211,7 @@ export default function AdminUsersPage() {
                   const isVip = u.membership?.plan_slug === "vip" || u.role === "admin" || u.email === "joshkigs8@gmail.com";
                   const isPro = u.membership?.plan_slug === "pro";
                   const isBasic = u.membership?.plan_slug === "basic";
+                  const isStarter = u.membership?.plan_slug === "starter";
 
                   return (
                     <tr key={u.id} className="hover:bg-hub-surface-elevated/50 transition-colors">
@@ -242,6 +243,10 @@ export default function AdminUsersPage() {
                         ) : isBasic ? (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                             Basic Tier
+                          </span>
+                        ) : isStarter ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-medium bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
+                            Starter Tier
                           </span>
                         ) : (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-medium bg-slate-700/40 text-slate-300 border border-slate-600/30">
@@ -373,9 +378,10 @@ export default function AdminUsersPage() {
                   onChange={(e) => setAccessPlan(e.target.value)}
                   className="bg-hub-surface-elevated border border-hub-border rounded px-2 py-2 text-xs text-hub-text-primary"
                 >
-                  <option value="basic">Basic</option>
-                  <option value="pro">Pro</option>
-                  <option value="vip">VIP</option>
+                  <option value="starter">Starter (KES 70)</option>
+                  <option value="basic">Basic (KES 150)</option>
+                  <option value="pro">Pro (KES 250)</option>
+                  <option value="vip">VIP (KES 350)</option>
                 </select>
                 <select
                   value={accessDuration}

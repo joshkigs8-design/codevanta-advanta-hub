@@ -12,7 +12,7 @@ import {
 } from "../lib/referral";
 import { getWallet, submitWithdrawalRequest } from "../lib/wallet";
 import { getUserEntitlements } from "../lib/entitlements";
-import { handlePaymentWebhook } from "../lib/payments";
+import { handlePaymentWebhook, initiateCheckout } from "../lib/payments";
 import crypto from "node:crypto";
 import { MembershipPlan, ReferralReward } from "../types";
 
@@ -50,13 +50,17 @@ test("CodeVanta Advanta Hub — Comprehensive Domain Test Suite", async (t) => {
     assert.ok(resourcesCount.count >= 20, "Should have at least 20 verified developer resources");
 
     const plans = db.prepare("SELECT * FROM membership_plans").all() as unknown as MembershipPlan[];
-    assert.strictEqual(plans.length, 3, "Should have 3 membership plans (Basic, Pro, VIP)");
+    assert.strictEqual(plans.length, 4, "Should have 4 membership plans (Starter, Basic, Pro, VIP)");
 
+    const starterPlan = plans.find((p) => p.slug === "starter");
     const basicPlan = plans.find((p) => p.slug === "basic");
     const proPlan = plans.find((p) => p.slug === "pro");
     const vipPlan = plans.find((p) => p.slug === "vip");
 
-    assert.ok(basicPlan && proPlan && vipPlan, "All 3 plans must exist");
+    assert.ok(starterPlan && basicPlan && proPlan && vipPlan, "All 4 plans must exist");
+    assert.strictEqual(starterPlan.price_kes, 70, "Starter plan should be KES 70");
+    assert.strictEqual(starterPlan.direct_referral_reward_kes, 20, "Starter referral reward should be KES 20 (20 bob)");
+
     assert.strictEqual(basicPlan.price_kes, 150, "Basic plan should be KES 150");
     assert.strictEqual(basicPlan.direct_referral_reward_kes, 50, "Basic referral reward should be KES 50");
 
@@ -329,5 +333,53 @@ test("CodeVanta Advanta Hub — Comprehensive Domain Test Suite", async (t) => {
     db.prepare("UPDATE promo_codes SET used_count = 5 WHERE id = ?").run(launchCode.id);
     const fullCode = db.prepare("SELECT * FROM promo_codes WHERE id = ?").get(launchCode.id) as any;
     assert.ok(fullCode.used_count >= fullCode.max_uses, "Capacity ceiling correctly met");
+  });
+  await t.test("7. Starter Tier Subscription & KES 20 (20 Bob) Referral Reward", () => {
+    const starterUserId = crypto.randomUUID();
+    const starterReferrerId = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    // Create referrer
+    db.prepare(`
+      INSERT INTO profiles (id, email, password_hash, full_name, role, country, created_at, updated_at)
+      VALUES (?, 'ref_starter@codevanta.com', 'HASH', 'Starter Referrer', 'user', 'KE', ?, ?)
+    `).run(starterReferrerId, now, now);
+
+    const refCodeObj = getReferralCodeForUser(starterReferrerId);
+    assert.ok(refCodeObj, "Referrer code generated");
+
+    // Create starter buyer
+    db.prepare(`
+      INSERT INTO profiles (id, email, password_hash, full_name, role, country, created_at, updated_at)
+      VALUES (?, 'buyer_starter@codevanta.com', 'HASH', 'Starter Buyer', 'user', 'KE', ?, ?)
+    `).run(starterUserId, now, now);
+
+    // Attribute referral
+    attributeReferral(refCodeObj.code, starterUserId);
+
+    // Initiate Starter Plan checkout (KES 70)
+    const checkoutRes = initiateCheckout(starterUserId, "starter", "+254711223344");
+    assert.strictEqual(checkoutRes.success, true, "Starter checkout initiated");
+    assert.strictEqual(checkoutRes.payment?.amount_kes, 70, "Starter plan price is KES 70");
+
+    // Complete payment webhook
+    const webhookRes = handlePaymentWebhook({
+      paymentId: checkoutRes.payment!.id,
+      status: "completed",
+      mpesaReceiptNumber: `STARTER_${Date.now()}`,
+    });
+    assert.strictEqual(webhookRes.success, true, "Starter payment completed");
+
+    // Verify referral reward is exactly KES 20 (20 bob)
+    const reward = db.prepare("SELECT * FROM referral_rewards WHERE qualifying_payment_id = ?").get(checkoutRes.payment!.id) as ReferralReward;
+    assert.ok(reward, "Referral reward recorded");
+    assert.strictEqual(reward.status, "approved", "Auto-approved reward");
+    assert.strictEqual(reward.reward_amount_kes, 20, "Referral reward is exactly KES 20 (20 bob)");
+    assert.strictEqual(reward.plan_slug, "starter");
+
+    // Verify buyer entitlements
+    const entitlements = getUserEntitlements(starterUserId);
+    assert.strictEqual(entitlements.planSlug, "starter", "Buyer has starter plan entitlements");
+    assert.strictEqual(entitlements.maxBookmarks, 15, "Starter max bookmarks is 15");
   });
 });

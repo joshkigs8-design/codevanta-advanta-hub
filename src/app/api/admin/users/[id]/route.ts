@@ -132,11 +132,11 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     };
 
     if (planSlug !== undefined) {
-      const validPlans = ["basic", "pro", "vip"];
+      const validPlans = ["starter", "basic", "pro", "vip"];
       const validDurations = ["lifetime", "month"];
       if (!validPlans.includes(planSlug) || !duration || !validDurations.includes(duration)) {
         return NextResponse.json(
-          { error: "Invalid access. Choose a Basic, Pro, or VIP plan and a lifetime or one-month duration." },
+          { error: "Invalid access. Choose a Starter, Basic, Pro, or VIP plan and a lifetime or one-month duration." },
           { status: 400 }
         );
       }

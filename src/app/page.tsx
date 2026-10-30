@@ -989,10 +989,11 @@ export default async function HomePage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-2">
           {plans.map((plan) => {
             const isVip = plan.slug === "vip";
             const isPro = plan.slug === "pro";
+            const isStarter = plan.slug === "starter";
             return (
               <div
                 key={plan.id}

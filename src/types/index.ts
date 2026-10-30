@@ -113,7 +113,7 @@ export interface Bookmark {
   resource?: Resource;
 }
 
-export type PlanSlug = "basic" | "pro" | "vip";
+export type PlanSlug = "starter" | "basic" | "pro" | "vip";
 
 export interface MembershipPlan {
   id: string;

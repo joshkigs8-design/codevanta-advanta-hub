@@ -83,50 +83,72 @@ export default function DashboardPage() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+
     // Live Firebase Auth verification status sync
     if (isFirebaseConfigured()) {
-      const unsub = auth.onAuthStateChanged(async (currentUser) => {
+      auth.onAuthStateChanged(async (currentUser) => {
         if (currentUser && currentUser.emailVerified) {
-          setUser((prev) => (prev ? { ...prev, email_verified: true } : prev));
+          if (isMounted) setUser((prev) => (prev ? { ...prev, email_verified: true } : prev));
           await syncUserWithFirestoreAndBackend(currentUser);
         }
       });
-      // Continue cleanup
     }
 
-    // 1. Fetch current user & entitlements
-    fetch("/api/auth/me")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.authenticated) {
+    const initDashboardData = async () => {
+      try {
+        let meRes = await fetch("/api/auth/me");
+        let meData = await meRes.json();
+
+        // If backend session not established yet, check if Firebase client auth exists before redirecting
+        if (!meData.authenticated && isFirebaseConfigured()) {
+          if (typeof auth.authStateReady === "function") {
+            await auth.authStateReady();
+          }
+          const currentUser = auth.currentUser;
+          if (currentUser) {
+            await syncUserWithFirestoreAndBackend(currentUser);
+            meRes = await fetch("/api/auth/me");
+            meData = await meRes.json();
+          }
+        }
+
+        if (!meData.authenticated) {
           router.push("/login");
           return;
         }
-        setUser(data.user);
-        setEntitlements(data.entitlements);
-        setWithdrawPhone(data.user.phone_number || "0700000001");
-        setWithdrawName(data.user.full_name || "");
-      })
-      .catch(() => router.push("/login"));
 
-    // 2. Fetch bookmarks
-    fetch("/api/bookmarks")
-      .then((res) => res.json())
-      .then((data) => setBookmarks(data.bookmarks || []))
-      .catch(() => {});
+        if (!isMounted) return;
+        setUser(meData.user);
+        setEntitlements(meData.entitlements);
+        setWithdrawPhone(meData.user.phone_number || "0700000001");
+        setWithdrawName(meData.user.full_name || "");
 
-    // 3. Fetch referral stats
-    fetch("/api/referrals/my-stats")
-      .then((res) => res.json())
-      .then((data) => setReferralStats(data))
-      .catch(() => {});
+        // Fetch remaining data in parallel
+        Promise.all([
+          fetch("/api/bookmarks").then((res) => res.json()).catch(() => ({ bookmarks: [] })),
+          fetch("/api/referrals/my-stats").then((res) => res.json()).catch(() => null),
+          fetch("/api/wallet").then((res) => res.json()).catch(() => null)
+        ]).then(([bookmarksRes, statsRes, walletRes]) => {
+          if (!isMounted) return;
+          if (bookmarksRes?.bookmarks) setBookmarks(bookmarksRes.bookmarks);
+          if (statsRes) setReferralStats(statsRes);
+          if (walletRes) setWalletData(walletRes);
+        }).finally(() => {
+          if (isMounted) setLoading(false);
+        });
 
-    // 4. Fetch wallet data
-    fetch("/api/wallet")
-      .then((res) => res.json())
-      .then((data) => setWalletData(data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      } catch (err) {
+        console.error("Dashboard init error:", err);
+        router.push("/login");
+      }
+    };
+
+    initDashboardData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [router]);
 
   const handleCopy = (text: string) => {
@@ -324,6 +346,8 @@ export default function DashboardPage() {
                   ? "Pro access to advanced roadmaps & search filters."
                   : entitlements?.planSlug === "basic"
                   ? "Basic member benefits active."
+                  : entitlements?.planSlug === "starter"
+                  ? "Starter member benefits active (KES 70 lifetime access)."
                   : "Free public explorer tier."}
               </p>
             </div>

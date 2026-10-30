@@ -4,6 +4,8 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import BrandLogo from "./BrandLogo";
+import { auth, isFirebaseConfigured } from "@/lib/firebase";
+import { syncUserWithFirestoreAndBackend, logoutUser } from "@/lib/firebaseAuth";
 import GlobalSearchModal from "./GlobalSearchModal";
 import {
   Tv,
@@ -41,20 +43,74 @@ export default function Navbar() {
   const [searchModalOpen, setSearchModalOpen] = useState(false);
 
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((res) => res.json())
-      .then((data) => {
+    let isMounted = true;
+
+    const checkAuth = async () => {
+      try {
+        let res = await fetch("/api/auth/me");
+        let data = await res.json();
         if (data.authenticated && data.user) {
-          setUser(data.user);
-        } else {
-          setUser(null);
+          if (isMounted) setUser(data.user);
+          return;
         }
-      })
-      .catch(() => setUser(null));
+
+        // If backend returned unauthenticated, check Firebase client session
+        if (isFirebaseConfigured()) {
+          if (typeof auth.authStateReady === "function") {
+            await auth.authStateReady();
+          }
+          const currentUser = auth.currentUser;
+          if (currentUser) {
+            await syncUserWithFirestoreAndBackend(currentUser);
+            const retryRes = await fetch("/api/auth/me");
+            const retryData = await retryRes.json();
+            if (retryData.authenticated && retryData.user) {
+              if (isMounted) setUser(retryData.user);
+              return;
+            }
+          }
+        }
+
+        if (isMounted) setUser(null);
+      } catch {
+        if (isMounted) setUser(null);
+      }
+    };
+
+    checkAuth();
+
+    if (isFirebaseConfigured()) {
+      const unsub = auth.onAuthStateChanged(async (currentUser) => {
+        if (currentUser) {
+          await syncUserWithFirestoreAndBackend(currentUser);
+          const res = await fetch("/api/auth/me");
+          const data = await res.json();
+          if (isMounted && data.authenticated && data.user) {
+            setUser(data.user);
+          }
+        }
+      });
+      return () => {
+        isMounted = false;
+        unsub();
+      };
+    }
+
+    return () => {
+      isMounted = false;
+    };
   }, [pathname]);
 
   const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
+    if (isFirebaseConfigured()) {
+      try {
+        await logoutUser();
+      } catch {
+        await fetch("/api/auth/logout", { method: "POST" });
+      }
+    } else {
+      await fetch("/api/auth/logout", { method: "POST" });
+    }
     setUser(null);
     setUserMenuOpen(false);
     router.push("/");

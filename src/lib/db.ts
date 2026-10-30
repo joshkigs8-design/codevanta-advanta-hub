@@ -1925,11 +1925,34 @@ function seedInitialData(db: DatabaseSync) {
     VALUES (?, ?, 'KES', 0.0, 0.0, 0.0, ?, ?)
   `).run("wallet-admin", adminId, now, now);
 
-  // 3. Membership Plans (Basic: KES 150, Pro: KES 250, VIP: KES 350)
+  // 3. Membership Plans (Starter: KES 70, Basic: KES 150, Pro: KES 250, VIP: KES 350)
   const insertPlan = db.prepare(`
     INSERT INTO membership_plans (id, slug, name, description, price_kes, direct_referral_reward_kes, billing_cycle, is_active, entitlements, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
+
+  insertPlan.run(
+    "plan-starter-70",
+    "starter",
+    "Starter Tier",
+    "Budget-friendly entry tier for junior builders. Essential directory tools, core learning paths, and 15 bookmarks.",
+    70,
+    20,
+    "lifetime",
+    1,
+    JSON.stringify({
+      can_access_basic_directory: true,
+      can_use_advanced_search: true,
+      can_access_curated_collections: false,
+      can_access_learning_paths: true,
+      can_access_original_blueprints: false,
+      can_download_starter_kits: false,
+      can_access_early_releases: false,
+      max_bookmarks: 15,
+    }),
+    now,
+    now
+  );
 
   insertPlan.run(
     "plan-basic-150",

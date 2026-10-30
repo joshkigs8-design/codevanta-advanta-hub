@@ -99,11 +99,17 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    const host = req.headers.get("host") || "";
+    const proto = req.headers.get("x-forwarded-proto") || "";
+    const isLocalhost = host.includes("localhost") || host.includes("127.0.0.1");
+    const isHttps = proto === "https" || req.url.startsWith("https://");
+    const isSecure = (process.env.NODE_ENV === "production" && !isLocalhost) || isHttps;
+
     response.cookies.set("cv_hub_session", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: isSecure,
       sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60,
+      maxAge: 30 * 24 * 60 * 60,
       path: "/",
     });
 

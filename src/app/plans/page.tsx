@@ -61,10 +61,11 @@ function PlansContent() {
           <span>Loading membership plans...</span>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {plans.map((plan) => {
             const isVip = plan.slug === "vip";
             const isPro = plan.slug === "pro";
+            const isStarter = plan.slug === "starter";
 
             return (
               <div
@@ -74,7 +75,7 @@ function PlansContent() {
                     ? "border-hub-gold shadow-gold-glow"
                     : isPro
                     ? "border-emerald-600/60"
-                    : "border-hub-border"
+                    : isStarter ? "border-cyan-500/50 hover:border-cyan-400" : "border-hub-border"
                 }`}
               >
                 {isVip && (

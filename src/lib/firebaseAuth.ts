@@ -18,7 +18,7 @@ export interface FirebaseUserProfile {
   displayName: string | null;
   photoURL: string | null;
   role: "user" | "member" | "admin";
-  planId: "free" | "basic" | "pro" | "vip";
+  planId: "free" | "starter" | "basic" | "pro" | "vip";
   emailVerified: boolean;
   referralCode: string;
   referredBy?: string | null;

@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { planSlug, phoneNumber } = body;
 
-    if (!planSlug || !["basic", "pro", "vip"].includes(planSlug)) {
+    if (!planSlug || !["starter", "basic", "pro", "vip"].includes(planSlug)) {
       return NextResponse.json({ error: "Invalid membership plan selected." }, { status: 400 });
     }
 

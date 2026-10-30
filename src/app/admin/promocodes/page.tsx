@@ -34,7 +34,7 @@ export default function AdminPromoCodesPage() {
   // Form states
   const [newCode, setNewCode] = useState("");
   const [newDescription, setNewDescription] = useState("");
-  const [newPlanSlug, setNewPlanSlug] = useState<"pro" | "vip" | "basic">("vip");
+  const [newPlanSlug, setNewPlanSlug] = useState<"starter" | "basic" | "pro" | "vip">("vip");
   const [newMaxUses, setNewMaxUses] = useState(5);
   const [newExpiresAt, setNewExpiresAt] = useState("");
   const [creating, setCreating] = useState(false);
@@ -441,6 +441,7 @@ export default function AdminPromoCodesPage() {
                   <option value="vip">VIP Architecture (Full Lifetime Access)</option>
                   <option value="pro">Pro Engineer Tier</option>
                   <option value="basic">Basic Developer Tier</option>
+                  <option value="starter">Starter Junior Tier (KES 70)</option>
                 </select>
               </div>
 
