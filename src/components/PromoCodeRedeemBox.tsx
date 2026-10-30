@@ -127,3 +127,4 @@ export default function PromoCodeRedeemBox({ onSuccess, className = "" }: PromoC
     </div>
   );
 }
+
