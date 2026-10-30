@@ -63,7 +63,7 @@ export default function RefundPolicyPage() {
           <h2 className="text-lg font-bold text-white">4. How to Request a Refund</h2>
           <p>
             Email your payment reference (M-Pesa transaction code), registered email, and reason for request to{" "}
-            <span className="text-hub-gold font-mono">support@codevanta.com</span>. We review and respond within 2 business days.
+            <span className="text-hub-gold font-mono">support@codevanta.online</span>. We review and respond within 2 business days.
           </p>
         </section>
       </div>

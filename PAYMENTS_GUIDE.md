@@ -56,6 +56,6 @@ To connect to live Safaricom Daraja:
    - **Paybill / Till Number**: `MPESA_SHORTCODE`
 4. Register your callback URL in Safaricom portal:
    ```
-   https://hub.codevanta.com/api/checkout/webhook
+   https://www.codevanta.online/api/checkout/webhook
    ```
 5. Set `PAYMENT_GATEWAY_MODE=production` in your environment.

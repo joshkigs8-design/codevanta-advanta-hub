@@ -62,7 +62,7 @@ export default function PrivacyPage() {
           <p>
             You have the right to request access to your personal data, rectify inaccuracies, request deletion of
             your account, and object to processing. To exercise these rights, contact our Data Protection Officer at{" "}
-            <span className="text-hub-gold font-mono">privacy@codevanta.com</span>.
+            <span className="text-hub-gold font-mono">privacy@codevanta.online</span>.
           </p>
         </section>
 

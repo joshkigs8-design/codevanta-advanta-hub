@@ -160,6 +160,24 @@ export async function loginWithEmail(email: string, password: string): Promise<U
   return credential.user;
 }
 
+/**
+ * Send email verification with custom ActionCodeSettings redirecting to /verify-email on codevanta.online
+ */
+async function sendVerificationEmailWithActionCode(user: User): Promise<void> {
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (typeof window !== "undefined" && window.location.origin ? window.location.origin : "https://www.codevanta.online");
+  try {
+    await sendEmailVerification(user, {
+      url: `${appUrl}/verify-email`,
+      handleCodeInApp: true,
+    });
+  } catch {
+    // Graceful fallback to default email if custom redirect URL is not yet authorized in Firebase Console
+    await sendEmailVerification(user);
+  }
+}
+
 export async function registerWithEmail(
   email: string,
   password: string,
@@ -177,7 +195,7 @@ export async function registerWithEmail(
   }
 
   // Send verification email immediately on registration.
-  await sendEmailVerification(credential.user);
+  await sendVerificationEmailWithActionCode(credential.user);
 
   // 2. Synchronize with Firestore & backend session
   await syncUserWithFirestoreAndBackend(credential.user, {
@@ -195,7 +213,7 @@ export async function resendVerificationEmail(): Promise<void> {
   if (!auth.currentUser) {
     throw new Error("No active user session. Please sign in first.");
   }
-  await sendEmailVerification(auth.currentUser);
+  await sendVerificationEmailWithActionCode(auth.currentUser);
 }
 
 /**

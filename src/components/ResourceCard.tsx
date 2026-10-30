@@ -58,7 +58,7 @@ export default function ResourceCard({
     }
   };
 
-  const domain = resource.official_website ? getDomain(resource.official_website) : "codevanta.com";
+  const domain = resource.official_website ? getDomain(resource.official_website) : "codevanta.online";
   const imageUrl = resource.image_url || getResourceImage(resource);
   const logoUrl = resource.logo_url || getResourceLogo(resource);
 

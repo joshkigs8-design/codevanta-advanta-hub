@@ -27,7 +27,7 @@ Set the following variables in your Vercel project settings (or production `.env
 
 | Variable | Description | Example / Note |
 |---|---|---|
-| `NEXT_PUBLIC_APP_URL` | Canonical domain of the application | `https://hub.codevanta.com` |
+| `NEXT_PUBLIC_APP_URL` | Canonical domain of the application | `https://www.codevanta.online` |
 | `NEXT_PUBLIC_APP_NAME` | Product display name | `CodeVanta Advanta Hub` |
 | `NEXT_PUBLIC_OPERATOR` | Operating business entity | `CodeVanta Ventures` |
 | `JWT_SECRET` | Strong 32+ character random secret | `openssl rand -base64 32` |

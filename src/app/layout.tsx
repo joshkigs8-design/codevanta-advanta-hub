@@ -6,6 +6,7 @@ import Chatbot from "@/components/Chatbot";
 import CookieConsent from "@/components/CookieConsent";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://www.codevanta.online"),
   title: "CodeVanta Advanta Hub — Curated Developer Resources & Membership",
   description:
     "Discover verified free APIs, AI models, developer hosting tiers, student benefits, and production blueprints operated by CodeVanta Ventures.",

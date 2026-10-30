@@ -46,7 +46,7 @@ export async function GET() {
       };
     });
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.codevanta.online";
     const referralUrl = `${appUrl}/register?ref=${refCode?.code || ""}`;
 
     return NextResponse.json({
