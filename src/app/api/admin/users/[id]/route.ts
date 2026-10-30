@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { logAdminAction } from "@/lib/audit";
 import type { Profile, UserRole } from "@/types";
+import crypto from "node:crypto";
 
 interface RouteParams {
   params: { id: string };
@@ -124,7 +125,75 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     const { id } = params;
     const body = await req.json();
-    const { role } = body as { role?: string };
+    const { role, planSlug, duration } = body as {
+      role?: string;
+      planSlug?: string;
+      duration?: string;
+    };
+
+    if (planSlug !== undefined) {
+      const validPlans = ["basic", "pro", "vip"];
+      const validDurations = ["lifetime", "month"];
+      if (!validPlans.includes(planSlug) || !duration || !validDurations.includes(duration)) {
+        return NextResponse.json(
+          { error: "Invalid access. Choose a Basic, Pro, or VIP plan and a lifetime or one-month duration." },
+          { status: 400 }
+        );
+      }
+
+      const db = getDb();
+      const target = db.prepare("SELECT id, email FROM profiles WHERE id = ?").get(id) as
+        | { id: string; email: string }
+        | undefined;
+      if (!target) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+
+      const plan = db
+        .prepare("SELECT id, slug, name FROM membership_plans WHERE slug = ? AND is_active = 1")
+        .get(planSlug) as { id: string; slug: string; name: string } | undefined;
+      if (!plan) {
+        return NextResponse.json({ error: "Selected membership plan is unavailable." }, { status: 400 });
+      }
+
+      const now = new Date();
+      const expiresAt = duration === "month"
+        ? new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        : null;
+      const nowIso = now.toISOString();
+
+      db.prepare("UPDATE memberships SET status = 'cancelled', updated_at = ? WHERE user_id = ? AND status = 'active'")
+        .run(nowIso, id);
+      db.prepare(`
+        INSERT INTO memberships (
+          id, user_id, plan_id, plan_slug, plan_name, status, amount_paid_kes,
+          starts_at, expires_at, payment_reference, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, 'active', 0, ?, ?, ?, ?, ?)
+      `).run(
+        crypto.randomUUID(),
+        id,
+        plan.id,
+        plan.slug,
+        plan.name,
+        nowIso,
+        expiresAt,
+        `ADMIN-GRANT-${crypto.randomUUID()}`,
+        nowIso,
+        nowIso
+      );
+
+      logAdminAction(admin.id, "grant_user_access", "memberships", id, {
+        plan_slug: plan.slug,
+        duration,
+        expires_at: expiresAt,
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `${plan.name} access granted${expiresAt ? " for one month" : " permanently"}.`,
+        membership: { plan_slug: plan.slug, plan_name: plan.name, expires_at: expiresAt },
+      });
+    }
 
     const validRoles: UserRole[] = ["user", "member", "admin"];
     if (!role || !validRoles.includes(role as UserRole)) {

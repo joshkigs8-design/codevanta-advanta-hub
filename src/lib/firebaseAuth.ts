@@ -77,17 +77,20 @@ export async function syncUserWithFirestoreAndBackend(
       updatedAt: serverTimestamp(),
     });
   } else {
-    // Update last login timestamp and emailVerified without overwriting role or planId
-    await setDoc(
-      userRef,
-      {
-        displayName: user.displayName || docSnap.data().displayName,
-        photoURL: user.photoURL || docSnap.data().photoURL,
-        emailVerified: Boolean(user.emailVerified),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
+    // Firestore rules require email verification before a user profile update.
+    // The backend session still needs to be synchronized for unverified users.
+    if (user.emailVerified) {
+      await setDoc(
+        userRef,
+        {
+          displayName: user.displayName || docSnap.data().displayName,
+          photoURL: user.photoURL || docSnap.data().photoURL,
+          emailVerified: true,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
   }
 
   // Synchronize with backend session cookie
@@ -132,6 +135,10 @@ export function getFirebaseErrorMessage(code: string): string {
       return "The sign-in popup was blocked by your browser. Please allow popups for this site.";
     case "auth/network-request-failed":
       return "Network error. Please check your internet connection.";
+    case "auth/permission-denied":
+      return "Your account signed in, but its profile could not be synchronized. Please verify your email and try again.";
+    case "auth/operation-not-allowed":
+      return "Email and password sign-in is not enabled for this Firebase project.";
     case "auth/too-many-requests":
       return "Too many requests. Please wait a few moments before trying again.";
     case "auth/invalid-action-code":
@@ -165,12 +172,8 @@ export async function registerWithEmail(
     }
   }
 
-  // 1. Send verification email immediately on registration
-  try {
-    await sendEmailVerification(credential.user);
-  } catch (emailErr) {
-    console.warn("Could not dispatch verification email automatically:", emailErr);
-  }
+  // Send verification email immediately on registration.
+  await sendEmailVerification(credential.user);
 
   // 2. Synchronize with Firestore & backend session
   await syncUserWithFirestoreAndBackend(credential.user, {

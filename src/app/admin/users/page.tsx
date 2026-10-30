@@ -32,6 +32,9 @@ export default function AdminUsersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [accessPlan, setAccessPlan] = useState("pro");
+  const [accessDuration, setAccessDuration] = useState("month");
+  const [accessError, setAccessError] = useState("");
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -77,6 +80,41 @@ export default function AdminUsersPage() {
       }
     } catch (e) {
       alert("Network error");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleGrantAccess = async () => {
+    if (!selectedUser) return;
+    setUpdatingId(selectedUser.id);
+    setAccessError("");
+    try {
+      const res = await fetch(`/api/admin/users/${selectedUser.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planSlug: accessPlan, duration: accessDuration }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAccessError(data.error || "Failed to grant access");
+        return;
+      }
+      await fetchUsers();
+      setSelectedUser((prev) => (prev ? {
+        ...prev,
+        membership: {
+          id: "",
+          plan_slug: data.membership.plan_slug,
+          plan_name: data.membership.plan_name,
+          status: "active",
+          amount_paid_kes: 0,
+          starts_at: new Date().toISOString(),
+          expires_at: data.membership.expires_at,
+        },
+      } : null));
+    } catch {
+      setAccessError("Network error while granting access");
     } finally {
       setUpdatingId(null);
     }
@@ -256,6 +294,40 @@ export default function AdminUsersPage() {
               </div>
             </div>
 
+            <div className="border-t border-hub-border pt-4 space-y-3">
+              <div>
+                <h4 className="text-sm font-semibold text-hub-text-primary">Grant membership access</h4>
+                <p className="text-xs text-hub-text-muted mt-1">This replaces the user&apos;s current active membership.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={accessPlan}
+                  onChange={(e) => setAccessPlan(e.target.value)}
+                  className="bg-hub-surface-elevated border border-hub-border rounded px-2 py-2 text-xs text-hub-text-primary"
+                >
+                  <option value="basic">Basic</option>
+                  <option value="pro">Pro</option>
+                  <option value="vip">VIP</option>
+                </select>
+                <select
+                  value={accessDuration}
+                  onChange={(e) => setAccessDuration(e.target.value)}
+                  className="bg-hub-surface-elevated border border-hub-border rounded px-2 py-2 text-xs text-hub-text-primary"
+                >
+                  <option value="month">One month</option>
+                  <option value="lifetime">Lifetime</option>
+                </select>
+              </div>
+              {accessError && <p className="text-xs text-red-400">{accessError}</p>}
+              <button
+                onClick={handleGrantAccess}
+                disabled={updatingId === selectedUser.id}
+                className="w-full px-4 py-2 text-xs font-semibold rounded bg-hub-gold text-black hover:bg-hub-gold/90 disabled:opacity-50"
+              >
+                {updatingId === selectedUser.id ? "Granting access…" : "Grant access"}
+              </button>
+            </div>
+
             <div className="border-t border-hub-border pt-4 flex justify-end gap-2">
               <button
                 onClick={() => setSelectedUser(null)}
@@ -270,4 +342,3 @@ export default function AdminUsersPage() {
     </div>
   );
 }
-

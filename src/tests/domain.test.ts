@@ -189,10 +189,10 @@ test("CodeVanta Advanta Hub — Comprehensive Domain Test Suite", async (t) => {
     assert.ok(activeMem, "Active membership must exist");
     assert.strictEqual(activeMem.plan_slug, "vip");
 
-    // Verify referral reward created in pending status (KES 150 for VIP)
+    // Verify referral reward created in approved status (KES 150 for VIP)
     const reward = db.prepare("SELECT * FROM referral_rewards WHERE qualifying_payment_id = ?").get(paymentId) as ReferralReward;
     assert.ok(reward, "Referral reward must be recorded");
-    assert.strictEqual(reward.status, "pending");
+    assert.strictEqual(reward.status, "approved");
     assert.strictEqual(reward.reward_amount_kes, 150);
 
     // 2nd Webhook Execution (Simulate duplicate network retry) -> Must be idempotent!
@@ -274,7 +274,7 @@ test("CodeVanta Advanta Hub — Comprehensive Domain Test Suite", async (t) => {
     const subsequentWithdrawal = submitWithdrawalRequest(testUserId, 100, "0711223344", "Wallet Tester");
     assert.strictEqual(subsequentWithdrawal.success, true, "Subsequent withdrawal succeeds after previous is completed");
 
-    // Reset status back to compliance_review (production default)
-    setProgramStatus("compliance_review", adminId);
+    // Reset status back to approved_for_launch
+    setProgramStatus("approved_for_launch", adminId);
   });
 });

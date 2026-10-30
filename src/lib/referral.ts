@@ -232,15 +232,15 @@ export function processQualifyingReferralReward(
   const holdUntil = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7-day review window
   const nowIso = now.toISOString();
 
-  // Transactionally record reward and pending wallet ledger
+  // Transactionally record reward and approved wallet ledger
   db.exec("BEGIN IMMEDIATE;");
   try {
-    // 1. Insert referral reward record
+    // 1. Insert referral reward record (Auto-Approved upon verified subscription payment)
     db.prepare(`
       INSERT INTO referral_rewards (
         id, attribution_id, referrer_user_id, referred_user_id, qualifying_payment_id,
-        plan_slug, reward_amount_kes, status, hold_until, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
+        plan_slug, reward_amount_kes, status, reviewed_by, reviewed_at, hold_until, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'approved', 'system_auto_approval', ?, ?, ?, ?)
     `).run(
       rewardId,
       attribution.id,
@@ -249,7 +249,8 @@ export function processQualifyingReferralReward(
       paymentId,
       planSlug,
       rewardAmount,
-      holdUntil,
+      nowIso,
+      nowIso,
       nowIso,
       nowIso
     );
@@ -257,7 +258,7 @@ export function processQualifyingReferralReward(
     // 2. Mark attribution as qualified
     db.prepare("UPDATE referral_attributions SET status = 'qualified' WHERE id = ?").run(attribution.id);
 
-    // 3. Ensure wallet exists and increment pending balance
+    // 3. Ensure wallet exists and increment approved balance
     let wallet = db
       .prepare("SELECT id, pending_balance, approved_balance FROM wallet_accounts WHERE user_id = ?")
       .get(attribution.referrer_user_id) as { id: string; pending_balance: number; approved_balance: number } | undefined;
@@ -272,9 +273,9 @@ export function processQualifyingReferralReward(
       wallet = { id: walletId, pending_balance: 0, approved_balance: 0 };
     }
 
-    const newPending = wallet.pending_balance + rewardAmount;
-    db.prepare("UPDATE wallet_accounts SET pending_balance = ?, updated_at = ? WHERE id = ?")
-      .run(newPending, nowIso, wallet.id);
+    const newApproved = wallet.approved_balance + rewardAmount;
+    db.prepare("UPDATE wallet_accounts SET approved_balance = ?, updated_at = ? WHERE id = ?")
+      .run(newApproved, nowIso, wallet.id);
 
     // 4. Create ledger entry
     const ledgerId = crypto.randomUUID();
@@ -282,15 +283,15 @@ export function processQualifyingReferralReward(
       INSERT INTO wallet_ledger_entries (
         id, wallet_id, user_id, entry_type, amount_kes, balance_after_kes,
         reference_type, reference_id, notes, created_at
-      ) VALUES (?, ?, ?, 'reward_pending', ?, ?, 'referral_reward', ?, ?, ?)
+      ) VALUES (?, ?, ?, 'reward_approved', ?, ?, 'referral_reward', ?, ?, ?)
     `).run(
       ledgerId,
       wallet.id,
       attribution.referrer_user_id,
       rewardAmount,
-      newPending,
+      newApproved,
       rewardId,
-      `Pending reward for referred user upgrading to ${planSlug.toUpperCase()}`,
+      `Auto-approved referral reward for peer subscribing to ${planSlug.toUpperCase()}`,
       nowIso
     );
 
@@ -304,8 +305,10 @@ export function processQualifyingReferralReward(
       qualifying_payment_id: paymentId,
       plan_slug: planSlug,
       reward_amount_kes: rewardAmount,
-      status: "pending",
-      hold_until: holdUntil,
+      status: "approved",
+      reviewed_by: "system_auto_approval",
+      reviewed_at: nowIso,
+      hold_until: nowIso,
       created_at: nowIso,
       updated_at: nowIso,
     };

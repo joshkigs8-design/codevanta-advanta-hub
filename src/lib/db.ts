@@ -1750,7 +1750,7 @@ function seedInitialData(db: DatabaseSync) {
 
   insertSetting.run(
     "referral_program_status",
-    "compliance_review",
+    "approved_for_launch",
     "Current status of the referral payout system: 'disabled', 'compliance_review', 'approved_for_launch', 'suspended'. Payouts are locked in review.",
     now
   );

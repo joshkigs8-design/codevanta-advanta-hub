@@ -32,8 +32,15 @@ export function getUserEntitlements(userId?: string | null): UserEntitlements {
 
   const db = getDb();
   const membership = db
-    .prepare("SELECT * FROM memberships WHERE user_id = ? AND status = 'active' ORDER BY created_at DESC LIMIT 1")
-    .get(userId) as Membership | undefined;
+    .prepare(`
+      SELECT * FROM memberships
+      WHERE user_id = ?
+        AND status = 'active'
+        AND (expires_at IS NULL OR expires_at > ?)
+      ORDER BY created_at DESC
+      LIMIT 1
+    `)
+    .get(userId, new Date().toISOString()) as Membership | undefined;
 
   if (!membership) return freeDefaults;
 
