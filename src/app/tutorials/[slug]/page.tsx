@@ -64,7 +64,38 @@ export default function TutorialDetailPage() {
       .finally(() => setLoading(false));
   }, [slug]);
 
-  const handlePrintPdf = () => {
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    if (!isMember) {
+      setShowPaywallNotice(true);
+      return;
+    }
+    if (!tutorial) return;
+
+    try {
+      setDownloadingPdf(true);
+      const { generateAndDownloadPdf } = await import("@/lib/pdfGenerator");
+      generateAndDownloadPdf({
+        title: tutorial.title,
+        category: tutorial.category,
+        difficulty: tutorial.difficulty,
+        estimatedMinutes: tutorial.estimated_minutes,
+        lastVerifiedDate: tutorial.last_verified_date,
+        summary: tutorial.summary,
+        prerequisites: tutorial.prerequisites,
+        content: tutorial.content,
+        slug: tutorial.slug,
+      });
+    } catch (err) {
+      console.error("PDF generation error, fallback to print:", err);
+      window.print();
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
+  const handlePrint = () => {
     if (!isMember) {
       setShowPaywallNotice(true);
       return;
@@ -147,17 +178,30 @@ export default function TutorialDetailPage() {
         {/* Action Buttons: PDF Export & AI Assistant Jump */}
         <div className="flex items-center gap-2.5">
           <button
-            onClick={handlePrintPdf}
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-mono font-semibold bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-all active:scale-95 shadow-sm"
-            title="Download or Print clean offline PDF without hashtags or web chrome"
+            onClick={handleDownloadPdf}
+            disabled={downloadingPdf}
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-mono font-semibold bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-all active:scale-95 shadow-sm disabled:opacity-50"
+            title="Download PDF guide file directly to your device"
           >
-            <FileDown className="w-3.5 h-3.5 text-hub-gold" />
-            <span>Download PDF Guide</span>
+            {downloadingPdf ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-hub-gold" />
+            ) : (
+              <FileDown className="w-3.5 h-3.5 text-hub-gold" />
+            )}
+            <span>{downloadingPdf ? "Generating PDF..." : "Download PDF Guide"}</span>
             {!isMember && (
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono font-bold flex items-center gap-0.5">
                 <Lock className="w-2.5 h-2.5" /> Pro
               </span>
             )}
+          </button>
+          <button
+            onClick={handlePrint}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-semibold bg-white/5 hover:bg-white/15 border border-white/10 text-hub-text-secondary hover:text-white transition-all active:scale-95"
+            title="Print or browser Save-as-PDF"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Print</span>
           </button>
         </div>
       </div>
@@ -331,11 +375,16 @@ export default function TutorialDetailPage() {
               Export this complete guide with tables, hardware benchmarks, and CLI commands cleanly formatted for offline reading.
             </p>
             <button
-              onClick={handlePrintPdf}
-              className="w-full py-2.5 rounded-xl font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-all flex items-center justify-center gap-2"
+              onClick={handleDownloadPdf}
+              disabled={downloadingPdf}
+              className="w-full py-2.5 rounded-xl font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
             >
-              <FileDown className="w-3.5 h-3.5 text-hub-gold" />
-              <span>Export as PDF (Ctrl + P)</span>
+              {downloadingPdf ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-hub-gold" />
+              ) : (
+                <FileDown className="w-3.5 h-3.5 text-hub-gold" />
+              )}
+              <span>{downloadingPdf ? "Generating PDF..." : "Download Offline PDF"}</span>
             </button>
           </div>
         </aside>
