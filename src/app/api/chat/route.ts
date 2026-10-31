@@ -32,7 +32,7 @@ CRITICAL SCOPE & BOUNDARY RULES:
        - VIP: KES 35
      • Capped strictly at 2 levels for compliance and legal integrity.
      • Minimum withdrawal threshold: KES 50 via Safaricom M-Pesa (credited directly to your M-Pesa phone number).
-     • Note: Always refer to the payment method as "M-Pesa" (never "M-Pay").
+     • Payment method: Strictly Safaricom M-Pesa (spelled "M-Pesa") or card.
    - CodeVanta official WhatsApp Channel: https://whatsapp.com/channel/0029Vb84p6QKGGGNAp8VIB2g
    - Official 2-Tier Referral Rules page: /referral-rules
 
@@ -190,10 +190,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: getLocalFallbackResponse(userQuery) });
     }
 
-    const message = data.choices?.[0]?.message?.content?.trim();
+    let message = data.choices?.[0]?.message?.content?.trim();
     if (!message) {
       return NextResponse.json({ message: getLocalFallbackResponse(userQuery) });
     }
+
+    // Clean any occasional LLM alias hallucinations (e.g. M-Pay -> M-Pesa)
+    message = message
+      .replace(/M[‑-]Pay\s*\(([^)]*M[‑-]Pesa[^)]*)\)/gi, "M-Pesa")
+      .replace(/M[‑-]Pay/gi, "M-Pesa");
 
     return NextResponse.json({ message });
   } catch (error: unknown) {
