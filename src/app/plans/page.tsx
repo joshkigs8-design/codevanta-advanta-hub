@@ -95,8 +95,12 @@ function PlansContent() {
                     </div>
 
                     <div className="mt-3 pt-2.5 border-t border-hub-border text-xs flex items-center justify-between">
-                      <span className="text-hub-text-secondary">Direct referral reward:</span>
+                      <span className="text-hub-text-secondary">Level 1 (Direct reward):</span>
                       <span className="font-mono text-emerald-400 font-bold">KES {plan.direct_referral_reward_kes}</span>
+                    </div>
+                    <div className="mt-1.5 text-xs flex items-center justify-between">
+                      <span className="text-hub-text-secondary">Level 2 (Network bonus):</span>
+                      <span className="font-mono text-cyan-400 font-bold">KES {plan.indirect_referral_reward_kes || 0}</span>
                     </div>
                   </div>
 

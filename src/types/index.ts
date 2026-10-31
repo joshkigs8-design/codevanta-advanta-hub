@@ -122,6 +122,7 @@ export interface MembershipPlan {
   description: string;
   price_kes: number;
   direct_referral_reward_kes: number;
+  indirect_referral_reward_kes: number;
   billing_cycle: "lifetime" | "monthly" | "annual";
   is_active: boolean;
   entitlements: {
@@ -243,6 +244,7 @@ export interface ReferralReward {
   qualifying_payment_id: string;
   plan_slug: PlanSlug;
   reward_amount_kes: number;
+  tier_level?: number;
   status: RewardStatus;
   rejection_reason?: string;
   reviewed_by?: string;

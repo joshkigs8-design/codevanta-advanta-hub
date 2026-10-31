@@ -162,7 +162,7 @@ export function processQualifyingReferralReward(
     return null;
   }
 
-  // Find attribution for this payer
+  // 1. Find Level 1 (Direct) attribution for this payer
   const attribution = db
     .prepare("SELECT * FROM referral_attributions WHERE referred_user_id = ?")
     .get(payerUserId) as ReferralAttribution | undefined;
@@ -174,137 +174,196 @@ export function processQualifyingReferralReward(
     return null;
   }
 
-  // Anti-fraud: Shared M-Pesa phone number between payer and referrer (Self-funding loophole prevention)
+  // Anti-fraud helper for phone matching
   const paymentRow = db
     .prepare("SELECT phone_number FROM payments WHERE id = ?")
     .get(paymentId) as { phone_number?: string } | undefined;
-
   const payerPhone = normalizePhone(paymentRow?.phone_number);
 
-  if (payerPhone) {
-    // Check referrer profile phone
-    const referrerProfile = db
+  const hasSharedFinancialPhone = (targetReferrerId: string): boolean => {
+    if (!payerPhone) return false;
+    const profile = db
       .prepare("SELECT phone_number FROM profiles WHERE id = ?")
-      .get(attribution.referrer_user_id) as { phone_number?: string } | undefined;
+      .get(targetReferrerId) as { phone_number?: string } | undefined;
+    const refPhone = normalizePhone(profile?.phone_number);
 
-    const referrerPhone = normalizePhone(referrerProfile?.phone_number);
-
-    // Check referrer's past payments
-    const referrerPayments = db
+    const refPayments = db
       .prepare("SELECT phone_number FROM payments WHERE user_id = ? AND phone_number IS NOT NULL")
-      .all(attribution.referrer_user_id) as Array<{ phone_number: string }>;
+      .all(targetReferrerId) as Array<{ phone_number: string }>;
 
-    // Check referrer's withdrawal requests
-    const referrerWithdrawals = db
+    const refWithdrawals = db
       .prepare("SELECT phone_number FROM withdrawal_requests WHERE user_id = ? AND phone_number IS NOT NULL")
-      .all(attribution.referrer_user_id) as Array<{ phone_number: string }>;
+      .all(targetReferrerId) as Array<{ phone_number: string }>;
 
-    const allReferrerPhones = [
-      referrerPhone,
-      ...referrerPayments.map((p) => normalizePhone(p.phone_number)),
-      ...referrerWithdrawals.map((w) => normalizePhone(w.phone_number)),
+    const allPhones = [
+      refPhone,
+      ...refPayments.map((p) => normalizePhone(p.phone_number)),
+      ...refWithdrawals.map((w) => normalizePhone(w.phone_number)),
     ].filter(Boolean);
 
-    if (allReferrerPhones.includes(payerPhone)) {
-      // Invalidate attribution due to shared financial instrument (self-referral fraud)
-      db.prepare("UPDATE referral_attributions SET status = 'invalidated' WHERE id = ?").run(attribution.id);
-      return null;
-    }
+    return allPhones.includes(payerPhone);
+  };
+
+  // Anti-fraud check for Level 1 referrer
+  if (hasSharedFinancialPhone(attribution.referrer_user_id)) {
+    db.prepare("UPDATE referral_attributions SET status = 'invalidated' WHERE id = ?").run(attribution.id);
+    return null;
   }
 
-  // Check if this payment already generated a reward (Strict idempotency)
-  const existingReward = db
-    .prepare("SELECT id FROM referral_rewards WHERE qualifying_payment_id = ?")
+  // Check if Level 1 reward already exists (Strict idempotency)
+  const existingLevel1 = db
+    .prepare("SELECT id FROM referral_rewards WHERE qualifying_payment_id = ? AND tier_level = 1")
     .get(paymentId) as { id: string } | undefined;
 
-  if (existingReward) return null;
+  if (existingLevel1) return null;
 
-  // Look up configured plan referral reward
+  // Look up configured plan referral rewards
   const plan = db
-    .prepare("SELECT direct_referral_reward_kes FROM membership_plans WHERE slug = ?")
-    .get(planSlug) as { direct_referral_reward_kes: number } | undefined;
+    .prepare("SELECT direct_referral_reward_kes, indirect_referral_reward_kes FROM membership_plans WHERE slug = ?")
+    .get(planSlug) as { direct_referral_reward_kes: number; indirect_referral_reward_kes?: number } | undefined;
 
   if (!plan || plan.direct_referral_reward_kes <= 0) return null;
 
-  const rewardAmount = plan.direct_referral_reward_kes;
-  const rewardId = crypto.randomUUID();
-  const now = new Date();
-  const holdUntil = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7-day review window
-  const nowIso = now.toISOString();
+  // 2. Identify potential Level 2 (Indirect) referrer
+  let level2ReferrerId: string | null = null;
+  let level2AttributionId: string | null = null;
 
-  // Transactionally record reward and approved wallet ledger
-  db.exec("BEGIN IMMEDIATE;");
-  try {
-    // 1. Insert referral reward record (Auto-Approved upon verified subscription payment)
-    db.prepare(`
-      INSERT INTO referral_rewards (
-        id, attribution_id, referrer_user_id, referred_user_id, qualifying_payment_id,
-        plan_slug, reward_amount_kes, status, reviewed_by, reviewed_at, hold_until, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'approved', 'system_auto_approval', ?, ?, ?, ?)
-    `).run(
-      rewardId,
-      attribution.id,
-      attribution.referrer_user_id,
-      payerUserId,
-      paymentId,
-      planSlug,
-      rewardAmount,
-      nowIso,
-      nowIso,
-      nowIso,
-      nowIso
-    );
+  const parentAttribution = db
+    .prepare("SELECT * FROM referral_attributions WHERE referred_user_id = ? AND status != 'invalidated'")
+    .get(attribution.referrer_user_id) as ReferralAttribution | undefined;
 
-    // 2. Mark attribution as qualified
-    db.prepare("UPDATE referral_attributions SET status = 'qualified' WHERE id = ?").run(attribution.id);
+  if (
+    parentAttribution &&
+    parentAttribution.referrer_user_id &&
+    parentAttribution.referrer_user_id !== payerUserId &&
+    parentAttribution.referrer_user_id !== attribution.referrer_user_id &&
+    !hasSharedFinancialPhone(parentAttribution.referrer_user_id)
+  ) {
+    level2ReferrerId = parentAttribution.referrer_user_id;
+    level2AttributionId = parentAttribution.id;
+  }
 
-    // 3. Ensure wallet exists and increment approved balance
+  const directRewardAmount = plan.direct_referral_reward_kes;
+  const indirectRewardAmount = plan.indirect_referral_reward_kes || 0;
+
+  const level1RewardId = crypto.randomUUID();
+  const level2RewardId = crypto.randomUUID();
+  const nowIso = new Date().toISOString();
+
+  // Helper to credit approved wallet balance and log ledger
+  const creditApprovedBalance = (
+    userId: string,
+    amountKes: number,
+    rewardId: string,
+    notes: string
+  ) => {
     let wallet = db
       .prepare("SELECT id, pending_balance, approved_balance FROM wallet_accounts WHERE user_id = ?")
-      .get(attribution.referrer_user_id) as { id: string; pending_balance: number; approved_balance: number } | undefined;
+      .get(userId) as { id: string; pending_balance: number; approved_balance: number } | undefined;
 
     if (!wallet) {
       const walletId = crypto.randomUUID();
       db.prepare(`
         INSERT INTO wallet_accounts (id, user_id, currency, pending_balance, approved_balance, withdrawn_balance, created_at, updated_at)
         VALUES (?, ?, 'KES', 0, 0, 0, ?, ?)
-      `).run(walletId, attribution.referrer_user_id, nowIso, nowIso);
-
+      `).run(walletId, userId, nowIso, nowIso);
       wallet = { id: walletId, pending_balance: 0, approved_balance: 0 };
     }
 
-    const newApproved = wallet.approved_balance + rewardAmount;
+    const newApproved = wallet.approved_balance + amountKes;
     db.prepare("UPDATE wallet_accounts SET approved_balance = ?, updated_at = ? WHERE id = ?")
       .run(newApproved, nowIso, wallet.id);
 
-    // 4. Create ledger entry
     const ledgerId = crypto.randomUUID();
     db.prepare(`
       INSERT INTO wallet_ledger_entries (
         id, wallet_id, user_id, entry_type, amount_kes, balance_after_kes,
         reference_type, reference_id, notes, created_at
       ) VALUES (?, ?, ?, 'reward_approved', ?, ?, 'referral_reward', ?, ?, ?)
+    `).run(ledgerId, wallet.id, userId, amountKes, newApproved, rewardId, notes, nowIso);
+  };
+
+  // Transactionally record Level 1 (Direct) & Level 2 (Indirect) rewards
+  db.exec("BEGIN IMMEDIATE;");
+  try {
+    // 1. Insert Level 1 Direct Reward
+    db.prepare(`
+      INSERT INTO referral_rewards (
+        id, attribution_id, referrer_user_id, referred_user_id, qualifying_payment_id,
+        plan_slug, reward_amount_kes, tier_level, status, reviewed_by, reviewed_at, hold_until, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'approved', 'system_auto_approval', ?, ?, ?, ?)
     `).run(
-      ledgerId,
-      wallet.id,
+      level1RewardId,
+      attribution.id,
       attribution.referrer_user_id,
-      rewardAmount,
-      newApproved,
-      rewardId,
-      `Auto-approved referral reward for peer subscribing to ${planSlug.toUpperCase()}`,
+      payerUserId,
+      paymentId,
+      planSlug,
+      directRewardAmount,
+      nowIso,
+      nowIso,
+      nowIso,
       nowIso
     );
+
+    // Mark Level 1 attribution as qualified
+    db.prepare("UPDATE referral_attributions SET status = 'qualified' WHERE id = ?").run(attribution.id);
+
+    // Credit Level 1 wallet
+    creditApprovedBalance(
+      attribution.referrer_user_id,
+      directRewardAmount,
+      level1RewardId,
+      `Direct Referral Reward (Level 1) - Peer subscribed to ${planSlug.toUpperCase()}`
+    );
+
+    // 2. Insert Level 2 Network Reward (if eligible)
+    if (level2ReferrerId && level2AttributionId && indirectRewardAmount > 0) {
+      const existingLevel2 = db
+        .prepare("SELECT id FROM referral_rewards WHERE qualifying_payment_id = ? AND tier_level = 2")
+        .get(paymentId) as { id: string } | undefined;
+
+      if (!existingLevel2) {
+        db.prepare(`
+          INSERT INTO referral_rewards (
+            id, attribution_id, referrer_user_id, referred_user_id, qualifying_payment_id,
+            plan_slug, reward_amount_kes, tier_level, status, reviewed_by, reviewed_at, hold_until, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 2, 'approved', 'system_auto_approval', ?, ?, ?, ?)
+        `).run(
+          level2RewardId,
+          level2AttributionId,
+          level2ReferrerId,
+          payerUserId,
+          paymentId,
+          planSlug,
+          indirectRewardAmount,
+          nowIso,
+          nowIso,
+          nowIso,
+          nowIso
+        );
+
+        // Credit Level 2 wallet
+        creditApprovedBalance(
+          level2ReferrerId,
+          indirectRewardAmount,
+          level2RewardId,
+          `Network Referral Bonus (Level 2) - Network peer subscribed to ${planSlug.toUpperCase()}`
+        );
+      }
+    }
 
     db.exec("COMMIT;");
 
     return {
-      id: rewardId,
+      id: level1RewardId,
       attribution_id: attribution.id,
       referrer_user_id: attribution.referrer_user_id,
       referred_user_id: payerUserId,
       qualifying_payment_id: paymentId,
       plan_slug: planSlug,
-      reward_amount_kes: rewardAmount,
+      reward_amount_kes: directRewardAmount,
+      tier_level: 1,
       status: "approved",
       reviewed_by: "system_auto_approval",
       reviewed_at: nowIso,

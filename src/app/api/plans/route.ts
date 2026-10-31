@@ -9,6 +9,7 @@ interface RawPlanRow {
   description: string;
   price_kes: number;
   direct_referral_reward_kes: number;
+  indirect_referral_reward_kes: number;
   billing_cycle: any;
   is_active: number;
   entitlements: string;

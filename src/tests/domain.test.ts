@@ -382,4 +382,88 @@ test("CodeVanta Advanta Hub — Comprehensive Domain Test Suite", async (t) => {
     assert.strictEqual(entitlements.planSlug, "starter", "Buyer has starter plan entitlements");
     assert.strictEqual(entitlements.maxBookmarks, 15, "Starter max bookmarks is 15");
   });
+  await t.test("8. 2-Tier Referral System (Level 1 Direct & Level 2 Network Referral)", () => {
+    const userAId = crypto.randomUUID();
+    const userBId = crypto.randomUUID();
+    const userCId = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    // 1. Create User A (Original Referrer)
+    db.prepare(`
+      INSERT INTO profiles (id, email, password_hash, full_name, role, country, phone_number, created_at, updated_at)
+      VALUES (?, 'userA@codevanta.com', 'HASH', 'User Alpha', 'user', 'KE', '+254701000001', ?, ?)
+    `).run(userAId, now, now);
+
+    const codeA = getReferralCodeForUser(userAId);
+    assert.ok(codeA, "User A referral code generated");
+
+    // 2. User B registers under User A
+    db.prepare(`
+      INSERT INTO profiles (id, email, password_hash, full_name, role, country, phone_number, created_at, updated_at)
+      VALUES (?, 'userB@codevanta.com', 'HASH', 'User Bravo', 'user', 'KE', '+254702000002', ?, ?)
+    `).run(userBId, now, now);
+
+    attributeReferral(codeA.code, userBId);
+    const codeB = getReferralCodeForUser(userBId);
+    assert.ok(codeB, "User B referral code generated");
+
+    // 3. User C registers under User B
+    db.prepare(`
+      INSERT INTO profiles (id, email, password_hash, full_name, role, country, phone_number, created_at, updated_at)
+      VALUES (?, 'userC@codevanta.com', 'HASH', 'User Charlie', 'user', 'KE', '+254703000003', ?, ?)
+    `).run(userCId, now, now);
+
+    attributeReferral(codeB.code, userCId);
+
+    // 4. User C subscribes to Pro Tier (KES 250)
+    const checkoutRes = initiateCheckout(userCId, "pro", "+254703000003");
+    assert.strictEqual(checkoutRes.success, true, "Pro checkout initiated");
+
+    const webhookRes = handlePaymentWebhook({
+      paymentId: checkoutRes.payment!.id,
+      status: "completed",
+      mpesaReceiptNumber: `2TIER_${Date.now()}`,
+    });
+    assert.strictEqual(webhookRes.success, true, "Payment webhook completed");
+
+    // 5. Verify Level 1 reward for User B (KES 100 on Pro)
+    const level1Reward = db.prepare(`
+      SELECT * FROM referral_rewards
+      WHERE qualifying_payment_id = ? AND tier_level = 1
+    `).get(checkoutRes.payment!.id) as ReferralReward;
+
+    assert.ok(level1Reward, "Level 1 reward exists");
+    assert.strictEqual(level1Reward.referrer_user_id, userBId, "User B receives Level 1 reward");
+    assert.strictEqual(level1Reward.reward_amount_kes, 100, "Level 1 reward is KES 100");
+    assert.strictEqual(level1Reward.status, "approved", "Auto-approved Level 1");
+
+    // 6. Verify Level 2 reward for User A (KES 25 on Pro)
+    const level2Reward = db.prepare(`
+      SELECT * FROM referral_rewards
+      WHERE qualifying_payment_id = ? AND tier_level = 2
+    `).get(checkoutRes.payment!.id) as ReferralReward;
+
+    assert.ok(level2Reward, "Level 2 reward exists");
+    assert.strictEqual(level2Reward.referrer_user_id, userAId, "User A receives Level 2 network bonus");
+    assert.strictEqual(level2Reward.reward_amount_kes, 25, "Level 2 bonus is KES 25");
+    assert.strictEqual(level2Reward.status, "approved", "Auto-approved Level 2");
+
+    // 7. Verify Wallets
+    const walletB = db.prepare("SELECT approved_balance FROM wallet_accounts WHERE user_id = ?").get(userBId) as { approved_balance: number };
+    assert.strictEqual(walletB.approved_balance, 100, "User B approved balance is KES 100");
+
+    const walletA = db.prepare("SELECT approved_balance FROM wallet_accounts WHERE user_id = ?").get(userAId) as { approved_balance: number };
+    assert.strictEqual(walletA.approved_balance, 25, "User A approved balance is KES 25");
+
+    // 8. Test Idempotency: duplicate payment processing does NOT create duplicate rewards
+    const dupeRes = handlePaymentWebhook({
+      paymentId: checkoutRes.payment!.id,
+      status: "completed",
+      mpesaReceiptNumber: `DUPE_${Date.now()}`,
+    });
+    assert.strictEqual(dupeRes.success, true);
+
+    const totalRewardsForPayment = db.prepare("SELECT COUNT(*) as count FROM referral_rewards WHERE qualifying_payment_id = ?").get(checkoutRes.payment!.id) as { count: number };
+    assert.strictEqual(totalRewardsForPayment.count, 2, "Strictly 2 rewards (Level 1 + Level 2) created, no duplicates");
+  });
 });

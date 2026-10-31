@@ -105,6 +105,11 @@ export default function Footer() {
             <h4 className="text-xs font-mono uppercase tracking-wider text-hub-gold font-semibold">Legal</h4>
             <ul className="space-y-2 text-sm text-hub-text-secondary">
               <li>
+                <Link href="/referral-rules" className="hover:text-hub-text-primary transition-colors text-hub-gold/90">
+                  Referral Rules &amp; Terms (2-Tier)
+                </Link>
+              </li>
+              <li>
                 <Link href="/terms" className="hover:text-hub-text-primary transition-colors">
                   Terms and Conditions
                 </Link>

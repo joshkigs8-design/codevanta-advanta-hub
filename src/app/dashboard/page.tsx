@@ -498,13 +498,20 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Referral Policy notice */}
-            <div className="p-3 rounded-lg bg-hub-bg border border-hub-border text-xs text-hub-text-muted flex items-start gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-              <div>
-                <strong>Direct Referral Terms:</strong> You earn commission only when an invited user purchases an eligible
-                membership plan (Basic: KES 50, Pro: KES 100, VIP: KES 150). No commissions for signups alone. No multi-level schemes.
+            {/* 2-Tier Referral Policy notice */}
+            <div className="p-3.5 rounded-lg bg-hub-bg border border-hub-border text-xs text-hub-text-muted flex items-start justify-between gap-3 flex-col sm:flex-row">
+              <div className="flex items-start gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-white">2-Tier Referral Earnings:</strong> Earn <span className="text-emerald-400 font-semibold">Level 1 Direct</span> rewards when peers subscribe (Starter: KES 20, Basic: KES 50, Pro: KES 100, VIP: KES 150). PLUS earn <span className="text-cyan-400 font-semibold">Level 2 Network</span> bonuses when your direct referrals invite others (Starter: KES 5, Basic: KES 15, Pro: KES 25, VIP: KES 35).
+                </div>
               </div>
+              <Link
+                href="/referral-rules"
+                className="text-hub-gold hover:underline font-mono text-[11px] shrink-0 font-bold self-end sm:self-center"
+              >
+                View Full Rules &rarr;
+              </Link>
             </div>
           </div>
 
@@ -541,6 +548,7 @@ export default function DashboardPage() {
                     <tr>
                       <th className="py-2.5 px-3">Date</th>
                       <th className="py-2.5 px-3">Customer</th>
+                      <th className="py-2.5 px-3">Tier / Level</th>
                       <th className="py-2.5 px-3">Plan</th>
                       <th className="py-2.5 px-3">Commission</th>
                       <th className="py-2.5 px-3">Status</th>
@@ -551,6 +559,17 @@ export default function DashboardPage() {
                       <tr key={r.id}>
                         <td className="py-2.5 px-3 font-mono text-hub-text-muted">{r.created_at.split("T")[0]}</td>
                         <td className="py-2.5 px-3 text-white">{r.referred_email}</td>
+                        <td className="py-2.5 px-3">
+                          {r.tier_level === 2 ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-cyan-950/80 text-cyan-400 border border-cyan-800">
+                              Level 2 Network
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-950/80 text-emerald-400 border border-emerald-800">
+                              Level 1 Direct
+                            </span>
+                          )}
+                        </td>
                         <td className="py-2.5 px-3 uppercase font-mono text-hub-gold">{r.plan_slug}</td>
                         <td className="py-2.5 px-3 font-mono font-bold text-emerald-400">KES {r.reward_amount_kes}</td>
                         <td className="py-2.5 px-3">

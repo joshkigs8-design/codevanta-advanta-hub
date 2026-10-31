@@ -1023,9 +1023,15 @@ export default async function HomePage() {
                       <span className="text-xs text-hub-text-muted uppercase font-mono">one-time</span>
                     </div>
                     <div className="mt-2 pt-2 border-t border-white/10 text-[11px] text-hub-text-secondary flex justify-between">
-                      <span>Referral reward:</span>
+                      <span>Level 1 Direct:</span>
                       <span className="font-mono text-emerald-400 font-semibold">
                         KES {plan.direct_referral_reward_kes}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-[11px] text-hub-text-secondary flex justify-between">
+                      <span>Level 2 Network:</span>
+                      <span className="font-mono text-cyan-400 font-semibold">
+                        KES {plan.indirect_referral_reward_kes || 0}
                       </span>
                     </div>
                   </div>

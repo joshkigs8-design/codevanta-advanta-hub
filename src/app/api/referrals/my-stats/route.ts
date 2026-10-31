@@ -25,6 +25,14 @@ export async function GET() {
       .prepare("SELECT COUNT(*) as count FROM referral_attributions WHERE referrer_user_id = ? AND status = 'qualified'")
       .get(user.id) as { count: number };
 
+    // Level 1 vs Level 2 counts
+    const level1Count = db
+      .prepare("SELECT COUNT(*) as count FROM referral_rewards WHERE referrer_user_id = ? AND tier_level = 1 AND status = 'approved'")
+      .get(user.id) as { count: number };
+    const level2Count = db
+      .prepare("SELECT COUNT(*) as count FROM referral_rewards WHERE referrer_user_id = ? AND tier_level = 2 AND status = 'approved'")
+      .get(user.id) as { count: number };
+
     // Referral rewards list
     const rewards = db
       .prepare(`
@@ -55,6 +63,8 @@ export async function GET() {
       clicks: refCode?.clicks || 0,
       signupsCount: signupsCount.count,
       qualifiedCount: qualifiedCount.count,
+      level1Count: level1Count.count,
+      level2Count: level2Count.count,
       programStatus,
       rewards: maskedRewards,
       shareMessage: `Check out CodeVanta Advanta Hub — the ultimate developer resource platform for free APIs, AI models, hosting tiers, and blueprints: ${referralUrl}`,

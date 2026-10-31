@@ -261,6 +261,7 @@ function initSchema(db: DatabaseSync) {
       description TEXT NOT NULL,
       price_kes REAL NOT NULL,
       direct_referral_reward_kes REAL NOT NULL,
+      indirect_referral_reward_kes REAL NOT NULL DEFAULT 0,
       billing_cycle TEXT NOT NULL DEFAULT 'lifetime',
       is_active INTEGER NOT NULL DEFAULT 1,
       entitlements TEXT NOT NULL DEFAULT '{}',
@@ -328,9 +329,10 @@ function initSchema(db: DatabaseSync) {
       attribution_id TEXT NOT NULL,
       referrer_user_id TEXT NOT NULL,
       referred_user_id TEXT NOT NULL,
-      qualifying_payment_id TEXT UNIQUE NOT NULL,
+      qualifying_payment_id TEXT NOT NULL,
       plan_slug TEXT NOT NULL,
       reward_amount_kes REAL NOT NULL,
+      tier_level INTEGER NOT NULL DEFAULT 1,
       status TEXT NOT NULL DEFAULT 'pending',
       rejection_reason TEXT,
       reviewed_by TEXT,
@@ -340,7 +342,9 @@ function initSchema(db: DatabaseSync) {
       updated_at TEXT NOT NULL,
       FOREIGN KEY (attribution_id) REFERENCES referral_attributions(id),
       FOREIGN KEY (referrer_user_id) REFERENCES profiles(id),
-      FOREIGN KEY (referred_user_id) REFERENCES profiles(id)
+      FOREIGN KEY (referred_user_id) REFERENCES profiles(id),
+      FOREIGN KEY (qualifying_payment_id) REFERENCES payments(id),
+      UNIQUE (qualifying_payment_id, tier_level)
     );
 
     CREATE TABLE IF NOT EXISTS wallet_accounts (
@@ -1927,8 +1931,8 @@ function seedInitialData(db: DatabaseSync) {
 
   // 3. Membership Plans (Starter: KES 70, Basic: KES 150, Pro: KES 250, VIP: KES 350)
   const insertPlan = db.prepare(`
-    INSERT INTO membership_plans (id, slug, name, description, price_kes, direct_referral_reward_kes, billing_cycle, is_active, entitlements, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO membership_plans (id, slug, name, description, price_kes, direct_referral_reward_kes, indirect_referral_reward_kes, billing_cycle, is_active, entitlements, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   insertPlan.run(
@@ -1938,6 +1942,7 @@ function seedInitialData(db: DatabaseSync) {
     "Budget-friendly entry tier for junior builders. Essential directory tools, core learning paths, and 15 bookmarks.",
     70,
     20,
+    5,
     "lifetime",
     1,
     JSON.stringify({
@@ -1961,6 +1966,7 @@ function seedInitialData(db: DatabaseSync) {
     "Ideal for beginner developers discovering essential free APIs, verified free hosting tiers, and core tutorials.",
     150,
     50,
+    15,
     "lifetime",
     1,
     JSON.stringify({
@@ -1984,6 +1990,7 @@ function seedInitialData(db: DatabaseSync) {
     "For aspiring professionals needing advanced filtering, curated tech stacks, in-depth architectural guides, and unlimited bookmarks.",
     250,
     100,
+    25,
     "lifetime",
     1,
     JSON.stringify({
@@ -2007,6 +2014,7 @@ function seedInitialData(db: DatabaseSync) {
     "Complete developer arsenal with downloadable production-ready starter kits, architectural blueprints, and priority directory submissions.",
     350,
     150,
+    35,
     "lifetime",
     1,
     JSON.stringify({
