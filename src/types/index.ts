@@ -113,7 +113,7 @@ export interface Bookmark {
   resource?: Resource;
 }
 
-export type PlanSlug = "starter" | "basic" | "pro" | "vip";
+export type PlanSlug = "starter" | "basic" | "pro" | "vip" | "vvip";
 
 export interface MembershipPlan {
   id: string;
@@ -188,7 +188,7 @@ export interface LearningGuide {
   category: string;
   difficulty: SkillLevel;
   estimated_minutes: number;
-  min_plan_tier: "free" | "basic" | "pro" | "vip";
+  min_plan_tier: "free" | "basic" | "pro" | "vip" | "vvip";
   starter_kit_download_url?: string;
   is_published: boolean;
   introduction?: string;
