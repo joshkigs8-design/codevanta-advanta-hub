@@ -127,13 +127,13 @@ function TutorialsContent() {
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <div className="relative w-full">
-            <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-white/50" />
+            <Search className="w-4 h-4 absolute left-4 top-3.5 text-white/50" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search tutorials by topic, command, model, or tool (e.g. Ollama, Claude, Next.js)..."
-              className="w-full px-4 py-3 pl-10 rounded-xl bg-hub-surface border border-hub-border focus:border-hub-gold focus:outline-none text-sm text-white placeholder-hub-text-muted"
+              className="w-full px-4 py-3 pl-11 rounded-2xl bg-hub-surface/80 border border-white/10 focus:border-hub-gold focus:ring-1 focus:ring-hub-gold/50 focus:outline-none text-sm text-white placeholder-hub-text-muted backdrop-blur-xl transition-all shadow-inner"
             />
             {search && (
               <button
@@ -148,7 +148,7 @@ function TutorialsContent() {
           <select
             value={selectedDifficulty}
             onChange={(e) => setSelectedDifficulty(e.target.value)}
-            className="w-full sm:w-auto px-4 py-3 rounded-xl bg-hub-surface border border-hub-border focus:border-hub-gold focus:outline-none text-sm text-white shrink-0"
+            className="w-full sm:w-auto px-4 py-3 rounded-2xl bg-hub-surface/80 border border-white/10 focus:border-hub-gold focus:outline-none text-sm text-white shrink-0 backdrop-blur-xl"
           >
             <option value="">All Difficulty Levels</option>
             <option value="beginner">Beginner</option>
@@ -166,10 +166,10 @@ function TutorialsContent() {
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(isSelected && cat.id !== "" ? "" : cat.id)}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-all active:scale-95 ${
                   isSelected
-                    ? "bg-hub-gold text-white font-bold shadow-gold-glow"
-                    : "bg-hub-surface text-hub-text-secondary hover:text-white border border-hub-border hover:border-white/20"
+                    ? "bg-gradient-to-r from-hub-gold via-amber-400 to-hub-gold text-hub-forest-dark font-bold shadow-gold-glow"
+                    : "glass-panel text-hub-text-secondary hover:text-white border border-white/[0.08] hover:border-white/20"
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -195,10 +195,11 @@ function TutorialsContent() {
 
       {/* Paywall Banner for Non-Members / Guests */}
       {!loading && !isMember && (
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-950/70 via-red-950/60 to-black/85 border border-amber-500/40 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-amber-950/40 via-hub-surface to-black/85 border border-hub-gold/30 p-6 sm:p-8 backdrop-blur-xl shadow-2xl card-specular-edge">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-hub-gold/10 rounded-full blur-3xl pointer-events-none" />
           <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="space-y-2 max-w-xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 font-mono text-xs uppercase tracking-wider font-bold">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-hub-gold/15 border border-hub-gold/30 text-hub-gold font-mono text-xs uppercase tracking-wider font-bold shadow-gold-glow">
                 <Lock className="w-3.5 h-3.5" />
                 <span>{authenticated ? "Membership Paywall" : "Guest Preview Mode"}</span>
               </div>
@@ -212,7 +213,7 @@ function TutorialsContent() {
             <div className="flex items-center gap-3 shrink-0 flex-wrap">
               <Link
                 href="/plans"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-hub-gold text-white hover:bg-hub-gold-hover shadow-gold-glow transition-all active:scale-95"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold bg-hub-gold text-hub-forest-dark hover:brightness-110 shadow-gold-glow transition-all active:scale-95"
               >
                 <Lock className="w-4 h-4" />
                 <span>Upgrade to Unlock All Guides</span>
@@ -240,17 +241,17 @@ function TutorialsContent() {
               <Link
                 key={tut.id}
                 href={`/tutorials/${tut.slug}`}
-                className={`group relative flex flex-col justify-between rounded-2xl border transition-all p-6 shadow-md overflow-hidden ${
+                className={`group relative flex flex-col justify-between rounded-3xl border transition-all p-6 sm:p-7 shadow-lg overflow-hidden glass-card-interactive card-specular-edge ${
                   isLocked
-                    ? "bg-hub-surface-card/75 border-amber-500/30"
-                    : "bg-hub-surface-card border-white/10 hover:border-hub-gold/50 hover:-translate-y-1 hover:shadow-card-subtle"
+                    ? "bg-amber-950/10 border-amber-500/30"
+                    : "border-white/[0.08] hover:border-hub-gold/40"
                 }`}
               >
                 <div className="space-y-4">
                   {/* Top Badge Row */}
                   <div className="flex items-center justify-between gap-2">
                     {isLocked ? (
-                      <span className="px-2 py-0.5 rounded text-[11px] font-mono uppercase font-bold bg-amber-950/80 text-amber-300 border border-amber-600/50 flex items-center gap-1">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase font-bold bg-amber-950/80 text-amber-300 border border-amber-600/50 flex items-center gap-1">
                         <Lock className="w-3 h-3" /> Member Guide
                       </span>
                     ) : (
@@ -264,7 +265,7 @@ function TutorialsContent() {
 
                   {/* Title & Summary */}
                   <div>
-                    <h3 className="text-lg font-bold text-white group-hover:text-hub-gold transition-colors leading-snug">
+                    <h3 className="text-lg font-extrabold text-white group-hover:text-hub-gold transition-colors leading-snug">
                       {tut.title}
                     </h3>
                     <p className="text-xs text-hub-text-secondary mt-2 line-clamp-3 leading-relaxed">
@@ -278,7 +279,7 @@ function TutorialsContent() {
                       {tut.supported_os.map((os) => (
                         <span
                           key={os}
-                          className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-white/70"
+                          className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white/[0.03] border border-white/10 text-white/70"
                         >
                           {os}
                         </span>
@@ -288,12 +289,12 @@ function TutorialsContent() {
                 </div>
 
                 {/* Card Footer */}
-                <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between text-xs">
+                <div className="mt-6 pt-4 border-t border-white/[0.08] flex items-center justify-between text-xs">
                   <div className="flex items-center gap-1.5 text-emerald-400 text-[11px] font-mono">
                     <ShieldCheck className="w-3.5 h-3.5" />
                     <span>Verified {tut.last_verified_date}</span>
                   </div>
-                  <div className={`flex items-center gap-1 font-semibold group-hover:translate-x-0.5 transition-transform ${
+                  <div className={`flex items-center gap-1.5 font-bold group-hover:translate-x-0.5 transition-transform ${
                     isLocked ? "text-amber-400" : "text-hub-gold"
                   }`}>
                     <span>{isLocked ? "Read Preview" : "Read Guide"}</span>

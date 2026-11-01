@@ -254,6 +254,23 @@ export interface ReferralReward {
   updated_at: string;
 }
 
+export type ReferralPayoutStatus = "pending" | "paid" | "cancelled";
+
+export interface ReferralPayout {
+  id: string;
+  reward_id: string;
+  referrer_user_id: string;
+  phone_number: string;
+  amount_kes: number;
+  status: ReferralPayoutStatus;
+  mpesa_reference?: string;
+  paid_at?: string;
+  paid_by?: string;
+  admin_note?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface WalletAccount {
   id: string;
   user_id: string;

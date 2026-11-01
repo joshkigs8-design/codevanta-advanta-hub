@@ -65,6 +65,20 @@ export default function TutorialDetailPage() {
   }, [slug]);
 
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const totalScroll = document.documentElement.scrollTop;
+      const windowHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      if (windowHeight > 0) {
+        setScrollProgress(Math.min(100, Math.max(0, (totalScroll / windowHeight) * 100)));
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const handleDownloadPdf = async () => {
     if (!isMember) {
@@ -158,7 +172,15 @@ export default function TutorialDetailPage() {
     : null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10 relative">
+      {/* Top Floating Reading Progress Bar */}
+      <div className="fixed top-0 left-0 right-0 h-1 bg-white/[0.04] z-50 pointer-events-none">
+        <div
+          className="h-full bg-gradient-to-r from-hub-gold via-amber-400 to-hub-gold transition-[width] duration-150 ease-out shadow-gold-glow"
+          style={{ width: `${scrollProgress}%` }}
+        />
+      </div>
+
       {articleJsonLd && (
         <script
           type="application/ld+json"
@@ -166,7 +188,7 @@ export default function TutorialDetailPage() {
         />
       )}
       {/* Top Navigation & Action Controls */}
-      <div className="no-print flex items-center justify-between gap-4 flex-wrap border-b border-white/10 pb-4">
+      <div className="no-print flex items-center justify-between gap-4 flex-wrap border-b border-white/[0.08] pb-4">
         <Link
           href="/tutorials"
           className="inline-flex items-center gap-2 text-xs font-mono text-hub-text-secondary hover:text-white transition-colors"
@@ -180,7 +202,7 @@ export default function TutorialDetailPage() {
           <button
             onClick={handleDownloadPdf}
             disabled={downloadingPdf}
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-mono font-semibold bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-all active:scale-95 shadow-sm disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-mono font-semibold glass-panel border border-white/15 text-white hover:border-hub-gold/40 transition-all active:scale-95 shadow-sm disabled:opacity-50"
             title="Download PDF guide file directly to your device"
           >
             {downloadingPdf ? (
@@ -190,14 +212,14 @@ export default function TutorialDetailPage() {
             )}
             <span>{downloadingPdf ? "Generating PDF..." : "Download PDF Guide"}</span>
             {!isMember && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono font-bold flex items-center gap-0.5">
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono font-bold flex items-center gap-0.5 border border-amber-500/30">
                 <Lock className="w-2.5 h-2.5" /> Pro
               </span>
             )}
           </button>
           <button
             onClick={handlePrint}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-semibold bg-white/5 hover:bg-white/15 border border-white/10 text-hub-text-secondary hover:text-white transition-all active:scale-95"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-mono font-semibold glass-panel border border-white/10 text-hub-text-secondary hover:text-white transition-all active:scale-95"
             title="Print or browser Save-as-PDF"
           >
             <Printer className="w-3.5 h-3.5" />
@@ -207,41 +229,42 @@ export default function TutorialDetailPage() {
       </div>
 
       {/* Main Header Container */}
-      <header className="space-y-4 border-b border-white/10 pb-8">
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className="px-2.5 py-1 rounded-lg text-xs font-mono uppercase font-bold bg-hub-surface border border-hub-border text-hub-gold">
+      <header className="p-6 sm:p-10 rounded-3xl glass-panel card-specular-edge space-y-5 border border-white/[0.08] shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-hub-gold/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="flex items-center gap-2.5 flex-wrap relative z-10">
+          <span className="px-3 py-1 rounded-full text-[11px] font-mono uppercase font-bold bg-hub-gold/15 border border-hub-gold/30 text-hub-gold shadow-gold-glow">
             {tutorial.category.replace("-", " ")}
           </span>
-          <span className="px-2.5 py-1 rounded-lg text-xs font-mono uppercase font-bold bg-emerald-950/70 text-emerald-400 border border-emerald-800/50">
+          <span className="px-3 py-1 rounded-full text-[11px] font-mono uppercase font-bold bg-emerald-950/70 text-emerald-300 border border-emerald-800/50">
             {tutorial.difficulty}
           </span>
-          <div className="flex items-center gap-1.5 text-xs font-mono text-hub-text-muted">
+          <div className="flex items-center gap-1.5 text-xs font-mono text-hub-text-muted px-2 py-0.5">
             <Clock className="w-3.5 h-3.5 text-hub-gold" />
             <span>{tutorial.estimated_minutes} min read</span>
           </div>
-          <div className="flex items-center gap-1.5 text-xs font-mono text-emerald-400">
+          <div className="flex items-center gap-1.5 text-xs font-mono text-emerald-400 px-2 py-0.5">
             <ShieldCheck className="w-3.5 h-3.5" />
             <span>Verified {tutorial.last_verified_date}</span>
           </div>
         </div>
 
-        <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
+        <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight relative z-10">
           {tutorial.title}
         </h1>
 
-        <p className="text-base sm:text-lg text-hub-text-secondary leading-relaxed max-w-4xl">
+        <p className="text-base sm:text-lg text-hub-text-secondary leading-relaxed max-w-4xl relative z-10">
           {tutorial.summary}
         </p>
 
         {/* Prerequisites & Supported Environments Strip */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 relative z-10">
           {tutorial.prerequisites && tutorial.prerequisites.length > 0 && (
-            <div className="p-4 rounded-xl bg-hub-surface border border-hub-border space-y-2">
+            <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/[0.08] space-y-2.5">
               <span className="text-xs font-mono uppercase font-bold text-hub-gold flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 Hardware &amp; System Prerequisites
               </span>
-              <ul className="text-xs text-hub-text-secondary space-y-1 list-disc list-inside">
+              <ul className="text-xs text-hub-text-secondary space-y-1.5 list-disc list-inside">
                 {tutorial.prerequisites.map((p, idx) => (
                   <li key={idx}>{p}</li>
                 ))}
@@ -250,16 +273,16 @@ export default function TutorialDetailPage() {
           )}
 
           {tutorial.supported_os && tutorial.supported_os.length > 0 && (
-            <div className="p-4 rounded-xl bg-hub-surface border border-hub-border space-y-2">
+            <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/[0.08] space-y-2.5">
               <span className="text-xs font-mono uppercase font-bold text-hub-gold flex items-center gap-1.5">
                 <Laptop className="w-3.5 h-3.5" />
                 Supported Environments
               </span>
-              <div className="flex flex-wrap gap-1.5 pt-1">
+              <div className="flex flex-wrap gap-2 pt-1">
                 {tutorial.supported_os.map((os, idx) => (
                   <span
                     key={idx}
-                    className="text-xs font-mono px-2.5 py-1 rounded-md bg-hub-surface-elevated text-white border border-white/10"
+                    className="text-xs font-mono px-3 py-1 rounded-lg bg-white/[0.04] text-white border border-white/10"
                   >
                     {os}
                   </span>
@@ -274,14 +297,14 @@ export default function TutorialDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Formatted Markdown Guide */}
         <article className="lg:col-span-8 space-y-8 min-w-0">
-          <div className="bg-hub-surface-card border border-white/10 rounded-2xl p-6 sm:p-10 shadow-xl relative overflow-hidden">
+          <div className="glass-panel card-specular-edge border border-white/[0.08] rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden">
             <MarkdownRenderer content={tutorial.content} />
 
             {/* In-article Paywall Lock for Non-Members */}
             {tutorial.is_locked && (
-              <div className="mt-8 pt-8 border-t border-amber-500/30 rounded-2xl bg-gradient-to-b from-amber-950/20 via-black/80 to-black p-6 sm:p-10 text-center backdrop-blur-md shadow-2xl space-y-4">
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center mx-auto shadow-lg">
-                  <Lock className="w-6 h-6" />
+              <div className="mt-8 pt-8 border-t border-amber-500/30 rounded-3xl bg-gradient-to-b from-amber-950/20 via-black/80 to-black p-6 sm:p-10 text-center backdrop-blur-md shadow-2xl space-y-4">
+                <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center mx-auto shadow-lg">
+                  <Lock className="w-7 h-7" />
                 </div>
                 <span className="text-xs font-mono uppercase tracking-widest text-amber-400 font-bold">
                   Member-Exclusive Content (Preview Mode)
@@ -295,10 +318,10 @@ export default function TutorialDetailPage() {
                 <div className="pt-2 flex items-center justify-center gap-3 flex-wrap">
                   <Link
                     href="/plans"
-                    className="px-6 py-3 rounded-xl text-sm font-semibold bg-hub-gold text-white hover:bg-hub-gold-hover shadow-gold-glow transition-all active:scale-95 flex items-center gap-2"
+                    className="px-6 py-3 rounded-xl text-sm font-bold bg-hub-gold text-hub-forest-dark hover:brightness-110 shadow-gold-glow transition-all active:scale-95 flex items-center gap-2"
                   >
                     <Lock className="w-4 h-4" />
-                    <span>Unlock with CodeVanta Membership (From KES 150)</span>
+                    <span>Unlock with CodeVanta Membership (From KES 70)</span>
                   </Link>
                   <Link
                     href="/login"
@@ -313,7 +336,7 @@ export default function TutorialDetailPage() {
 
           {/* Troubleshooting Section */}
           {tutorial.troubleshooting_notes && (
-            <section className="p-6 rounded-2xl bg-amber-950/30 border border-amber-600/40 space-y-3">
+            <section className="p-6 sm:p-8 rounded-3xl bg-amber-950/20 border border-amber-500/40 space-y-3 glass-panel">
               <div className="flex items-center gap-2 text-amber-400 font-bold text-sm font-mono uppercase tracking-wider">
                 <Info className="w-4 h-4" />
                 <span>Common Errors &amp; Troubleshooting Runbook</span>
@@ -326,7 +349,7 @@ export default function TutorialDetailPage() {
 
           {/* Security & Cost Warning Box */}
           {tutorial.security_warnings && (
-            <section className="p-6 rounded-2xl bg-rose-950/30 border border-rose-600/40 space-y-3">
+            <section className="p-6 sm:p-8 rounded-3xl bg-rose-950/20 border border-rose-500/40 space-y-3 glass-panel">
               <div className="flex items-center gap-2 text-rose-400 font-bold text-sm font-mono uppercase tracking-wider">
                 <AlertTriangle className="w-4 h-4" />
                 <span>Security &amp; Cost Guardrails</span>
@@ -339,16 +362,16 @@ export default function TutorialDetailPage() {
 
           {/* Official Documentation Link */}
           {tutorial.official_docs_url && (
-            <div className="no-print p-4 rounded-xl bg-hub-surface border border-hub-border flex items-center justify-between gap-4 flex-wrap">
+            <div className="no-print p-5 rounded-2xl glass-panel card-specular-edge border border-white/[0.08] flex items-center justify-between gap-4 flex-wrap">
               <div>
-                <span className="text-xs font-mono uppercase text-hub-text-muted block">Primary Source Documentation</span>
-                <span className="text-sm font-semibold text-white">Official Provider Specification</span>
+                <span className="text-[11px] font-mono uppercase text-hub-text-muted block">Primary Source Documentation</span>
+                <span className="text-sm font-bold text-white">Official Provider Specification</span>
               </div>
               <a
                 href={tutorial.official_docs_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-hub-gold text-white hover:bg-hub-gold-hover transition-colors shadow-md"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-hub-gold text-hub-forest-dark hover:brightness-110 transition-colors shadow-gold-glow"
               >
                 <span>Read Official Docs</span>
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -366,8 +389,8 @@ export default function TutorialDetailPage() {
           />
 
           {/* PDF Quick Download Box */}
-          <div className="no-print p-5 rounded-2xl bg-hub-surface border border-white/10 space-y-3 text-xs">
-            <h4 className="font-bold text-white flex items-center gap-2">
+          <div className="no-print p-6 rounded-3xl glass-panel card-specular-edge border border-white/[0.08] space-y-3.5 text-xs shadow-xl">
+            <h4 className="font-bold text-white flex items-center gap-2 text-sm">
               <Printer className="w-4 h-4 text-hub-gold" />
               <span>Offline Developer eBook / PDF</span>
             </h4>
@@ -377,12 +400,12 @@ export default function TutorialDetailPage() {
             <button
               onClick={handleDownloadPdf}
               disabled={downloadingPdf}
-              className="w-full py-2.5 rounded-xl font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+              className="w-full py-3 rounded-xl font-bold bg-hub-gold text-hub-forest-dark hover:brightness-110 shadow-gold-glow transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
             >
               {downloadingPdf ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-hub-gold" />
+                <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                <FileDown className="w-3.5 h-3.5 text-hub-gold" />
+                <FileDown className="w-4 h-4" />
               )}
               <span>{downloadingPdf ? "Generating PDF..." : "Download Offline PDF"}</span>
             </button>

@@ -37,6 +37,11 @@ interface RewardItem {
   referrer_email: string;
   referred_name: string;
   referred_email: string;
+  payout_id?: string;
+  payout_status?: "pending" | "paid" | "cancelled";
+  payout_phone_number?: string;
+  mpesa_reference?: string;
+  paid_at?: string;
 }
 
 export default function AdminReferralsPage() {
@@ -81,6 +86,50 @@ export default function AdminReferralsPage() {
       } else {
         await fetchData();
       }
+    } catch {
+      alert("Network error");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRecordPayout = async (reward: RewardItem) => {
+    if (!reward.payout_id) {
+      alert("Approve the reward first to create its manual payout record.");
+      return;
+    }
+    const reference = window.prompt("Enter the confirmed M-Pesa transaction reference:");
+    if (!reference?.trim()) return;
+    const paidAt = window.prompt("Enter the actual payment date/time (ISO or local date):", new Date().toISOString());
+    if (!paidAt) return;
+    setActionLoading(reward.id);
+    try {
+      const res = await fetch(`/api/admin/referral-payouts/${reward.payout_id}/action`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mpesaReference: reference, paidAt }),
+      });
+      const data = await res.json();
+      if (!res.ok) alert(data.error || "Failed to record payout");
+      else await fetchData();
+    } catch {
+      alert("Network error");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handlePreparePayout = async (rewardId: string) => {
+    setActionLoading(rewardId);
+    try {
+      const res = await fetch(`/api/admin/rewards/${rewardId}/action`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "prepare_payout" }),
+      });
+      const data = await res.json();
+      if (!res.ok) alert(data.error || "Failed to prepare payout");
+      else await fetchData();
     } catch {
       alert("Network error");
     } finally {
@@ -275,6 +324,29 @@ export default function AdminReferralsPage() {
                           </button>
                         </div>
                       )}
+                      {rw.status === "approved" && !rw.payout_id && (
+                        <button
+                          disabled={actionLoading === rw.id}
+                          onClick={() => handlePreparePayout(rw.id)}
+                          className="px-2.5 py-1 text-xs rounded bg-amber-950/60 border border-amber-800 text-amber-300 hover:bg-amber-900/60 disabled:opacity-50"
+                        >
+                          Prepare payout
+                        </button>
+                      )}
+                      {rw.status === "approved" && rw.payout_status === "pending" && (
+                        <button
+                          disabled={actionLoading === rw.id}
+                          onClick={() => handleRecordPayout(rw)}
+                          className="px-2.5 py-1 text-xs rounded bg-cyan-950/60 border border-cyan-800 text-cyan-300 hover:bg-cyan-900/60 disabled:opacity-50"
+                        >
+                          Record M-Pesa payment
+                        </button>
+                      )}
+                      {rw.payout_status === "paid" && (
+                        <span className="text-xs text-emerald-400">
+                          Paid{rw.mpesa_reference ? ` (${rw.mpesa_reference})` : ""}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -286,4 +358,3 @@ export default function AdminReferralsPage() {
     </div>
   );
 }
-

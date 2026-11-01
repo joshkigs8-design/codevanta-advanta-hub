@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { Resource } from "@/types";
 import { PricingBadge, VerificationBadge, SkillBadge } from "./Badge";
 import { getResourceImage, getResourceLogo, getDomain } from "@/lib/resourceImages";
+import SafeImage from "./SafeImage";
 import {
   X,
   ExternalLink,
@@ -26,7 +27,6 @@ interface ResourceDetailModalProps {
 }
 
 export default function ResourceDetailModal({ resource, onClose }: ResourceDetailModalProps) {
-  const [logoFailed, setLogoFailed] = useState(false);
 
   if (!resource) return null;
 
@@ -49,8 +49,9 @@ export default function ResourceDetailModal({ resource, onClose }: ResourceDetai
       >
         {/* Website Picture Banner Header */}
         <div className="relative w-full h-48 sm:h-56 overflow-hidden bg-hub-surface">
-          <img
+          <SafeImage
             src={imageUrl}
+            fallbackSrc="/og-image.png"
             alt={resource.name}
             className={`w-full h-full object-cover ${isLocked ? "filter blur-sm brightness-75" : ""}`}
           />
@@ -68,12 +69,12 @@ export default function ResourceDetailModal({ resource, onClose }: ResourceDetai
           {/* Header Metadata */}
           <div className="absolute bottom-4 left-6 right-6 flex items-center justify-between z-10">
             <div className="flex items-center gap-3">
-              {!logoFailed && logoUrl ? (
-                <img
+              {logoUrl ? (
+                <SafeImage
                   src={logoUrl}
+                  fallbackSrc="/icon.svg"
                   alt={`${resource.name} logo`}
                   className="w-10 h-10 rounded-xl object-contain bg-white/10 p-1.5 backdrop-blur-md border border-white/20"
-                  onError={() => setLogoFailed(true)}
                 />
               ) : null}
               <div>

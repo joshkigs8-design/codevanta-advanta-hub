@@ -68,11 +68,14 @@ export async function GET(req: NextRequest) {
     const rewards = db.prepare(
       `SELECT 
         rr.id, rr.plan_slug, rr.reward_amount_kes, rr.status, rr.rejection_reason, rr.hold_until, rr.created_at,
+        rp.id as payout_id, rp.status as payout_status, rp.phone_number as payout_phone_number,
+        rp.mpesa_reference, rp.paid_at,
         ref.full_name as referrer_name, ref.email as referrer_email,
         usr.full_name as referred_name, usr.email as referred_email
        FROM referral_rewards rr
        JOIN profiles ref ON ref.id = rr.referrer_user_id
        JOIN profiles usr ON usr.id = rr.referred_user_id
+       LEFT JOIN referral_payouts rp ON rp.reward_id = rr.id
        ORDER BY rr.created_at DESC
        LIMIT 50`
     ).all();
@@ -92,4 +95,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

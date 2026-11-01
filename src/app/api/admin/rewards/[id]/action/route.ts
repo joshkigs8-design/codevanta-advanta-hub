@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { approveReferralReward, rejectReferralReward } from "@/lib/referral";
+import { approveReferralReward, rejectReferralReward, createReferralPayout } from "@/lib/referral";
 import { logAdminAction } from "@/lib/audit";
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
@@ -14,11 +14,23 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const body = await req.json();
     const { action, reason } = body;
 
+    if (action === "prepare_payout") {
+      const payout = createReferralPayout(id);
+      if (!payout) return NextResponse.json({ error: "Reward must be approved before preparing a payout." }, { status: 400 });
+      logAdminAction(user.id, "prepare_referral_payout", "referral_rewards", id, { payoutId: payout.id });
+      return NextResponse.json({ success: true, payout });
+    }
+
     if (action === "approve") {
       const ok = approveReferralReward(id, user.id);
       if (!ok) return NextResponse.json({ error: "Failed to approve reward (must be in pending state)." }, { status: 400 });
+      const payout = createReferralPayout(id);
       logAdminAction(user.id, "approve_referral_reward", "referral_rewards", id, {});
-      return NextResponse.json({ success: true, message: "Reward approved and credited to referrer withdrawable balance." });
+      return NextResponse.json({
+        success: true,
+        payout,
+        message: "Reward approved for manual M-Pesa payout. Record the payment only after the transfer succeeds.",
+      });
     } else if (action === "reject") {
       if (!reason) {
         return NextResponse.json({ error: "A clear rejection reason is required." }, { status: 400 });

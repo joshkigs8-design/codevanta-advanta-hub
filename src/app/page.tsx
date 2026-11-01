@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getDb } from "@/lib/db";
 import { Resource, Category, MembershipPlan } from "@/types";
 import ResourceCard from "@/components/ResourceCard";
+import SafeImage from "@/components/SafeImage";
 import {
   ShieldCheck,
   Zap,
@@ -218,7 +219,7 @@ export default async function HomePage() {
           {/* GIGANTIC MONUMENTAL BRAND DISPLAY (MATCHING MODO ARCHITECTURAL MASTHEAD) */}
           <div className="py-2 sm:py-6">
             <h1 className="hero-title text-[52px] sm:text-[96px] md:text-[144px] lg:text-[192px] font-black tracking-[-0.075em] text-white uppercase select-none leading-[0.84] drop-shadow-[0_20px_45px_rgba(0,0,0,0.9)] font-sans">
-              Codevanta<span className="text-hub-gold drop-shadow-[0_0_30px_rgba(201,0,61,0.8)]">.</span>
+              Codevanta<span className="text-hub-ruby drop-shadow-ruby-glow">.</span>
             </h1>
             {/* Cinematic Live Ticker Strip */}
             <div className="mt-3 flex items-center gap-4 text-[10px] sm:text-[11px] font-mono tracking-widest uppercase text-white/60 overflow-hidden">
@@ -352,11 +353,11 @@ export default async function HomePage() {
                 <Link
                   key={idx}
                   href={card.link}
-                  className="hero-feature group relative p-5 rounded-2xl glass-bento transition-all flex flex-col justify-between hover:-translate-y-1"
+                  className="hero-feature group relative p-6 rounded-3xl glass-card-interactive card-specular-edge border border-white/[0.08] transition-all flex flex-col justify-between hover:-translate-y-1.5 shadow-xl"
                 >
-                  <div className="space-y-3">
+                  <div className="space-y-3.5">
                     <div className="flex items-center justify-between">
-                      <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-white group-hover:text-hub-gold group-hover:scale-110 transition-all">
+                      <div className="w-11 h-11 rounded-2xl bg-white/[0.04] border border-white/15 flex items-center justify-center text-white group-hover:text-hub-gold group-hover:scale-110 transition-all shadow-inner">
                         <Icon className="w-5 h-5" />
                       </div>
                       <span className="font-mono text-xs text-white/30 group-hover:text-hub-gold font-bold transition-colors">
@@ -365,17 +366,17 @@ export default async function HomePage() {
                     </div>
 
                     <div>
-                      <h3 className="font-bold text-sm text-white group-hover:text-hub-gold transition-colors">
+                      <h3 className="font-extrabold text-sm text-white group-hover:text-hub-gold transition-colors tracking-tight">
                         {card.title}
                       </h3>
-                      <p className="text-xs text-hub-text-secondary mt-1 leading-relaxed line-clamp-2">
+                      <p className="text-xs text-hub-text-secondary mt-1.5 leading-relaxed line-clamp-2">
                         {card.desc}
                       </p>
                     </div>
                   </div>
 
                   <div className="pt-4 flex justify-end">
-                    <div className="w-7 h-7 rounded-full bg-white/10 group-hover:bg-hub-gold text-white flex items-center justify-center transition-all">
+                    <div className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/10 group-hover:bg-hub-gold group-hover:text-hub-forest-dark text-white flex items-center justify-center transition-all shadow-sm">
                       <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                     </div>
                   </div>
@@ -433,8 +434,9 @@ export default async function HomePage() {
 
           {/* Center Column: Big Feature Photography / Architecture Card */}
           <div className="lg:col-span-5 relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl min-h-[380px] group">
-            <img
+            <SafeImage
               src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80"
+              fallbackSrc="/og-image.png"
               alt="High-performance developer workspace"
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
             />
@@ -706,8 +708,9 @@ export default async function HomePage() {
           {/* Banner 1: Full-Stack Starter Repos */}
           <div className="relative rounded-2xl overflow-hidden bg-hub-surface-card border border-white/10 shadow-2xl flex flex-col justify-between group">
             <div className="relative h-60 w-full overflow-hidden">
-              <img
+              <SafeImage
                 src="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1200&q=80"
+                fallbackSrc="/og-image.png"
                 alt="Cloud server architecture"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
               />
@@ -758,10 +761,11 @@ export default async function HomePage() {
           </div>
 
           {/* Banner 2: Transparent Membership Plans */}
-          <div className="relative rounded-2xl overflow-hidden bg-hub-surface-card border border-white/10 shadow-2xl flex flex-col justify-between group">
+          <div className="relative rounded-3xl overflow-hidden glass-panel card-specular-edge border border-white/10 shadow-2xl flex flex-col justify-between group">
             <div className="relative h-60 w-full overflow-hidden">
-              <img
+              <SafeImage
                 src="https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=1200&q=80"
+                fallbackSrc="/og-image.png"
                 alt="Modern UI components and interfaces"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
               />
@@ -778,21 +782,25 @@ export default async function HomePage() {
                 </h3>
                 <p className="text-xs sm:text-sm text-hub-text-secondary leading-relaxed">
                   Basic directory browsing is 100% free forever. Upgrade for advanced architectural
-                  guides, unlimited bookmarks, and starter kits starting at KES 150 one-time.
+                  guides, unlimited bookmarks, and starter kits starting at KES 70 one-time.
                 </p>
 
                 <ul className="space-y-2.5 text-xs text-white/95 pt-1">
                   <li className="flex items-center gap-2.5">
-                    <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span>Free Basic Tier: Public directory exploration</span>
+                    <Check className="w-4 h-4 text-cyan-400 shrink-0" />
+                    <span>Starter Tier (KES 70): Core directory &amp; 15 bookmarks</span>
+                  </li>
+                  <li className="flex items-center gap-2.5">
+                    <Check className="w-4 h-4 text-slate-300 shrink-0" />
+                    <span>Basic Tier (KES 150): Full directory access &amp; 10 bookmarks</span>
                   </li>
                   <li className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span>Pro Tier (KES 150): Curated roadmaps &amp; 50 bookmarks</span>
+                    <span>Pro Tier (KES 250): All tutorials &amp; AI setup guides &amp; 50 bookmarks</span>
                   </li>
                   <li className="flex items-center gap-2.5">
-                    <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span>VIP Tier (KES 350): Full starter kit downloads</span>
+                    <Check className="w-4 h-4 text-hub-gold shrink-0" />
+                    <span>VIP Tier (KES 350): Full starter kits &amp; 250+ bookmarks</span>
                   </li>
                 </ul>
               </div>
@@ -800,11 +808,11 @@ export default async function HomePage() {
               <div className="pt-2">
                 <Link
                   href="/plans"
-                  className="inline-flex items-center gap-3 px-6 py-3 rounded-full text-xs font-semibold bg-hub-gold text-white hover:bg-hub-gold-hover transition-all active:scale-95 group shadow-md"
+                  className="inline-flex items-center gap-3 px-6 py-3 rounded-full text-xs font-bold bg-hub-gold text-hub-forest-dark hover:brightness-110 transition-all active:scale-95 group shadow-gold-glow"
                 >
                   <span>Compare Membership Plans</span>
-                  <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
-                    <ArrowRight className="w-3 h-3 text-white group-hover:translate-x-0.5 transition-transform" />
+                  <div className="w-5 h-5 rounded-full bg-black/10 flex items-center justify-center">
+                    <ArrowRight className="w-3 h-3 text-black group-hover:translate-x-0.5 transition-transform" />
                   </div>
                 </Link>
               </div>
@@ -993,55 +1001,71 @@ export default async function HomePage() {
           {plans.map((plan) => {
             const isVip = plan.slug === "vip";
             const isPro = plan.slug === "pro";
+            const isBasic = plan.slug === "basic";
             const isStarter = plan.slug === "starter";
+
+            const tierBorder = isVip
+              ? "border-hub-gold/50 shadow-gold-glow bg-gradient-to-b from-hub-gold/[0.08] via-transparent to-transparent"
+              : isPro
+              ? "border-emerald-500/50 shadow-emerald-glow bg-gradient-to-b from-emerald-950/20 via-transparent to-transparent"
+              : isStarter
+              ? "border-cyan-500/40 shadow-cyan-glow bg-gradient-to-b from-cyan-950/20 via-transparent to-transparent"
+              : "border-slate-600/40 bg-gradient-to-b from-slate-900/20 via-transparent to-transparent";
+
             return (
               <div
                 key={plan.id}
-                className={`relative flex flex-col justify-between p-6 sm:p-8 rounded-2xl bg-hub-surface-card border transition-all ${
-                  isVip
-                    ? "border-hub-gold shadow-gold-glow"
-                    : isPro
-                    ? "border-emerald-600/60"
-                    : "border-white/10"
-                }`}
+                className={`relative flex flex-col justify-between p-6 sm:p-8 rounded-3xl glass-panel card-specular-edge border transition-all hover:-translate-y-1 ${tierBorder}`}
               >
                 {isVip && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3.5 py-0.5 rounded-full bg-hub-gold text-white text-[10px] font-extrabold tracking-wider uppercase font-mono shadow-md">
-                    Most Comprehensive
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-gradient-to-r from-hub-gold via-amber-400 to-hub-gold text-hub-forest-dark text-[10px] font-black tracking-wider uppercase font-mono shadow-gold-glow">
+                    Most Popular &amp; Comprehensive
+                  </div>
+                )}
+                {isStarter && (
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/50 text-[10px] font-bold tracking-wider uppercase font-mono shadow-sm">
+                    Entry Level
                   </div>
                 )}
 
                 <div>
-                  <h3 className="text-xl font-bold text-white">{plan.name}</h3>
-                  <p className="text-xs text-hub-text-secondary mt-1 min-h-[36px]">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xl font-extrabold text-white tracking-tight">{plan.name}</h3>
+                    <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-white/10 text-white/70">
+                      Lifetime
+                    </span>
+                  </div>
+                  <p className="text-xs text-hub-text-secondary mt-2 min-h-[36px] leading-relaxed">
                     {plan.description}
                   </p>
 
-                  <div className="my-6 p-4 rounded-xl bg-hub-surface border border-white/10">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-black text-white">KES {plan.price_kes}</span>
+                  <div className="my-6 p-4 rounded-2xl bg-white/[0.02] border border-white/[0.08]">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-3xl sm:text-4xl font-black text-white font-mono tracking-tight">
+                        KES {plan.price_kes}
+                      </span>
                       <span className="text-xs text-hub-text-muted uppercase font-mono">one-time</span>
                     </div>
-                    <div className="mt-2 pt-2 border-t border-white/10 text-[11px] text-hub-text-secondary flex justify-between">
+                    <div className="mt-3 pt-3 border-t border-white/[0.06] text-[11px] text-hub-text-secondary flex justify-between">
                       <span>Level 1 Direct:</span>
-                      <span className="font-mono text-emerald-400 font-semibold">
+                      <span className="font-mono text-emerald-400 font-bold">
                         KES {plan.direct_referral_reward_kes}
                       </span>
                     </div>
-                    <div className="mt-1 text-[11px] text-hub-text-secondary flex justify-between">
+                    <div className="mt-1.5 text-[11px] text-hub-text-secondary flex justify-between">
                       <span>Level 2 Network:</span>
-                      <span className="font-mono text-cyan-400 font-semibold">
+                      <span className="font-mono text-cyan-400 font-bold">
                         KES {plan.indirect_referral_reward_kes || 0}
                       </span>
                     </div>
                   </div>
 
                   <ul className="space-y-2.5 text-xs text-hub-text-secondary mb-6">
-                    <li className="flex items-center gap-2">
+                    <li className="flex items-center gap-2.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                      <span>Access to verified public resource directory</span>
+                      <span className="text-white/90">Access to verified public directory</span>
                     </li>
-                    <li className="flex items-center gap-2">
+                    <li className="flex items-center gap-2.5">
                       <CheckCircle2
                         className={`w-4 h-4 shrink-0 ${
                           plan.entitlements.can_use_advanced_search
@@ -1052,14 +1076,14 @@ export default async function HomePage() {
                       <span
                         className={
                           plan.entitlements.can_use_advanced_search
-                            ? "text-hub-text-primary"
+                            ? "text-white/90"
                             : "text-hub-text-muted"
                         }
                       >
                         Advanced multi-category filtering
                       </span>
                     </li>
-                    <li className="flex items-center gap-2">
+                    <li className="flex items-center gap-2.5">
                       <CheckCircle2
                         className={`w-4 h-4 shrink-0 ${
                           plan.entitlements.can_view_guides ? "text-emerald-400" : "text-zinc-600"
@@ -1068,14 +1092,14 @@ export default async function HomePage() {
                       <span
                         className={
                           plan.entitlements.can_view_guides
-                            ? "text-hub-text-primary"
+                            ? "text-white/90"
                             : "text-hub-text-muted"
                         }
                       >
                         Curated learning roadmaps
                       </span>
                     </li>
-                    <li className="flex items-center gap-2">
+                    <li className="flex items-center gap-2.5">
                       <CheckCircle2
                         className={`w-4 h-4 shrink-0 ${
                           plan.entitlements.can_view_blueprints
@@ -1086,49 +1110,51 @@ export default async function HomePage() {
                       <span
                         className={
                           plan.entitlements.can_view_blueprints
-                            ? "text-hub-text-primary"
+                            ? "text-white/90"
                             : "text-hub-text-muted"
                         }
                       >
-                        Original backend &amp; payment blueprints
+                        Original production blueprints
                       </span>
                     </li>
-                    <li className="flex items-center gap-2">
+                    <li className="flex items-center gap-2.5">
                       <CheckCircle2
                         className={`w-4 h-4 shrink-0 ${
                           plan.entitlements.can_download_templates
-                            ? "text-emerald-400"
+                            ? "text-hub-gold"
                             : "text-zinc-600"
                         }`}
                       />
                       <span
                         className={
                           plan.entitlements.can_download_templates
-                            ? "text-hub-text-primary font-semibold text-hub-gold"
+                            ? "text-hub-gold font-bold"
                             : "text-hub-text-muted"
                         }
                       >
-                        Downloadable production starter kits
+                        Downloadable starter repositories
                       </span>
                     </li>
-                    <li className="flex items-center gap-2">
+                    <li className="flex items-center gap-2.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                      <span>Up to {plan.entitlements.max_bookmarks} saved bookmarks</span>
+                      <span className="text-white/90">Up to <strong className="text-hub-gold font-mono">{plan.entitlements.max_bookmarks}</strong> bookmarks</span>
                     </li>
                   </ul>
                 </div>
 
                 <Link
                   href={`/plans?select=${plan.slug}`}
-                  className={`w-full py-3 rounded-xl text-center font-semibold text-xs transition-all ${
+                  className={`w-full py-3 rounded-xl text-center font-bold text-xs transition-all active:scale-95 ${
                     isVip
-                      ? "bg-hub-gold hover:bg-hub-gold-hover text-white shadow-gold-glow"
+                      ? "bg-gradient-to-r from-hub-gold via-amber-400 to-hub-gold text-hub-forest-dark hover:brightness-110 shadow-gold-glow"
                       : isPro
-                      ? "bg-white text-black hover:bg-hub-gold hover:text-white"
-                      : "bg-hub-surface-elevated hover:bg-white/10 text-white border border-white/10"
+                      ? "bg-emerald-500 hover:bg-emerald-400 text-black font-bold shadow-md shadow-emerald-500/20"
+                      : isStarter
+                      ? "bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40"
+                      : "bg-white/10 hover:bg-white/20 text-white border border-white/10"
                   }`}
                 >
-                  Select {plan.name}
+                  Get {plan.name} Access
                 </Link>
               </div>
             );
@@ -1142,9 +1168,10 @@ export default async function HomePage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="relative rounded-3xl overflow-hidden bg-black/75 border border-white/20 p-8 sm:p-12 shadow-2xl">
           <div className="absolute inset-0 z-0">
-            <img
+            <SafeImage
               src="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1600&q=80"
-              alt=""
+              fallbackSrc="/og-image.png"
+              alt="Abstract technology hardware"
               className="w-full h-full object-cover opacity-15"
             />
             <div className="absolute inset-0 bg-gradient-to-r from-hub-bg via-hub-bg/90 to-transparent" />

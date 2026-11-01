@@ -7,171 +7,178 @@ export const initialTutorials: Tutorial[] = [
     id: "tut-openclaw-windows-ollama-nvidia",
     slug: "openclaw-windows-ollama-nvidia",
     title: "OpenClaw on Windows: Install, Configure, and Run It with Ollama or NVIDIA",
-    summary: "A beginner-friendly Windows 10/11 setup guide for OpenClaw, its Gateway and Control UI, with local Ollama inference or NVIDIA-hosted and local GPU options.",
+    summary: "A verified Windows guide for OpenClaw, the Windows Hub, Ollama models, and NVIDIA-hosted inference, with safe setup and troubleshooting steps.",
     category: "ai-coding-agents",
     difficulty: "beginner",
     estimated_minutes: 35,
     prerequisites: [
       "Windows 10 or Windows 11 with current updates",
-      "Administrator access for software installation",
-      "At least 8 GB RAM; 16 GB or more is recommended for local models",
-      "At least 20 GB free disk space for the runtime and a small model",
+      "A Windows 10 20H2+ or Windows 11 computer",
+      "Administrator access only when your chosen installer requires it",
+      "Node.js 24.16.0+ if you install the CLI directly",
       "PowerShell and basic terminal familiarity",
     ],
     supported_os: ["Windows 10/11", "Windows 10/11 with WSL2"],
-    content: `# OpenClaw on Windows
+    content: `# OpenClaw on Windows with Ollama or NVIDIA
 
-> **Estimated setup time:** 30–60 minutes, depending on downloads and model size.
+> **Scope:** This guide follows the current OpenClaw install and Windows documentation. Commands and provider names can change; always compare them with the linked official pages before installing.
 
-OpenClaw is the agent runtime and user interface. Ollama is a local model runtime. NVIDIA can provide hosted model APIs or accelerate compatible models on local NVIDIA GPU hardware. These are different layers: installing one does not automatically configure the others.
+## What you will build
 
-## Before you begin
+OpenClaw is the agent application. Its **Gateway** manages sessions, channels, tools, and permissions; the **Control UI** or desktop app is the interface; and a **model provider** generates responses. Ollama can run a model locally or provide Ollama-hosted models. NVIDIA AI provides hosted inference endpoints; an NVIDIA GPU on your computer is a separate local-inference option.
 
-- Check the current [OpenClaw installation documentation](https://docs.openclaw.ai/install), [Windows guide](https://docs.openclaw.ai/platforms/windows), and [getting-started guide](https://docs.openclaw.ai/start/getting-started). Installation methods and commands may change between releases.
-- Choose one Windows approach:
-  - **Native Windows companion app:** simplest when the official Windows app supports your machine.
-  - **PowerShell CLI:** useful for terminal-first workflows.
-  - **WSL2:** useful when your existing tools and automation already run in a Linux environment.
-- Do not paste API keys into source code, screenshots, chat messages, or Git repositories.
+The agent can do more than answer a chat message because tools and integrations can give it access to files, commands, browsers, or messaging channels. Begin with a harmless test and grant only the permissions you need.
 
-## 1. Install OpenClaw
+## Requirements and choices
 
-### Native Windows companion app
+- Windows 10 version 20H2 or newer, or Windows 11, for the Windows Hub.
+- Use the **Windows Hub** when you want the supported desktop setup, tray status, chat, diagnostics, and local Windows-node features.
+- Use the PowerShell installer when you specifically want the CLI.
+- Use WSL2 when your Gateway and existing automation are Linux-based. Keep the Gateway and model runtime in the same environment while troubleshooting localhost connections.
+- Direct CLI installation requires Node 24.16.0+ on the 24.x line or Node 26.1.0+. The installer can provision a supported Node version.
+- Ollama model memory, disk usage, context length, and tool support vary by model. Do not use a fixed RAM/VRAM table as a guarantee.
 
-Follow the official Windows instructions to obtain the current installer. Launch the app, complete first-run onboarding if shown, and allow it to create or connect to a local Gateway. Do not repeat onboarding if it has already completed.
+## 1. Install OpenClaw on Windows
 
-### PowerShell CLI
+### Recommended: Windows Hub
 
-Review the official instructions and verify that the script is from the official OpenClaw domain before executing it:
+Download the signed installer from the [Windows Hub releases page](https://github.com/openclaw/openclaw-windows-node/releases/latest). Choose x64 or ARM64 for your computer. The Hub does not require administrator privileges. Launch **OpenClaw Companion** from Start or the system tray.
+
+On first launch choose **Set up locally** to provision the app-owned WSL Gateway, or choose **Advanced setup** to connect to an existing local, remote, or SSH-tunneled Gateway. A green tray status and a successful Command Center connection confirm that setup completed.
+
+Do not confuse device approval with command-surface approval. If the Hub asks for pairing, use the device and node approval commands documented in the [Windows guide](https://docs.openclaw.ai/platforms/windows).
+
+### CLI: PowerShell
+
+Review the installer source and your organization's policy before executing a remote script:
 
 \`\`\`powershell
 iwr -useb https://openclaw.ai/install.ps1 | iex
 \`\`\`
 
-Executing a downloaded script gives it permission to perform actions on your computer. Inspect the official script and documentation first, and use your organization's software policy where applicable.
-
-Verify the installation:
+For a non-interactive install, use the documented \`-NoOnboard\` form:
 
 \`\`\`powershell
+& ([scriptblock]::Create((iwr -useb https://openclaw.ai/install.ps1))) -NoOnboard
+\`\`\`
+
+After installation, run onboarding and install the Gateway daemon:
+
+\`\`\`powershell
+openclaw onboard --install-daemon
 openclaw --version
 openclaw doctor
 openclaw gateway status
-openclaw dashboard
 \`\`\`
 
-Use only the commands supported by your installed version. If onboarding started automatically, finish it rather than starting it again.
+Use the exact commands exposed by your installed version. \`openclaw dashboard\` is useful when that command is available; otherwise open the Control UI using the URL shown by onboarding or the Gateway status command.
 
 ### WSL2
 
-Install and update WSL2 through Microsoft's current documentation, then follow the OpenClaw Linux instructions inside the distribution. Keep the Gateway, workspace, and model runtime in the environment where OpenClaw expects them. Windows and WSL2 localhost/network behavior can differ, so test the connection from the same environment as the OpenClaw process.
+Install WSL2 using Microsoft's current documentation, then follow the OpenClaw Linux instructions inside the distribution. Do not assume a Windows Ollama process is reachable from WSL2 without testing it from the Gateway environment.
 
-## 2. Understand the OpenClaw pieces
+## 2. Configure Ollama
 
-- **Gateway:** the local service that coordinates the agent and its tools.
-- **Control UI/dashboard:** the browser interface used to inspect and operate the Gateway.
-- **Workspace:** the files and project context the agent is allowed to use.
-- **Model provider:** the service that generates model responses, such as Ollama or an NVIDIA API.
-- **Agent configuration:** the instructions, tools, permissions, and provider settings used by the agent.
+[Ollama](https://ollama.com/) is a model runtime, not OpenClaw itself. A local Ollama model uses your computer's resources and can keep prompts local. An Ollama cloud model still sends requests to a hosted service and may have account, quota, or cost conditions.
 
-The Gateway must be running before the dashboard or a model test can succeed.
-
-## 3. Run OpenClaw with Ollama
-
-[Ollama](https://ollama.com/) runs supported language models locally on your computer. Local inference can keep prompts on your machine and avoids per-request cloud charges, but it uses disk, RAM, VRAM, and electricity. A cloud-backed Ollama model is not fully local and may require an eligible account or paid usage.
-
-### Hardware planning
-
-| Hardware | Starting point | Notes |
-| --- | --- | --- |
-| 8 GB RAM, no dedicated GPU | Small 1B–3B model | Keep context short and expect slower responses. |
-| 16 GB RAM or 6–8 GB VRAM | Small 7B–8B quantized model | Close memory-heavy applications while testing. |
-| 32 GB RAM or 12–16 GB VRAM | Larger 7B–14B models | Check the model page and leave room for the OS. |
-
-Model tags, context limits, tool calling, and hardware requirements vary. Select a model from the current [Ollama library](https://ollama.com/library) that fits your hardware and supports the capabilities OpenClaw needs.
-
-### Install and verify Ollama
-
-Install Ollama using the official instructions for Windows, then open a new PowerShell window:
+Install Ollama from its [official download page](https://ollama.com/download), open a new PowerShell window, and verify:
 
 \`\`\`powershell
 ollama --version
 ollama list
 \`\`\`
 
-Pull and run a real model identifier from the current Ollama library. For example:
+The official OpenClaw tutorial currently documents this integrated path:
 
 \`\`\`powershell
-ollama pull llama3.2:3b
-ollama run llama3.2:3b
+ollama launch openclaw --model kimi-k2.5:cloud
 \`\`\`
 
-Confirm that the model responds, then exit the interactive session. The exact model identifier may change, so do not substitute a tag that is not present in the library.
+Use that command only when your Ollama version exposes \`ollama launch openclaw\`. Ollama's model selector may offer other cloud or local models. Model names, context length, tool calling, and hardware needs are model-specific.
 
-### Connect OpenClaw to Ollama
-
-Use the current OpenClaw and Ollama integration instructions. In supported environments, the following command may simplify setup:
+To test a local model independently, choose a current tag from the [Ollama library](https://ollama.com/library):
 
 \`\`\`powershell
-ollama launch openclaw
+ollama pull <model-tag-from-the-library>
+ollama run <model-tag-from-the-library>
 \`\`\`
 
-Only use it when the installed Ollama and OpenClaw versions document support for it. Otherwise configure the Ollama provider through the current OpenClaw onboarding or provider settings, select the model shown by \`ollama list\`, and restart the Gateway if requested.
+Exit the interactive session only after a response is returned. Then use OpenClaw's current onboarding/provider settings to select the same model. Verify the Gateway is connected and send a harmless request such as: “List three filenames I could use for a notes folder; do not read or change files.”
 
-Open the dashboard, send a test message, and verify that the expected local model responds. Do not assume every Ollama model supports tool calling reliably.
+If you need to test Ollama without OpenClaw, its local API is normally available at \`http://127.0.0.1:11434\`. Use the API documentation and a model that appears in \`ollama list\`; do not expose this port to the public internet.
 
-## 4. Run OpenClaw with NVIDIA AI
+## 3. Configure NVIDIA-hosted inference
 
-An NVIDIA graphics card is not required for every NVIDIA service. Separate these options:
+[NVIDIA Build](https://build.nvidia.com/) provides hosted inference endpoints and agentic skills. This is different from running a model on a local NVIDIA GPU. Create an account, choose an available model page, and generate an API key according to NVIDIA's current instructions. Availability, rate limits, and pricing can change.
 
-1. **NVIDIA-hosted inference:** a supported API on [build.nvidia.com](https://build.nvidia.com/). You need an account and API key, and usage may have limits or charges.
-2. **Local NVIDIA GPU inference:** a compatible model runs on your own NVIDIA GPU. VRAM, drivers, CUDA compatibility, and model quantization determine whether it is practical.
-3. **A compatible serving runtime:** an inference server exposes a model endpoint that OpenClaw can use when its provider configuration supports that endpoint.
-
-Start with the current NVIDIA model catalog and OpenClaw provider documentation. Choose an available model, create an API key if required, and store it in a secure secret store or supported environment variable. Never commit the key:
+Store the key in a local secret manager or an environment variable that is not committed:
 
 \`\`\`powershell
-$env:NVIDIA_API_KEY = "<set-this-in-your-secret-store>"
-openclaw doctor
-openclaw gateway status
-openclaw dashboard
+$env:NVIDIA_API_KEY = "<load-the-real-key-from-your-secret-store>"
 \`\`\`
 
-The placeholder above is not a usable key. Configure the provider using the current OpenClaw mechanism, test a response, and verify the Gateway and dashboard. Confirm account eligibility, rate limits, and possible charges before production use.
+Test the endpoint using the request example on the selected NVIDIA model page before connecting OpenClaw. Record the provider name, endpoint URL, and exact model identifier. Then configure OpenClaw only if its current provider settings support that provider or a compatible OpenAI-style endpoint. A valid NVIDIA key alone does not prove that the selected model is compatible with OpenClaw tools.
 
-For local GPU inference, identify the GPU and available VRAM, install the current NVIDIA driver and supported serving runtime, and confirm the runtime's compatibility with the chosen model. Do not assume that a model or runtime supports OpenClaw tool calling.
+For local NVIDIA GPU inference, install the current driver and a supported serving runtime separately. Check the runtime's model, VRAM, CUDA, and tool-calling requirements. Do not describe a local GPU setup as NVIDIA-hosted inference.
 
-## 5. Progress and final verification checklist
+## 4. Ollama versus NVIDIA-hosted inference
 
-- [ ] Windows version and hardware checked.
-- [ ] Official OpenClaw installation method selected.
-- [ ] \`openclaw --version\` succeeds.
-- [ ] \`openclaw doctor\` reports no blocking issue.
-- [ ] Gateway status is running.
-- [ ] Control UI/dashboard opens.
-- [ ] Ollama model or NVIDIA provider is selected.
-- [ ] A test message receives a response from the expected model.
-- [ ] API keys are stored outside source code and Git.
-- [ ] Model size, context window, tool calling, and usage limits are understood.
+| Consideration | Ollama local model | NVIDIA-hosted endpoint |
+| --- | --- | --- |
+| Internet | Not required after model download, unless using hosted Ollama models | Required |
+| Privacy | Prompts can remain on the device | Prompts go to the provider |
+| Hardware | Uses local disk, RAM, and possibly GPU memory | Local model hardware is not required |
+| Cost | Electricity and hardware; no per-request cloud fee for local inference | Account limits, pricing, and quotas can change |
+| Setup | Install runtime and download a compatible model | Create account, key, endpoint, and provider configuration |
+| Reliability | Depends on local resources and service health | Depends on network, quotas, and provider service |
 
-## Local versus cloud inference
+Neither option guarantees tool use. Confirm the model and OpenClaw version support the capabilities you need.
 
-Local inference gives more control and can work offline, but it needs suitable hardware and model downloads. Cloud inference is usually easier to scale and may offer stronger models, but prompts leave the machine and usage can incur limits or charges. Treat a cloud-backed model offered through an Ollama or NVIDIA service as cloud inference.
+## 5. Safe first project
+
+1. Install the Windows Hub or CLI and confirm Gateway health.
+2. Connect one model provider.
+3. Keep file, shell, browser, and messaging tools disabled or restricted.
+4. Send a harmless request asking for a three-item checklist.
+5. Confirm the response came from the expected model/provider.
+6. Only then enable one narrowly scoped tool and test it on a disposable folder.
+7. Review logs, permissions, and the resulting diff before expanding access.
+
+## Troubleshooting
+
+| Symptom | Diagnose | Fix |
+| --- | --- | --- |
+| \`openclaw\` or \`ollama\` is not recognized | Open a new PowerShell window and check the install completed and PATH | Re-run the supported installer or use the Windows Hub |
+| Gateway will not start | Run \`openclaw doctor\` and \`openclaw gateway status\` | Follow the reported repair step; do not start a second Gateway blindly |
+| Ollama connection refused | Check \`ollama list\` and whether the Ollama service is running in the same environment | Start Ollama, then retest before changing OpenClaw settings |
+| Model unavailable | Compare the exact identifier with \`ollama list\` or the provider catalog | Pull/select a currently available model |
+| NVIDIA authentication fails | Test the model endpoint independently and check the key, endpoint, quota, and model ID | Create a new key if necessary and keep it outside source control |
+| Port already in use | Inspect the process owning the documented port | Stop the intended duplicate process or choose the supported configured port |
+| Slow or out-of-memory responses | Check model requirements and local resource usage | Use a smaller compatible model, shorter context, or fewer concurrent applications |
+
+## Security checklist
+
+- Never commit API keys, installer output containing secrets, or private Gateway tokens.
+- Keep OpenClaw and Ollama on loopback/private networks unless the official security guidance and an authenticated design justify exposure.
+- Use least-privilege workspaces and disposable test data.
+- Review every tool permission, pairing request, and command-surface expansion.
+- Back up configuration before changing providers.
+- Treat messaging integrations and shell access as high-impact capabilities.
 
 ## Official references
 
 - [OpenClaw installation](https://docs.openclaw.ai/install)
-- [OpenClaw on Windows](https://docs.openclaw.ai/platforms/windows)
-- [OpenClaw getting started](https://docs.openclaw.ai/start/getting-started)
-- [Ollama](https://ollama.com/)
-- [Ollama documentation](https://docs.ollama.com/)
+- [OpenClaw Windows guide](https://docs.openclaw.ai/platforms/windows)
+- [OpenClaw security](https://docs.openclaw.ai/gateway/security)
+- [Ollama download](https://ollama.com/download)
 - [Ollama OpenClaw tutorial](https://ollama.com/blog/openclaw-tutorial)
+- [Ollama model library](https://ollama.com/library)
 - [NVIDIA Build](https://build.nvidia.com/)
-- [NVIDIA documentation](https://docs.nvidia.com/)
 `,
-    troubleshooting_notes: "If OpenClaw or Ollama is not recognized, open a new PowerShell window and confirm the installation path. For connection refused, check that the Ollama process and OpenClaw Gateway are running in the same environment. If the model is missing, compare its exact identifier with `ollama list` and the current model catalog. Slow responses or out-of-memory errors usually require a smaller quantized model, shorter context, fewer concurrent applications, or more RAM/VRAM. Tool calling and provider configuration can vary by model and release.",
-    security_warnings: "Review downloaded installation scripts before executing them. Keep OpenClaw and Ollama bound to local interfaces unless you have authentication and a secured network design. Never expose Ollama port 11434 or an OpenClaw Gateway publicly without the security controls documented by the official projects. Store NVIDIA keys in a secret store or environment variable and never commit them.",
+    troubleshooting_notes: "Use the official OpenClaw Windows and install pages for version-specific commands. Test Gateway and Ollama from the same environment, compare model identifiers exactly, and diagnose NVIDIA endpoint, model, key, and quota errors independently before changing OpenClaw configuration.",
+    security_warnings: "Review remote installer scripts before execution. Keep Gateway and Ollama private, restrict tools and workspaces, approve only expected devices and command surfaces, and store provider keys outside source control.",
     official_docs_url: "https://docs.openclaw.ai/install",
-    last_verified_date: "2026-10-29",
+    last_verified_date: "2026-11-01",
     is_published: true,
     featured: true,
     created_at: now,

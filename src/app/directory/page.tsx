@@ -19,6 +19,7 @@ import {
   Loader2,
   Lock,
   ArrowRight,
+  Sparkles,
 } from "lucide-react";
 
 function DirectoryContent() {
@@ -41,14 +42,15 @@ function DirectoryContent() {
   const [noApiKey, setNoApiKey] = useState(false);
   const [sort, setSort] = useState("featured");
   const [totalCount, setTotalCount] = useState(0);
-  const [authStatus, setAuthStatus] = useState<{ authenticated: boolean; isMember: boolean }>({ authenticated: false, isMember: false });
+  const [authStatus, setAuthStatus] = useState<{ authenticated: boolean; isMember: boolean }>({
+    authenticated: false,
+    isMember: false,
+  });
 
   // Fetch categories on mount
   useEffect(() => {
-    // We can infer categories or fetch from public API
     fetch("/api/resources?limit=1")
       .then(() => {
-        // Sample list of categories for pill filtering
         setCategories([
           { id: "cat-apis", slug: "public-apis", name: "Public APIs", description: "", icon: "Globe", display_order: 1, created_at: "" },
           { id: "cat-ai-models", slug: "ai-apis-models", name: "AI Models & APIs", description: "", icon: "Brain", display_order: 2, created_at: "" },
@@ -80,12 +82,10 @@ function DirectoryContent() {
 
       const res = await fetch(`/api/resources?${params.toString()}`);
       const data = await res.json();
-      if (res.ok) {
-        setResources(data.resources || []);
-        setTotalCount(data.pagination?.total || 0);
-        if (typeof data.authenticated === "boolean") {
-          setAuthStatus({ authenticated: data.authenticated, isMember: Boolean(data.isMember) });
-        }
+      setResources(data.resources || []);
+      setTotalCount(data.total || 0);
+      if (data.auth) {
+        setAuthStatus(data.auth);
       }
     } catch {
       setResources([]);
@@ -116,19 +116,19 @@ function DirectoryContent() {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 min-h-screen">
       {/* Header */}
-      <div className="space-y-2 border-b border-hub-border pb-6">
-        <div className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-hub-gold font-bold">
-          <Compass className="w-4 h-4" />
+      <div className="space-y-2 border-b border-white/[0.08] pb-6">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-950/60 border border-amber-500/30 text-xs font-mono text-amber-300 font-bold uppercase tracking-wider">
+          <Compass className="w-3.5 h-3.5 text-amber-400" />
           <span>Curated Developer Database</span>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-          Developer Resources &amp; Free Tiers
+        <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
+          Developer Resources &amp; <span className="shimmer-gold">Free Tiers</span>
         </h1>
-        <p className="text-sm text-hub-text-secondary max-w-2xl">
-          Verified developer APIs, generous cloud infrastructure, AI models, and student grants.
-          Every entry is tested for genuine free quotas.
+        <p className="text-sm text-hub-text-secondary max-w-2xl leading-relaxed">
+          Verified developer APIs, generous cloud infrastructure, AI models, and student perks.
+          Every entry is tested for genuine free quotas with zero unexpected card surprises.
         </p>
       </div>
 
@@ -136,18 +136,18 @@ function DirectoryContent() {
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <div className="relative w-full">
-            <Search className="w-5 h-5 absolute left-3.5 top-3.5 text-hub-gold" />
+            <Search className="w-5 h-5 absolute left-4 top-3.5 text-hub-gold" />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search by tool name, language (Python, TypeScript), or capability..."
-              className="w-full px-4 py-3 pl-11 rounded-xl bg-hub-surface border border-hub-border focus:border-hub-gold focus:outline-none text-sm text-hub-text-primary placeholder-hub-text-muted"
+              className="w-full px-4 py-3 pl-12 rounded-xl bg-hub-surface border border-white/[0.1] focus:border-hub-gold focus:outline-none text-sm text-white placeholder:text-hub-text-muted transition-colors font-mono placeholder:font-sans"
             />
             {query && (
               <button
                 onClick={() => setQuery("")}
-                className="absolute right-3.5 top-3.5 text-hub-text-muted hover:text-white"
+                className="absolute right-4 top-3.5 text-hub-text-muted hover:text-white"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -158,7 +158,7 @@ function DirectoryContent() {
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value)}
-              className="w-full sm:w-auto px-3.5 py-3 rounded-xl bg-hub-surface border border-hub-border focus:border-hub-gold focus:outline-none text-sm text-hub-text-primary"
+              className="w-full sm:w-auto px-4 py-3 rounded-xl bg-hub-surface border border-white/[0.1] focus:border-hub-gold focus:outline-none text-xs font-semibold text-white"
             >
               <option value="featured">Sort: Featured</option>
               <option value="verified">Sort: Recently Verified</option>
@@ -173,10 +173,10 @@ function DirectoryContent() {
         <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
           <button
             onClick={() => setSelectedCategory("")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
               !selectedCategory
-                ? "bg-hub-gold text-hub-forest-dark font-bold"
-                : "bg-hub-surface text-hub-text-secondary hover:text-white border border-hub-border"
+                ? "bg-amber-400 text-black shadow-gold-glow"
+                : "bg-white/[0.04] text-hub-text-secondary hover:text-white hover:bg-white/[0.08] border border-white/[0.08]"
             }`}
           >
             All Categories
@@ -185,10 +185,10 @@ function DirectoryContent() {
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.slug === selectedCategory ? "" : cat.slug)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
                 selectedCategory === cat.slug
-                  ? "bg-hub-gold text-hub-forest-dark font-bold"
-                  : "bg-hub-surface text-hub-text-secondary hover:text-white border border-hub-border"
+                  ? "bg-amber-400 text-black shadow-gold-glow"
+                  : "bg-white/[0.04] text-hub-text-secondary hover:text-white hover:bg-white/[0.08] border border-white/[0.08]"
               }`}
             >
               {cat.name}
@@ -198,7 +198,7 @@ function DirectoryContent() {
       </div>
 
       {/* Advanced Filters Drawer / Bar */}
-      <div className="p-4 rounded-xl bg-hub-surface border border-hub-border flex flex-wrap items-center justify-between gap-4 text-xs">
+      <div className="p-4 rounded-xl glass-panel flex flex-wrap items-center justify-between gap-4 text-xs">
         <div className="flex flex-wrap items-center gap-3">
           <span className="font-mono text-hub-gold font-bold flex items-center gap-1.5">
             <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -209,7 +209,7 @@ function DirectoryContent() {
           <select
             value={pricing}
             onChange={(e) => setPricing(e.target.value as PricingClassification | "")}
-            className="px-2.5 py-1.5 rounded-lg bg-hub-surface-elevated border border-hub-border text-hub-text-primary focus:outline-none"
+            className="px-3 py-1.5 rounded-lg bg-hub-surface border border-white/[0.1] text-white focus:outline-none focus:border-hub-gold"
           >
             <option value="">All Pricing Models</option>
             <option value="free_and_open_source">Free &amp; Open Source</option>
@@ -223,7 +223,7 @@ function DirectoryContent() {
           <select
             value={skillLevel}
             onChange={(e) => setSkillLevel(e.target.value as SkillLevel | "")}
-            className="px-2.5 py-1.5 rounded-lg bg-hub-surface-elevated border border-hub-border text-hub-text-primary focus:outline-none"
+            className="px-3 py-1.5 rounded-lg bg-hub-surface border border-white/[0.1] text-white focus:outline-none focus:border-hub-gold"
           >
             <option value="">All Skill Levels</option>
             <option value="beginner">Beginner Friendly</option>
@@ -232,26 +232,26 @@ function DirectoryContent() {
           </select>
 
           {/* Toggle: No Credit Card */}
-          <label className="flex items-center gap-1.5 cursor-pointer select-none text-hub-text-secondary hover:text-white">
+          <label className="flex items-center gap-1.5 cursor-pointer select-none text-hub-text-secondary hover:text-white font-mono">
             <input
               type="checkbox"
               checked={noCreditCard}
               onChange={(e) => setNoCreditCard(e.target.checked)}
-              className="rounded bg-hub-surface-elevated border-hub-border text-hub-gold focus:ring-0"
+              className="rounded bg-hub-surface border-white/20 text-hub-gold focus:ring-0"
             />
-            <CreditCard className="w-3.5 h-3.5 text-hub-gold" />
-            <span>No Credit Card</span>
+            <CreditCard className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Zero Card Required</span>
           </label>
 
           {/* Toggle: No API Key */}
-          <label className="flex items-center gap-1.5 cursor-pointer select-none text-hub-text-secondary hover:text-white">
+          <label className="flex items-center gap-1.5 cursor-pointer select-none text-hub-text-secondary hover:text-white font-mono">
             <input
               type="checkbox"
               checked={noApiKey}
               onChange={(e) => setNoApiKey(e.target.checked)}
-              className="rounded bg-hub-surface-elevated border-hub-border text-hub-gold focus:ring-0"
+              className="rounded bg-hub-surface border-white/20 text-hub-gold focus:ring-0"
             />
-            <Key className="w-3.5 h-3.5 text-hub-gold" />
+            <Key className="w-3.5 h-3.5 text-amber-400" />
             <span>No API Key Required</span>
           </label>
         </div>
@@ -259,7 +259,7 @@ function DirectoryContent() {
         {hasActiveFilters && (
           <button
             onClick={resetFilters}
-            className="flex items-center gap-1 text-hub-gold hover:underline font-mono"
+            className="flex items-center gap-1 text-hub-gold hover:underline font-mono text-xs font-semibold"
           >
             <RotateCcw className="w-3 h-3" />
             Reset Filters
@@ -267,45 +267,44 @@ function DirectoryContent() {
         )}
       </div>
 
-      {/* Results Count */}
-      <div className="flex items-center justify-between text-xs text-hub-text-muted">
+      {/* Results Count & Telemetry */}
+      <div className="flex items-center justify-between text-xs text-hub-text-muted font-mono">
         <span>Showing {resources.length} verified developer resources</span>
         {loading && (
           <span className="flex items-center gap-1.5 text-hub-gold">
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            Updating results...
+            Refreshing catalog...
           </span>
         )}
       </div>
 
       {/* Paywall Banner for Signed-Out Visitors */}
       {!loading && !authStatus.authenticated && (
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-950/70 via-red-950/60 to-black/85 border border-amber-500/40 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
-          <div className="absolute -right-12 -bottom-12 w-56 h-56 rounded-full bg-amber-500/15 blur-3xl pointer-events-none" />
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-950/70 via-black/80 to-amber-950/60 border border-amber-500/40 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
           <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="space-y-2 max-w-xl">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 font-mono text-xs uppercase tracking-wider font-bold">
                 <Lock className="w-3.5 h-3.5" />
-                <span>Guest Access Restricted</span>
+                <span>Guest Preview Mode</span>
               </div>
               <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
                 Directory Tools Are Locked Behind Sign In
               </h3>
-              <p className="text-sm text-hub-text-secondary leading-relaxed">
-                You are currently browsing as a guest. All directory resources, verified quota specs, and direct access links are locked. Sign in or create a free account to unlock our verified developer catalog.
+              <p className="text-xs sm:text-sm text-hub-text-secondary leading-relaxed">
+                You are currently browsing as a guest. All directory resources, verified quota limits, and direct access links are locked. Sign in or create a free account to unlock our verified developer catalog.
               </p>
             </div>
             <div className="flex items-center gap-3 shrink-0 flex-wrap">
               <Link
                 href="/login"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-hub-gold text-white hover:bg-hub-gold-hover shadow-gold-glow transition-all active:scale-95"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-black hover:from-amber-300 hover:to-yellow-400 shadow-gold-glow transition-all active:scale-95 uppercase tracking-wider"
               >
                 <Lock className="w-4 h-4" />
                 <span>Sign In to Unlock</span>
               </Link>
               <Link
                 href="/register"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-md transition-all active:scale-95"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-md transition-all active:scale-95"
               >
                 <span>Create Free Account</span>
               </Link>
@@ -316,21 +315,21 @@ function DirectoryContent() {
 
       {/* Upgrade Banner for Free Tier Users */}
       {!loading && authStatus.authenticated && !authStatus.isMember && (
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-950/40 via-purple-950/30 to-black/70 border border-blue-500/30 p-5 sm:p-6 backdrop-blur-xl">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-950/40 via-yellow-950/30 to-black/70 border border-amber-500/30 p-5 sm:p-6 backdrop-blur-xl">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="space-y-1">
-              <span className="text-xs font-mono uppercase tracking-wider text-blue-400 font-bold">
+              <span className="text-xs font-mono uppercase tracking-wider text-amber-400 font-bold">
                 Free Account Active
               </span>
-              <p className="text-sm text-hub-text-secondary">
-                You have preview access to basic developer tools. Upgrade to Basic, Pro, or VIP to unlock our entire 50+ enterprise tool catalog and unlimited blueprints.
+              <p className="text-xs sm:text-sm text-hub-text-secondary">
+                You have preview access to basic developer tools. Upgrade to Starter (KES 70), Basic, Pro, or VIP to unlock our entire 55+ enterprise tool catalog and unlimited blueprints.
               </p>
             </div>
             <Link
               href="/plans"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold bg-white text-black hover:bg-hub-gold hover:text-white transition-all shrink-0"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-400 to-yellow-500 text-black hover:from-amber-300 hover:to-yellow-400 shadow-gold-glow transition-all shrink-0 active:scale-95"
             >
-              <span>View Plans</span>
+              <span>View Plans from KES 70</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -349,17 +348,17 @@ function DirectoryContent() {
           ))}
         </div>
       ) : (
-        <div className="text-center py-16 space-y-4 rounded-2xl bg-hub-surface border border-hub-border p-8">
-          <div className="w-12 h-12 rounded-full bg-hub-surface-elevated mx-auto flex items-center justify-center text-hub-text-muted">
+        <div className="text-center py-16 space-y-4 rounded-2xl glass-panel p-8">
+          <div className="w-12 h-12 rounded-full bg-white/[0.06] mx-auto flex items-center justify-center text-hub-text-muted">
             <Compass className="w-6 h-6" />
           </div>
           <h3 className="text-lg font-bold text-white">No Matching Resources Found</h3>
-          <p className="text-sm text-hub-text-secondary max-w-sm mx-auto">
-            Try adjusting your search terms or resetting the pricing and requirement filters.
+          <p className="text-xs sm:text-sm text-hub-text-secondary max-w-sm mx-auto">
+            Try adjusting your search query or resetting the pricing and requirement filters.
           </p>
           <button
             onClick={resetFilters}
-            className="px-4 py-2 rounded-lg text-xs font-semibold bg-hub-gold text-hub-forest-dark hover:bg-hub-gold-hover"
+            className="px-5 py-2 rounded-xl text-xs font-bold bg-amber-400 text-black hover:bg-amber-300 shadow-gold-glow transition-all"
           >
             Clear All Filters
           </button>

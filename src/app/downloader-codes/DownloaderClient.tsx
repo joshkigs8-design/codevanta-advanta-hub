@@ -2,7 +2,20 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Tv, Copy, Check, ExternalLink, Download, Search, ShieldCheck, Lock, ArrowRight, MessageCircle } from "lucide-react";
+import {
+  Tv,
+  Copy,
+  Check,
+  ExternalLink,
+  Download,
+  Search,
+  ShieldCheck,
+  Lock,
+  ArrowRight,
+  MessageCircle,
+  Sparkles,
+  Layers,
+} from "lucide-react";
 
 interface DownloaderCode {
   code: string;
@@ -69,50 +82,34 @@ const DOWNLOADER_CODES: DownloaderCode[] = [
     tags: ["App Manager", "Home Screen", "Aptoide", "Nebula/Anker"],
     versionNote: "Verified Aptoide App ID 61078189 (com.zhixin.atvchannel)",
   },
-  {
-    code: "11598",
-    name: "VLC Media Player (Android & Fire TV)",
-    category: "Media & Streaming",
-    description: "The gold-standard open-source media player. Plays all local formats, network streams, and live M3U IPTV channels (fully compatible with IPTV-Org).",
-    targetUrl: "https://get.videolan.org/vlc-android/3.5.4/VLC-Android-3.5.4-arm64-v8a.apk",
-    tags: ["VLC", "IPTV Streamer", "Open Source", "Android TV", "Firestick"],
-    versionNote: "Official VideoLAN build — supports M3U Network Streams",
-  },
-  {
-    code: "874120",
-    name: "MovieBox-TUI (GitHub Streamer)",
-    category: "Media & Streaming",
-    description: "Fast terminal-based media streaming client in Rust for movies, anime, TV series, and live IPTV with VLC and mpv external player forwarding.",
-    targetUrl: "https://github.com/mesamirh/MovieBox-Tui",
-    tags: ["Rust TUI", "GitHub", "Terminal Streamer", "VLC Support", "Anime & Movies"],
-    versionNote: "mesamirh/MovieBox-Tui — scoop / brew / cargo / Termux",
-  },
-  {
-    code: "549812",
-    name: "IPTV-Org Live TV Playlists (M3U)",
-    category: "Media & Streaming",
-    description: "Over 8,000 free, legal public broadcast television channels worldwide. Stream directly inside VLC Media Player or MovieBox-TUI.",
-    targetUrl: "https://iptv-org.github.io/iptv/index.m3u",
-    tags: ["M3U Playlist", "Live TV", "IPTV-Org", "VLC Streams", "Global Channels"],
-    versionNote: "Community-curated 8,000+ public broadcast channels",
-  },
+];
+
+const CATEGORIES = [
+  "All",
+  "Media & Streaming",
+  "App Store & Utilities",
+  "Toolbox & App Directory",
+  "TV Launcher & App Manager",
 ];
 
 export default function DownloaderClient() {
   const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [isMember, setIsMember] = useState<boolean>(false);
-  const [loadingAuth, setLoadingAuth] = useState<boolean>(true);
+  const [isMember, setIsMember] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loadingAuth, setLoadingAuth] = useState(true);
 
   useEffect(() => {
     fetch("/api/auth/me")
-      .then((res) => res.json())
+      .then((r) => r.json())
       .then((data) => {
-        const authed = Boolean(data.authenticated);
-        setIsAuthenticated(authed);
-        const member = authed && data.entitlements?.planSlug && data.entitlements.planSlug !== "free";
-        setIsMember(Boolean(member));
+        if (data.authenticated && data.user) {
+          setIsAuthenticated(true);
+          if (data.user.role === "member" || data.user.role === "admin") {
+            setIsMember(true);
+          }
+        }
       })
       .catch(() => {
         setIsAuthenticated(false);
@@ -129,48 +126,51 @@ export default function DownloaderClient() {
   };
 
   const filteredCodes = DOWNLOADER_CODES.filter((item) => {
+    const matchesCategory = selectedCategory === "All" || item.category === selectedCategory;
     const q = search.toLowerCase();
-    return (
+    const matchesQuery =
+      !search ||
       item.code.includes(q) ||
       item.name.toLowerCase().includes(q) ||
       item.category.toLowerCase().includes(q) ||
       item.description.toLowerCase().includes(q) ||
-      item.tags.some((t) => t.toLowerCase().includes(q))
-    );
+      item.tags.some((t) => t.toLowerCase().includes(q));
+
+    return matchesCategory && matchesQuery;
   });
 
   return (
     <div className="min-h-screen py-10 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto space-y-10">
       {/* Header */}
       <div className="text-center space-y-4">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-hub-gold/10 border border-hub-gold/30 text-hub-gold text-xs font-mono">
-          <Tv className="w-3.5 h-3.5" />
-          <span>Android TV & Firestick Sideload Directory</span>
+        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-950/60 border border-amber-500/30 text-amber-300 text-xs font-mono">
+          <Tv className="w-3.5 h-3.5 text-amber-400" />
+          <span>Android TV &amp; Firestick Sideload Directory</span>
         </div>
         <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white">
-          AFTVnews <span className="text-hub-gold">Downloader Codes</span>
+          AFTVnews <span className="shimmer-gold">Downloader Codes</span>
         </h1>
         <p className="text-sm sm:text-base text-hub-text-secondary max-w-2xl mx-auto leading-relaxed">
-          Short numerical download codes for the popular <strong>Downloader by AFTVnews</strong> app. 
-          Enter any code on your Smart TV or Firestick to quickly download and install APKs and utility toolboxes.
+          Short numerical download codes for the official <strong>Downloader by AFTVnews</strong> app. 
+          Enter any code on your Smart TV, Android Box, or Firestick to directly download and install APKs and utility toolboxes.
         </p>
 
         {/* How-to banner */}
-        <div className="bg-hub-surface border border-hub-border-subtle rounded-2xl p-4 sm:p-6 text-left max-w-3xl mx-auto mt-6 shadow-xl">
-          <div className="flex items-center gap-2 font-semibold text-xs uppercase tracking-wider text-hub-gold mb-3">
-            <ShieldCheck className="w-4 h-4" />
-            <span>How to use these codes on your TV</span>
+        <div className="glass-panel rounded-2xl p-5 sm:p-6 text-left max-w-3xl mx-auto mt-6 shadow-2xl">
+          <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider text-hub-gold mb-3 font-mono">
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <span>How to use these short codes in 3 steps</span>
           </div>
-          <ol className="list-decimal list-inside text-xs sm:text-sm text-hub-text-secondary space-y-2">
-            <li>Install and open the free <strong className="text-white">Downloader</strong> app on your Android TV or Firestick.</li>
-            <li>In the URL / Search input box, type the <strong className="text-hub-gold font-mono">numerical code</strong> (e.g. <span className="font-mono text-white">250931</span>).</li>
-            <li>Press <strong className="text-white">Go</strong>. The app redirects to the verified APK or repository mirror.</li>
+          <ol className="list-decimal list-inside text-xs sm:text-sm text-slate-300 space-y-2 leading-relaxed">
+            <li>Install and open the free <strong className="text-white">Downloader</strong> app on your Android TV, Google TV, or Firestick.</li>
+            <li>In the URL / Search input box, type the <strong className="text-hub-gold font-mono">short code</strong> (e.g. <span className="font-mono text-white bg-white/10 px-1.5 py-0.5 rounded">250931</span>).</li>
+            <li>Press <strong className="text-white">Go</strong>. Downloader redirects immediately to the verified APK or repository mirror.</li>
           </ol>
         </div>
 
         {/* WhatsApp Channel Callout */}
-        <div className="bg-gradient-to-r from-emerald-950/60 via-black/60 to-emerald-950/40 border border-emerald-500/30 rounded-2xl p-4 sm:p-5 text-left max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
-          <div className="flex items-center gap-3">
+        <div className="bg-gradient-to-r from-emerald-950/70 via-black/60 to-emerald-950/50 border border-emerald-500/40 rounded-2xl p-4 sm:p-5 text-left max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
+          <div className="flex items-center gap-3.5">
             <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0">
               <MessageCircle className="w-5 h-5 text-emerald-400" />
             </div>
@@ -180,7 +180,7 @@ export default function DownloaderClient() {
                 <span className="text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30">Official</span>
               </h4>
               <p className="text-xs text-hub-text-secondary mt-0.5">
-                Get new APK codes, Android TV tools, and free tier drops delivered to your phone.
+                Receive new APK codes, TV utilities, and verified free tier drops directly on WhatsApp.
               </p>
             </div>
           </div>
@@ -188,7 +188,7 @@ export default function DownloaderClient() {
             href="https://whatsapp.com/channel/0029Vb84p6QKGGGNAp8VIB2g"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-md shrink-0"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-black transition-all shadow-md shrink-0 active:scale-95"
           >
             <span>Follow Channel</span>
             <ExternalLink className="w-3.5 h-3.5" />
@@ -198,7 +198,7 @@ export default function DownloaderClient() {
 
       {/* Paywall Banner for Non-Members / Guests */}
       {!loadingAuth && !isMember && (
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-950/70 via-red-950/60 to-black/85 border border-amber-500/40 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-950/70 via-black/80 to-amber-950/60 border border-amber-500/40 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
           <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="space-y-2 max-w-xl">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 font-mono text-xs uppercase tracking-wider font-bold">
@@ -208,22 +208,22 @@ export default function DownloaderClient() {
               <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
                 Unlock Complete Downloader &amp; Sideload Catalog
               </h3>
-              <p className="text-sm text-hub-text-secondary leading-relaxed">
-                You are currently viewing 2 free sample codes. Upgrade to CodeVanta Basic, Pro, or VIP to unlock all verified short codes, one-click direct APK mirrors, and GitHub release links.
+              <p className="text-xs sm:text-sm text-hub-text-secondary leading-relaxed">
+                You are currently viewing 2 free sample codes. Upgrade to CodeVanta Starter (KES 70), Basic, Pro, or VIP to unlock all verified short codes, one-click direct APK mirrors, and GitHub release links.
               </p>
             </div>
             <div className="flex items-center gap-3 shrink-0 flex-wrap">
               <Link
                 href="/plans"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-hub-gold text-white hover:bg-hub-gold-hover shadow-gold-glow transition-all active:scale-95"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-black hover:from-amber-300 hover:to-yellow-400 shadow-gold-glow transition-all active:scale-95 uppercase tracking-wider"
               >
                 <Lock className="w-4 h-4" />
-                <span>Upgrade to Unlock All Codes</span>
+                <span>Upgrade from KES 70</span>
               </Link>
               {!isAuthenticated && (
                 <Link
                   href="/login"
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-md transition-all active:scale-95"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-md transition-all active:scale-95"
                 >
                   <span>Sign In</span>
                 </Link>
@@ -233,16 +233,36 @@ export default function DownloaderClient() {
         </div>
       )}
 
-      {/* Search */}
-      <div className="relative max-w-md mx-auto">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-hub-text-muted" />
-        <input
-          type="text"
-          placeholder="Search by code, app name, or keyword…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-hub-surface border border-hub-border text-sm text-hub-text-primary focus:outline-none focus:border-hub-gold transition-colors"
-        />
+      {/* Filter and Search Bar */}
+      <div className="space-y-4">
+        {/* Category Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                selectedCategory === cat
+                  ? "bg-amber-400 text-black font-bold shadow-gold-glow"
+                  : "bg-white/[0.04] text-hub-text-secondary hover:text-white hover:bg-white/[0.08] border border-white/[0.08]"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* Search Input */}
+        <div className="relative max-w-md mx-auto">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-hub-text-muted" />
+          <input
+            type="text"
+            placeholder="Search by code, app name, or keyword…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-hub-surface border border-white/[0.1] text-sm text-hub-text-primary focus:outline-none focus:border-hub-gold transition-colors font-mono placeholder:font-sans"
+          />
+        </div>
       </div>
 
       {/* Grid of Codes */}
@@ -254,46 +274,50 @@ export default function DownloaderClient() {
           return (
             <div
               key={item.code}
-              className={`rounded-2xl border transition-all p-5 flex flex-col justify-between group relative overflow-hidden ${
+              className={`rounded-2xl border transition-all p-5 flex flex-col justify-between group relative overflow-hidden glass-card-interactive card-specular-edge ${
                 isLocked
-                  ? "border-amber-500/30 bg-hub-surface-card/70"
-                  : "border-white/10 bg-hub-surface-card hover:border-hub-gold/50 hover:shadow-card-subtle"
+                  ? "border-amber-500/30"
+                  : "border-white/[0.08] hover:border-hub-gold/50"
               }`}
             >
               <div>
                 {/* Top row: Code badge + Copy button */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <span className={`font-mono text-xl sm:text-2xl font-black tracking-wider ${
-                      isLocked ? "text-amber-400/80" : "text-hub-gold"
+                    <span className={`font-mono text-2xl sm:text-3xl font-black tracking-wider ${
+                      isLocked ? "text-amber-400/80" : "text-amber-400"
                     }`}>
                       {displayCode}
                     </span>
                     {!isLocked ? (
                       <button
                         onClick={() => handleCopy(item.code, isLocked)}
-                        className="p-1.5 rounded-lg hover:bg-hub-surface-elevated text-hub-text-muted hover:text-white transition-colors"
+                        className={`p-2 rounded-xl transition-all ${
+                          copiedCode === item.code
+                            ? "bg-emerald-950 text-emerald-400 border border-emerald-500/50"
+                            : "bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white border border-white/[0.08]"
+                        }`}
                         title="Copy Downloader Code"
                       >
                         {copiedCode === item.code ? (
-                          <Check className="w-4 h-4 text-emerald-400" />
+                          <Check className="w-4 h-4" />
                         ) : (
                           <Copy className="w-4 h-4" />
                         )}
                       </button>
                     ) : (
-                      <span className="p-1.5 rounded-lg bg-amber-950/40 text-amber-400" title="Locked for guests">
-                        <Lock className="w-3.5 h-3.5" />
+                      <span className="p-2 rounded-xl bg-amber-950/50 text-amber-400 border border-amber-500/30" title="Locked for guests">
+                        <Lock className="w-4 h-4" />
                       </span>
                     )}
                   </div>
-                  <span className="text-[11px] font-mono px-2 py-0.5 rounded-lg bg-hub-surface-elevated border border-hub-border text-hub-text-muted">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/[0.06] border border-white/[0.08] text-hub-text-muted">
                     {item.category}
                   </span>
                 </div>
 
                 {/* Name & description */}
-                <h3 className="text-lg font-bold text-white group-hover:text-hub-gold transition-colors mb-1.5">
+                <h3 className="text-base font-bold text-white group-hover:text-hub-gold transition-colors mb-1">
                   {item.name}
                 </h3>
                 <p className="text-xs text-hub-text-secondary leading-relaxed mb-4">
@@ -305,7 +329,7 @@ export default function DownloaderClient() {
                   {item.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="text-[10px] px-2 py-0.5 rounded-md bg-white/5 text-hub-text-muted border border-white/10"
+                      className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white/[0.04] text-hub-text-muted border border-white/[0.06]"
                     >
                       {tag}
                     </span>
@@ -314,25 +338,25 @@ export default function DownloaderClient() {
               </div>
 
               {/* Bottom Actions */}
-              <div className="pt-3 border-t border-hub-border/60 flex items-center justify-between text-xs">
-                <span className="text-[11px] text-hub-text-muted truncate max-w-[170px]">
+              <div className="pt-3 border-t border-white/[0.08] flex items-center justify-between text-xs">
+                <span className="text-[11px] text-hub-text-muted truncate max-w-[170px] font-mono">
                   {item.versionNote || "Verified link"}
                 </span>
 
                 {isLocked ? (
                   <Link
                     href={isAuthenticated ? "/plans" : "/login"}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-300 bg-amber-950/60 border border-amber-800 hover:bg-amber-900/60 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-amber-300 bg-amber-950/70 border border-amber-700/60 hover:bg-amber-900 transition-colors"
                   >
                     <Lock className="w-3 h-3" />
-                    <span>{isAuthenticated ? "Upgrade to Reveal" : "Sign In to Reveal"}</span>
+                    <span>{isAuthenticated ? "Upgrade" : "Sign In"}</span>
                   </Link>
                 ) : (
                   <a
                     href={`https://go.aftvnews.com/${item.code}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium text-hub-bg bg-hub-gold hover:bg-hub-gold-hover transition-colors"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-black bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 transition-all shadow-sm active:scale-95"
                   >
                     <span>Direct Link</span>
                     <ExternalLink className="w-3 h-3" />
@@ -345,10 +369,10 @@ export default function DownloaderClient() {
       </div>
 
       {/* Back to Resources link */}
-      <div className="text-center pt-8 border-t border-hub-border/60">
+      <div className="text-center pt-8 border-t border-white/[0.08]">
         <Link
           href="/directory"
-          className="inline-flex items-center gap-2 text-sm text-hub-text-secondary hover:text-white transition-colors"
+          className="inline-flex items-center gap-2 text-xs font-mono text-hub-text-secondary hover:text-white transition-colors"
         >
           <span>← Browse all Developer Resources &amp; APIs</span>
         </Link>

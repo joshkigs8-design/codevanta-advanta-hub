@@ -230,7 +230,11 @@ export function handlePaymentWebhook(
 
     return { success: true, message: `Payment marked as ${payload.status}`, paymentId: payment.id };
   } catch (err: unknown) {
-    db.exec("ROLLBACK;");
+    try {
+      db.exec("ROLLBACK;");
+    } catch {
+      // The transaction may already have been closed by a failed nested operation.
+    }
     return { success: false, message: err instanceof Error ? err.message : "Error handling payment webhook" };
   }
 }

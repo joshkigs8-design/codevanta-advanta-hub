@@ -141,6 +141,33 @@ export function initPhase2SchemaAndData(db: DatabaseSync) {
     );
   }
 
+  // Keep the maintained OpenClaw guide current for databases created before
+  // the guide was verified against the latest official installation docs.
+  const openClawGuide = initialTutorials.find((t) => t.id === "tut-openclaw-windows-ollama-nvidia");
+  if (openClawGuide) {
+    db.prepare(`
+      UPDATE tutorials
+      SET title = ?, summary = ?, estimated_minutes = ?, prerequisites = ?, supported_os = ?,
+          content = ?, troubleshooting_notes = ?, security_warnings = ?, official_docs_url = ?,
+          last_verified_date = ?, updated_at = ?
+      WHERE id = ? AND (last_verified_date < ? OR last_verified_date IS NULL)
+    `).run(
+      openClawGuide.title,
+      openClawGuide.summary,
+      openClawGuide.estimated_minutes,
+      JSON.stringify(openClawGuide.prerequisites),
+      JSON.stringify(openClawGuide.supported_os),
+      openClawGuide.content,
+      openClawGuide.troubleshooting_notes,
+      openClawGuide.security_warnings,
+      openClawGuide.official_docs_url,
+      openClawGuide.last_verified_date,
+      openClawGuide.updated_at,
+      openClawGuide.id,
+      openClawGuide.last_verified_date
+    );
+  }
+
   // 3. Seed Learning Paths
   const insertPath = db.prepare(`
     INSERT OR IGNORE INTO learning_paths (
@@ -252,4 +279,3 @@ export function initPhase2SchemaAndData(db: DatabaseSync) {
     );
   }
 }
-

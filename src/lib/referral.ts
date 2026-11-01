@@ -7,6 +7,7 @@ import {
   ReferralProgramStatus,
   PlanSlug,
   RewardStatus,
+  ReferralPayout,
 } from "@/types";
 
 export function getProgramStatus(): ReferralProgramStatus {
@@ -149,6 +150,14 @@ function normalizePhone(phone?: string | null): string {
   return digits.length >= 9 ? digits.slice(-9) : digits;
 }
 
+export function normalizeKenyanPhone(phone: string): string | null {
+  const value = phone.trim().replace(/[\s()-]/g, "");
+  if (/^07\d{8}$/.test(value) || /^01\d{8}$/.test(value)) return `+254${value.slice(1)}`;
+  if (/^\+254[17]\d{8}$/.test(value)) return value;
+  if (/^254[17]\d{8}$/.test(value)) return `+${value}`;
+  return null;
+}
+
 export function processQualifyingReferralReward(
   paymentId: string,
   payerUserId: string,
@@ -250,7 +259,6 @@ export function processQualifyingReferralReward(
   const level2RewardId = crypto.randomUUID();
   const nowIso = new Date().toISOString();
 
-  // Helper to credit approved wallet balance and log ledger
   const creditApprovedBalance = (
     userId: string,
     amountKes: number,
@@ -291,7 +299,7 @@ export function processQualifyingReferralReward(
       INSERT INTO referral_rewards (
         id, attribution_id, referrer_user_id, referred_user_id, qualifying_payment_id,
         plan_slug, reward_amount_kes, tier_level, status, reviewed_by, reviewed_at, hold_until, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'approved', 'system_auto_approval', ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'approved', 'system_verified_payment', ?, ?, ?, ?)
     `).run(
       level1RewardId,
       attribution.id,
@@ -309,7 +317,6 @@ export function processQualifyingReferralReward(
     // Mark Level 1 attribution as qualified
     db.prepare("UPDATE referral_attributions SET status = 'qualified' WHERE id = ?").run(attribution.id);
 
-    // Credit Level 1 wallet
     creditApprovedBalance(
       attribution.referrer_user_id,
       directRewardAmount,
@@ -328,7 +335,7 @@ export function processQualifyingReferralReward(
           INSERT INTO referral_rewards (
             id, attribution_id, referrer_user_id, referred_user_id, qualifying_payment_id,
             plan_slug, reward_amount_kes, tier_level, status, reviewed_by, reviewed_at, hold_until, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, 2, 'approved', 'system_auto_approval', ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 2, 'approved', 'system_verified_payment', ?, ?, ?, ?)
         `).run(
           level2RewardId,
           level2AttributionId,
@@ -343,7 +350,6 @@ export function processQualifyingReferralReward(
           nowIso
         );
 
-        // Credit Level 2 wallet
         creditApprovedBalance(
           level2ReferrerId,
           indirectRewardAmount,
@@ -365,7 +371,7 @@ export function processQualifyingReferralReward(
       reward_amount_kes: directRewardAmount,
       tier_level: 1,
       status: "approved",
-      reviewed_by: "system_auto_approval",
+      reviewed_by: "system_verified_payment",
       reviewed_at: nowIso,
       hold_until: nowIso,
       created_at: nowIso,
@@ -377,6 +383,59 @@ export function processQualifyingReferralReward(
   }
 }
 
+export function createReferralPayout(rewardId: string): ReferralPayout | null {
+    const db = getDb();
+    const reward = db.prepare(`
+      SELECT r.*, p.phone_number
+      FROM referral_rewards r
+      JOIN profiles p ON p.id = r.referrer_user_id
+      WHERE r.id = ? AND r.status = 'approved'
+    `).get(rewardId) as (ReferralReward & { phone_number?: string }) | undefined;
+    if (!reward) return null;
+    const phone = normalizeKenyanPhone(reward.phone_number || "");
+    if (!phone) throw new Error("A valid Kenyan M-Pesa payout phone number is required.");
+    const existing = db.prepare("SELECT * FROM referral_payouts WHERE reward_id = ?").get(rewardId) as ReferralPayout | undefined;
+    if (existing) return existing;
+    const now = new Date().toISOString();
+    const payout: ReferralPayout = {
+      id: crypto.randomUUID(),
+      reward_id: rewardId,
+      referrer_user_id: reward.referrer_user_id,
+      phone_number: phone,
+      amount_kes: reward.reward_amount_kes,
+      status: "pending",
+      created_at: now,
+      updated_at: now,
+    };
+    db.prepare(`
+      INSERT INTO referral_payouts
+        (id, reward_id, referrer_user_id, phone_number, amount_kes, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)
+    `).run(payout.id, payout.reward_id, payout.referrer_user_id, payout.phone_number, payout.amount_kes, now, now);
+    return payout;
+  }
+
+export function recordReferralPayout(
+  payoutId: string,
+  adminUserId: string,
+  mpesaReference: string,
+  paidAt: string,
+  adminNote?: string
+): ReferralPayout | null {
+    const reference = mpesaReference.trim();
+    if (!reference) throw new Error("M-Pesa transaction reference is required.");
+    const db = getDb();
+    const payout = db.prepare("SELECT * FROM referral_payouts WHERE id = ?").get(payoutId) as ReferralPayout | undefined;
+    if (!payout || payout.status !== "pending") return null;
+    const now = new Date().toISOString();
+    db.prepare(`
+      UPDATE referral_payouts
+      SET status = 'paid', mpesa_reference = ?, paid_at = ?, paid_by = ?, admin_note = ?, updated_at = ?
+      WHERE id = ? AND status = 'pending'
+    `).run(reference, paidAt, adminUserId, adminNote || null, now, payoutId);
+    return db.prepare("SELECT * FROM referral_payouts WHERE id = ?").get(payoutId) as ReferralPayout;
+}
+
 export function reviewReferralReward(
   rewardId: string,
   action: "approve" | "reject",
@@ -385,7 +444,12 @@ export function reviewReferralReward(
 ): ReferralReward | null {
   const db = getDb();
   const reward = db
-    .prepare("SELECT * FROM referral_rewards WHERE id = ?")
+    .prepare(`
+      SELECT r.*
+      FROM referral_rewards r
+      JOIN payments p ON p.id = r.qualifying_payment_id
+      WHERE r.id = ? AND p.status = 'completed'
+    `)
     .get(rewardId) as ReferralReward | undefined;
 
   if (!reward || reward.status !== "pending") return null;

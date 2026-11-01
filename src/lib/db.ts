@@ -120,6 +120,25 @@ export function getDb(): DatabaseSync {
   } catch {
     // column already exists
   }
+  dbInstance.exec(`
+    CREATE TABLE IF NOT EXISTS referral_payouts (
+      id TEXT PRIMARY KEY,
+      reward_id TEXT UNIQUE NOT NULL,
+      referrer_user_id TEXT NOT NULL,
+      phone_number TEXT NOT NULL,
+      amount_kes REAL NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      mpesa_reference TEXT,
+      paid_at TEXT,
+      paid_by TEXT,
+      admin_note TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (reward_id) REFERENCES referral_rewards(id),
+      FOREIGN KEY (referrer_user_id) REFERENCES profiles(id),
+      FOREIGN KEY (paid_by) REFERENCES profiles(id)
+    );
+  `);
   seedInitialData(dbInstance);
   initPhase2SchemaAndData(dbInstance);
 

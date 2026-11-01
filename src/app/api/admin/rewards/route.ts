@@ -12,12 +12,14 @@ export async function GET() {
 
     const db = getDb();
     const rewards = db.prepare(`
-      SELECT r.*,
+      SELECT r.*, rp.id as payout_id, rp.status as payout_status, rp.phone_number as payout_phone_number,
+             rp.mpesa_reference, rp.paid_at,
              referrer.full_name as referrer_name, referrer.email as referrer_email,
              referred.full_name as referred_name, referred.email as referred_email
       FROM referral_rewards r
       JOIN profiles referrer ON r.referrer_user_id = referrer.id
       JOIN profiles referred ON r.referred_user_id = referred.id
+      LEFT JOIN referral_payouts rp ON rp.reward_id = r.id
       ORDER BY r.created_at DESC
       LIMIT 100
     `).all() as unknown as Array<
