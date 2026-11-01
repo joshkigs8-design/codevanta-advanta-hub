@@ -30,6 +30,7 @@ interface CurrentUser {
 }
 
 const AVAILABLE_PLANS: Array<{ slug: PlanSlug; name: string; priceKes: number; tag: string }> = [
+  { slug: "vvip", name: "VVIP (2 Bob)", priceKes: 2, tag: "KES 2" },
   { slug: "starter", name: "Starter", priceKes: 70, tag: "KES 70" },
   { slug: "basic", name: "Basic", priceKes: 150, tag: "KES 150" },
   { slug: "pro", name: "Pro", priceKes: 250, tag: "KES 250" },
@@ -298,7 +299,7 @@ export default function CheckoutModal({ plan: initialPlan, onClose, onSuccess }:
               <label className="block text-[11px] font-mono uppercase tracking-wider text-hub-text-muted mb-2 font-bold">
                 Select Membership Tier:
               </label>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
                 {AVAILABLE_PLANS.map((p) => {
                   const isSelected = selectedPlan.slug === p.slug;
                   return (

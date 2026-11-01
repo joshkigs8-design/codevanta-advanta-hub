@@ -62,9 +62,7 @@ function PlansContent() {
       .finally(() => setLoading(false));
   }, [initialSelect]);
 
-  const currentPlanRank = currentPlanSlug === "free" ? 0 : PLAN_RANK[currentPlanSlug];
-  const visiblePlans = plans.filter((plan) => PLAN_RANK[plan.slug] > currentPlanRank);
-  const isHighestTier = currentPlanSlug === "vip" || currentPlanSlug === "vvip";
+  const visiblePlans = plans;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
@@ -83,21 +81,22 @@ function PlansContent() {
         </p>
       </div>
 
+      {/* Active Member Status Badge if logged in */}
+      {currentPlanSlug !== "free" && (
+        <div className="max-w-xl mx-auto p-4 rounded-2xl bg-white/[0.03] border border-hub-gold/30 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span className="text-white">Active Plan: <strong className="text-hub-gold uppercase font-mono">{currentPlanSlug}</strong></span>
+          </div>
+          <span className="text-[11px] text-hub-text-muted">Select any tier below to test live checkout</span>
+        </div>
+      )}
+
       {/* Plans Grid */}
       {loading ? (
         <div className="text-center py-20 text-hub-gold flex items-center justify-center gap-2">
           <Loader2 className="w-6 h-6 animate-spin" />
           <span>Loading membership plans...</span>
-        </div>
-      ) : isHighestTier ? (
-        <div className="max-w-2xl mx-auto p-8 rounded-3xl glass-panel text-center space-y-3">
-          <CheckCircle2 className="w-12 h-12 mx-auto text-emerald-400" />
-          <h2 className="text-2xl font-black text-white">
-            You are already on the {currentPlanSlug.toUpperCase()} Tier
-          </h2>
-          <p className="text-sm text-hub-text-secondary">
-            You have access to the highest available membership benefits. There are no higher packages to subscribe to.
-          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
@@ -239,10 +238,8 @@ function PlansContent() {
         </div>
       )}
 
-      {!isHighestTier && (
-        <>
-          {/* Promo Code Box */}
-          <PromoCodeRedeemBox className="my-6" />
+      {/* Promo Code Box */}
+      <PromoCodeRedeemBox className="my-6" />
 
           {/* Interactive Feature Comparison Table */}
           <div className="glass-panel rounded-3xl p-6 sm:p-8 space-y-6">
@@ -324,8 +321,6 @@ function PlansContent() {
               </table>
             </div>
           </div>
-        </>
-      )}
 
       {/* Transparency Guarantee Box */}
       <div className="p-6 sm:p-8 rounded-3xl glass-panel space-y-4">

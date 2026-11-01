@@ -50,14 +50,16 @@ test("CodeVanta Advanta Hub — Comprehensive Domain Test Suite", async (t) => {
     assert.ok(resourcesCount.count >= 20, "Should have at least 20 verified developer resources");
 
     const plans = db.prepare("SELECT * FROM membership_plans").all() as unknown as MembershipPlan[];
-    assert.strictEqual(plans.length, 4, "Should have 4 membership plans (Starter, Basic, Pro, VIP)");
+    assert.strictEqual(plans.length, 5, "Should have 5 membership plans (VVIP, Starter, Basic, Pro, VIP)");
 
+    const vvipPlan = plans.find((p) => p.slug === "vvip");
     const starterPlan = plans.find((p) => p.slug === "starter");
     const basicPlan = plans.find((p) => p.slug === "basic");
     const proPlan = plans.find((p) => p.slug === "pro");
     const vipPlan = plans.find((p) => p.slug === "vip");
 
-    assert.ok(starterPlan && basicPlan && proPlan && vipPlan, "All 4 plans must exist");
+    assert.ok(vvipPlan && starterPlan && basicPlan && proPlan && vipPlan, "All 5 plans must exist");
+    assert.strictEqual(vvipPlan.price_kes, 2, "VVIP test plan should be KES 2 (2 bob)");
     assert.strictEqual(starterPlan.price_kes, 70, "Starter plan should be KES 70");
     assert.strictEqual(starterPlan.direct_referral_reward_kes, 20, "Starter referral reward should be KES 20 (20 bob)");
 

@@ -18,9 +18,9 @@ export async function POST(req: NextRequest) {
     const { planSlug, phoneNumber } = body;
 
     // 1. Validate plan slug
-    if (!planSlug || !["starter", "basic", "pro", "vip"].includes(planSlug)) {
+    if (!planSlug || !["starter", "basic", "pro", "vip", "vvip"].includes(planSlug)) {
       return NextResponse.json(
-        { error: "Invalid membership tier selected. Must be Starter, Basic, Pro, or VIP." },
+        { error: "Invalid membership tier selected. Must be VVIP, Starter, Basic, Pro, or VIP." },
         { status: 400 }
       );
     }
