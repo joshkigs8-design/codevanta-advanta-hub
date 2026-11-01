@@ -126,11 +126,10 @@ function ReceiptPrinterRoot({
   stage,
   ...props
 }: ReceiptPrinterRootProps) {
-  const shouldReduceMotion = useReducedMotion();
   const context = {
     animate,
     feedMotion,
-    shouldMove: animate && !shouldReduceMotion,
+    shouldMove: animate,
     stage,
   };
 
@@ -337,8 +336,7 @@ function ReceiptPrinterOutput({
     "ReceiptPrinter.Output",
   );
   const isReceiptVisible = stage !== "processing";
-  const shouldUseSteppedFeed =
-    feedMotion === "stepped" && stage === "printing" && shouldMove;
+  const isPrinting = stage === "printing" && shouldMove;
 
   return (
     <div
@@ -355,32 +353,31 @@ function ReceiptPrinterOutput({
         />
       ) : null}
 
-      <motion.div
-        animate={{
-          opacity: isReceiptVisible ? 1 : 0,
-          transform:
-            stage === "printing" && shouldMove
-              ? shouldUseSteppedFeed
-                ? printingTransformKeyframes
-                : "translateY(0%)"
-              : isReceiptVisible || !shouldMove
-                ? "translateY(0%)"
-                : "translateY(calc(-100% + 2px))",
-        }}
+      <div
+        className={cn(
+          "relative isolate shadow-2xl",
+          isPrinting
+            ? feedMotion === "stepped"
+              ? "receipt-feed-stepped"
+              : "receipt-feed-smooth"
+            : isReceiptVisible
+            ? "translate-y-0 opacity-100"
+            : "-translate-y-full opacity-0",
+        )}
+        style={
+          isPrinting
+            ? {
+                animation:
+                  feedMotion === "stepped"
+                    ? "receiptFeedStepped 2.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards"
+                    : "receiptFeedSmooth 1.9s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+              }
+            : undefined
+        }
         aria-hidden={stage !== "complete"}
-        className="relative isolate shadow-2xl"
-        initial={false}
-        transition={{
-          opacity: { duration: animate ? 0.16 : 0, ease: easeOut },
-          transform: {
-            duration: shouldMove ? 1.75 : 0,
-            ease: shouldUseSteppedFeed ? "linear" : easeInOut,
-            times: shouldUseSteppedFeed ? printingKeyframeTimes : undefined,
-          },
-        }}
       >
         {children}
-      </motion.div>
+      </div>
     </div>
   );
 }

@@ -54,6 +54,7 @@ export default function CheckoutModal({ plan: initialPlan, onClose, onSuccess }:
   const [pollCount, setPollCount] = useState(0);
   const [receiptNumber, setReceiptNumber] = useState("");
   const [printerStage, setPrinterStage] = useState<ReceiptPrinterStage>("printing");
+  const [printerAnimKey, setPrinterAnimKey] = useState<number>(0);
 
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
@@ -63,12 +64,21 @@ export default function CheckoutModal({ plan: initialPlan, onClose, onSuccess }:
   useEffect(() => {
     if (step === "success") {
       setPrinterStage("printing");
+      setPrinterAnimKey((k) => k + 1);
       const timer = setTimeout(() => {
         setPrinterStage("complete");
-      }, 1900);
+      }, 2300);
       return () => clearTimeout(timer);
     }
   }, [step]);
+
+  const handleReplayPrint = () => {
+    setPrinterStage("printing");
+    setPrinterAnimKey((k) => k + 1);
+    setTimeout(() => {
+      setPrinterStage("complete");
+    }, 2300);
+  };
 
   const handleDownloadPdf = () => {
     if (!selectedPlan) return;
@@ -562,14 +572,22 @@ export default function CheckoutModal({ plan: initialPlan, onClose, onSuccess }:
             </div>
 
             {/* Receipt Printer Machine & Feeding Paper */}
-            <ReceiptPrinter.Root stage={printerStage} feedMotion="stepped">
+            <ReceiptPrinter.Root key={printerAnimKey} stage={printerStage} feedMotion="stepped">
               <ReceiptPrinter.Machine>
                 <ReceiptPrinter.Header>
                   <div className="flex items-center gap-1.5 font-mono text-[10px] text-hub-gold font-bold">
                     <Sparkles className="w-3 h-3 text-hub-gold" />
                     <span>CODEVANTA POS</span>
                   </div>
-                  <span className="text-[10px] font-mono text-hub-text-muted">M-Pesa Express</span>
+                  <button
+                    type="button"
+                    onClick={handleReplayPrint}
+                    className="text-[10px] font-mono text-hub-text-muted hover:text-hub-gold transition-colors flex items-center gap-1 active:scale-95"
+                    title="Replay printing animation"
+                  >
+                    <RefreshCw className="w-2.5 h-2.5" />
+                    <span>Replay Feed</span>
+                  </button>
                 </ReceiptPrinter.Header>
 
                 <ReceiptPrinter.Screen>

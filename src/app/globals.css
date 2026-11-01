@@ -88,6 +88,97 @@ button, a, input, select, textarea {
   100% { background-position: 200% 0; }
 }
 
+/* Authentic POS Thermal Receipt Stepped Feed Keyframes */
+@keyframes receiptFeedStepped {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0.9;
+  }
+  2% {
+    transform: translateY(-92%);
+    opacity: 1;
+  }
+  9% {
+    transform: translateY(-92%);
+  }
+  11% {
+    transform: translateY(-82%);
+  }
+  18% {
+    transform: translateY(-82%);
+  }
+  20% {
+    transform: translateY(-70%);
+  }
+  27% {
+    transform: translateY(-70%);
+  }
+  29% {
+    transform: translateY(-57%);
+  }
+  37% {
+    transform: translateY(-57%);
+  }
+  39% {
+    transform: translateY(-44%);
+  }
+  48% {
+    transform: translateY(-44%);
+  }
+  50% {
+    transform: translateY(-31%);
+  }
+  60% {
+    transform: translateY(-31%);
+  }
+  62% {
+    transform: translateY(-19%);
+  }
+  72% {
+    transform: translateY(-19%);
+  }
+  74% {
+    transform: translateY(-9%);
+  }
+  84% {
+    transform: translateY(-9%);
+  }
+  86% {
+    transform: translateY(-3%);
+  }
+  94% {
+    transform: translateY(-3%);
+  }
+  98% {
+    transform: translateY(0%);
+  }
+  100% {
+    transform: translateY(0%);
+    opacity: 1;
+  }
+}
+
+@keyframes receiptFeedSmooth {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(0%);
+    opacity: 1;
+  }
+}
+
+.receipt-feed-stepped {
+  animation: receiptFeedStepped 2.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.receipt-feed-smooth {
+  animation: receiptFeedSmooth 1.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
 .shimmer-gold {
   background: linear-gradient(90deg, #d4af37 0%, #fff4c2 50%, #d4af37 100%);
   background-size: 200% 100%;
