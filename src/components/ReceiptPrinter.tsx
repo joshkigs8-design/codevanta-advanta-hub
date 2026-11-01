@@ -126,10 +126,11 @@ function ReceiptPrinterRoot({
   stage,
   ...props
 }: ReceiptPrinterRootProps) {
+  const shouldReduceMotion = useReducedMotion();
   const context = {
     animate,
     feedMotion,
-    shouldMove: animate,
+    shouldMove: animate && !shouldReduceMotion,
     stage,
   };
 
@@ -336,7 +337,8 @@ function ReceiptPrinterOutput({
     "ReceiptPrinter.Output",
   );
   const isReceiptVisible = stage !== "processing";
-  const isPrinting = stage === "printing" && shouldMove;
+  const shouldUseSteppedFeed =
+    feedMotion === "stepped" && stage === "printing" && shouldMove;
 
   return (
     <div
@@ -353,31 +355,32 @@ function ReceiptPrinterOutput({
         />
       ) : null}
 
-      <div
-        className={cn(
-          "relative isolate shadow-2xl",
-          isPrinting
-            ? feedMotion === "stepped"
-              ? "receipt-feed-stepped"
-              : "receipt-feed-smooth"
-            : isReceiptVisible
-            ? "translate-y-0 opacity-100"
-            : "-translate-y-full opacity-0",
-        )}
-        style={
-          isPrinting
-            ? {
-                animation:
-                  feedMotion === "stepped"
-                    ? "receiptFeedStepped 2.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards"
-                    : "receiptFeedSmooth 1.9s cubic-bezier(0.16, 1, 0.3, 1) forwards",
-              }
-            : undefined
-        }
+      <motion.div
+        animate={{
+          opacity: isReceiptVisible ? 1 : 0,
+          transform:
+            stage === "printing" && shouldMove
+              ? shouldUseSteppedFeed
+                ? printingTransformKeyframes
+                : "translateY(0%)"
+              : isReceiptVisible || !shouldMove
+                ? "translateY(0%)"
+                : "translateY(calc(-100% + 2px))",
+        }}
         aria-hidden={stage !== "complete"}
+        className="relative isolate before:pointer-events-none before:absolute before:inset-x-3 before:top-3 before:bottom-4 before:z-0 before:rounded-sm before:shadow-[0_8px_24px_rgba(0,0,0,0.24)] before:content-[''] after:pointer-events-none after:absolute after:right-[8%] after:bottom-0 after:left-[8%] after:z-0 after:h-3 after:translate-y-1.5 after:rounded-full after:bg-black/10 after:blur-lg after:content-['']"
+        initial={false}
+        transition={{
+          opacity: { duration: animate ? 0.16 : 0, ease: easeOut },
+          transform: {
+            duration: shouldMove ? 1.75 : 0,
+            ease: shouldUseSteppedFeed ? "linear" : easeInOut,
+            times: shouldUseSteppedFeed ? printingKeyframeTimes : undefined,
+          },
+        }}
       >
         {children}
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -392,4 +395,3 @@ export const ReceiptPrinter = {
   Status: ReceiptPrinterStatus,
 };
 export default ReceiptPrinter;
-
