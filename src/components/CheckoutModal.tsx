@@ -15,7 +15,12 @@ import {
   RefreshCw,
   LogIn,
   UserCheck,
+  Download,
+  Printer,
+  Sparkles,
 } from "lucide-react";
+import { ReceiptPrinter, type ReceiptPrinterStage } from "./ReceiptPrinter";
+import { downloadReceiptPdf } from "@/lib/pdfReceipt";
 
 interface CheckoutModalProps {
   plan: MembershipPlan | null;
@@ -48,11 +53,39 @@ export default function CheckoutModal({ plan: initialPlan, onClose, onSuccess }:
   const [promptMessage, setPromptMessage] = useState("");
   const [pollCount, setPollCount] = useState(0);
   const [receiptNumber, setReceiptNumber] = useState("");
+  const [printerStage, setPrinterStage] = useState<ReceiptPrinterStage>("printing");
 
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (step === "success") {
+      setPrinterStage("printing");
+      const timer = setTimeout(() => {
+        setPrinterStage("complete");
+      }, 1900);
+      return () => clearTimeout(timer);
+    }
+  }, [step]);
+
+  const handleDownloadPdf = () => {
+    if (!selectedPlan) return;
+    downloadReceiptPdf({
+      reference: receiptNumber || activeReference || `PSTK-${Date.now()}`,
+      planName: selectedPlan.name,
+      planSlug: selectedPlan.slug,
+      amountKes: selectedPlan.price_kes,
+      customerName: currentUser?.full_name || "CodeVanta Member",
+      customerEmail: currentUser?.email,
+      phoneNumber: phoneNumber || cleanPhone,
+    });
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   useEffect(() => {
     if (initialPlan) {
@@ -514,41 +547,123 @@ export default function CheckoutModal({ plan: initialPlan, onClose, onSuccess }:
         )}
 
         {/* ========================================================================= */}
-        {/* STEP 3: PAYMENT CONFIRMED & MEMBERSHIP ACTIVATED                         */}
+        {/* STEP 3: PAYMENT CONFIRMED & ANIMATED RECEIPT PRINTER                     */}
         {/* ========================================================================= */}
         {step === "success" && (
-          <div className="text-center py-6 space-y-5">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/30 to-black border-2 border-emerald-400 mx-auto flex items-center justify-center text-emerald-400 shadow-xl shadow-emerald-500/20">
-              <Check className="w-8 h-8" />
-            </div>
-
-            <div className="space-y-1.5">
-              <span className="text-[11px] font-mono uppercase tracking-widest text-emerald-400 font-bold block">
-                M-Pesa Payment Confirmed
-              </span>
-              <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+          <div className="py-2 space-y-4 max-h-[85vh] overflow-y-auto pr-1">
+            <div className="text-center space-y-1">
+              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-mono text-[10px] uppercase tracking-wider font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Payment Verified</span>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
                 Welcome to CodeVanta {selectedPlan.name}!
               </h3>
-              <p className="text-xs sm:text-sm text-hub-text-secondary max-w-sm mx-auto leading-relaxed">
-                Your payment of <strong className="text-white">KES {selectedPlan.price_kes}</strong> has been successfully verified. Your account entitlements and member privileges have been unlocked.
-              </p>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs font-mono text-hub-text-muted space-y-1">
-              <div>Receipt Reference: <span className="text-emerald-400 font-bold">{receiptNumber || activeReference}</span></div>
-              <div>Tier: <span className="text-hub-gold uppercase font-bold">{selectedPlan.name} (Lifetime)</span></div>
-            </div>
+            {/* Receipt Printer Machine & Feeding Paper */}
+            <ReceiptPrinter.Root stage={printerStage} feedMotion="stepped">
+              <ReceiptPrinter.Machine>
+                <ReceiptPrinter.Header>
+                  <div className="flex items-center gap-1.5 font-mono text-[10px] text-hub-gold font-bold">
+                    <Sparkles className="w-3 h-3 text-hub-gold" />
+                    <span>CODEVANTA POS</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-hub-text-muted">M-Pesa Express</span>
+                </ReceiptPrinter.Header>
 
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                window.location.href = "/dashboard?payment=success";
-              }}
-              className="w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider bg-gradient-to-r from-hub-gold via-amber-400 to-hub-gold text-hub-forest-dark hover:brightness-110 transition-all shadow-gold-glow active:scale-95"
-            >
-              Continue to Member Dashboard &rarr;
-            </button>
+                <ReceiptPrinter.Screen>
+                  <ReceiptPrinter.Status />
+                </ReceiptPrinter.Screen>
+              </ReceiptPrinter.Machine>
+
+              <ReceiptPrinter.Output>
+                <ReceiptPrinter.Paper>
+                  <div className="text-center pb-2 border-b border-dashed border-zinc-400 space-y-0.5">
+                    <div className="font-bold text-xs uppercase tracking-wider text-black">CodeVanta Advanta Hub</div>
+                    <div className="text-[9px] text-zinc-600">Nairobi, Kenya • Lifetime Access</div>
+                    <div className="text-[8px] text-zinc-500 font-mono">support@codevanta.online</div>
+                  </div>
+
+                  <div className="py-2 border-b border-dashed border-zinc-400 space-y-1 text-[9.5px]">
+                    <div className="flex justify-between">
+                      <span className="text-zinc-600">REF:</span>
+                      <span className="font-bold text-black">{receiptNumber || activeReference}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-zinc-600">DATE:</span>
+                      <span className="text-zinc-800">{new Date().toLocaleDateString("en-GB")}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-zinc-600">CLIENT:</span>
+                      <span className="font-semibold text-zinc-800 truncate max-w-[130px]">{currentUser?.email || "Member"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-zinc-600">PHONE:</span>
+                      <span className="font-mono text-zinc-800">{phoneNumber || cleanPhone}</span>
+                    </div>
+                  </div>
+
+                  <div className="py-2 border-b border-dashed border-zinc-400 space-y-1 text-[9.5px]">
+                    <div className="flex justify-between font-bold text-zinc-800">
+                      <span>PLAN</span>
+                      <span>PRICE</span>
+                    </div>
+                    <div className="flex justify-between text-zinc-900">
+                      <span className="truncate max-w-[140px]">{selectedPlan.name} (Lifetime)</span>
+                      <span className="font-bold shrink-0">KES {selectedPlan.price_kes}.00</span>
+                    </div>
+                    <div className="flex justify-between text-zinc-500 text-[8.5px]">
+                      <span>Platform Fee (0%)</span>
+                      <span>KES 0.00</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 text-[10.5px] flex justify-between font-black text-black">
+                    <span>TOTAL:</span>
+                    <span>KES {selectedPlan.price_kes}.00</span>
+                  </div>
+
+                  <div className="mt-2.5 py-1 px-2 rounded bg-emerald-100 border border-emerald-300 text-center text-emerald-800 text-[8.5px] font-bold uppercase tracking-wider">
+                    ✓ M-PESA CONFIRMED &amp; ACTIVE
+                  </div>
+                </ReceiptPrinter.Paper>
+              </ReceiptPrinter.Output>
+            </ReceiptPrinter.Root>
+
+            {/* Action Buttons: Download PDF & Continue */}
+            <div className="space-y-2 pt-2">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handleDownloadPdf}
+                  className="py-3 px-3 rounded-xl font-bold text-xs uppercase tracking-wider bg-white/[0.08] hover:bg-white/[0.15] text-white border border-white/15 transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95"
+                >
+                  <Download className="w-3.5 h-3.5 text-hub-gold" />
+                  <span>Download PDF</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrint}
+                  className="py-3 px-3 rounded-xl font-bold text-xs uppercase tracking-wider bg-white/[0.08] hover:bg-white/[0.15] text-white border border-white/15 transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95"
+                >
+                  <Printer className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Print Slip</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  window.location.href = "/dashboard?payment=success";
+                }}
+                className="w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider bg-gradient-to-r from-hub-gold via-amber-400 to-hub-gold text-hub-forest-dark hover:brightness-110 transition-all shadow-gold-glow active:scale-95 flex items-center justify-center gap-2"
+              >
+                <span>Continue to Member Dashboard</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
 
