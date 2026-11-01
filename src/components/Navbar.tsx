@@ -144,7 +144,7 @@ export default function Navbar() {
           </div>
 
           {/* Desktop Nav - Floating Frosted Capsule */}
-          <nav className="hidden xl:flex items-center gap-0.5 xl:gap-1 rounded-full border border-white/[0.1] bg-black/50 backdrop-blur-xl p-1 shadow-2xl shrink-0">
+          <nav className="hidden 2xl:flex items-center gap-0.5 xl:gap-1 rounded-full border border-white/[0.1] bg-black/50 backdrop-blur-xl p-1 shadow-2xl shrink-0">
             {navLinks.map((link) => {
               const Icon = link.icon;
               const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
@@ -166,7 +166,7 @@ export default function Navbar() {
           </nav>
 
           {/* Search Trigger & User Actions */}
-          <div className="hidden md:flex items-center gap-2 xl:gap-3 shrink-0">
+          <div className="hidden 2xl:flex items-center gap-2 xl:gap-3 shrink-0">
             {/* WhatsApp Community Channel (Ultra-wide screens only) */}
             <a
               href="https://whatsapp.com/channel/0029Vb84p6QKGGGNAp8VIB2g"
