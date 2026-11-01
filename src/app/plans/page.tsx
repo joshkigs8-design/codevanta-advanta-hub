@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { MembershipPlan } from "@/types";
+import { MembershipPlan, PlanSlug } from "@/types";
 import CheckoutModal from "@/components/CheckoutModal";
 import PromoCodeRedeemBox from "@/components/PromoCodeRedeemBox";
 import {
@@ -18,6 +18,14 @@ import {
   Lock,
 } from "lucide-react";
 
+const PLAN_RANK: Record<PlanSlug, number> = {
+  starter: 1,
+  basic: 2,
+  pro: 3,
+  vip: 4,
+  vvip: 5,
+};
+
 function PlansContent() {
   const searchParams = useSearchParams();
   const initialSelect = searchParams.get("select");
@@ -25,20 +33,38 @@ function PlansContent() {
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<MembershipPlan | null>(null);
+  const [currentPlanSlug, setCurrentPlanSlug] = useState<PlanSlug | "free">("free");
 
   useEffect(() => {
-    fetch("/api/plans")
-      .then((res) => res.json())
-      .then((data) => {
-        setPlans(data.plans || []);
-        if (initialSelect && data.plans) {
-          const match = data.plans.find((p: MembershipPlan) => p.slug === initialSelect);
+    Promise.all([fetch("/api/plans"), fetch("/api/auth/me")])
+      .then(async ([plansRes, authRes]) => {
+        const [plansData, authData] = await Promise.all([plansRes.json(), authRes.json()]);
+        const availablePlans = (plansData.plans || []) as MembershipPlan[];
+        const memberPlan = authData.authenticated ? authData.entitlements?.planSlug : "free";
+
+        setPlans(availablePlans);
+        setCurrentPlanSlug(memberPlan || "free");
+
+        const memberRank = memberPlan === "free" ? 0 : PLAN_RANK[memberPlan as PlanSlug];
+        const selectedPlanIsUpgrade = initialSelect
+          ? PLAN_RANK[initialSelect as PlanSlug] > memberRank
+          : false;
+        if (
+          initialSelect &&
+          selectedPlanIsUpgrade &&
+          availablePlans.some((plan) => plan.slug === initialSelect)
+        ) {
+          const match = availablePlans.find((plan) => plan.slug === initialSelect);
           if (match) setSelectedPlan(match);
         }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [initialSelect]);
+
+  const currentPlanRank = currentPlanSlug === "free" ? 0 : PLAN_RANK[currentPlanSlug];
+  const visiblePlans = plans.filter((plan) => PLAN_RANK[plan.slug] > currentPlanRank);
+  const isHighestTier = currentPlanSlug === "vip" || currentPlanSlug === "vvip";
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
@@ -63,9 +89,20 @@ function PlansContent() {
           <Loader2 className="w-6 h-6 animate-spin" />
           <span>Loading membership plans...</span>
         </div>
+      ) : isHighestTier ? (
+        <div className="max-w-2xl mx-auto p-8 rounded-3xl glass-panel text-center space-y-3">
+          <CheckCircle2 className="w-12 h-12 mx-auto text-emerald-400" />
+          <h2 className="text-2xl font-black text-white">
+            You are already on the {currentPlanSlug.toUpperCase()} Tier
+          </h2>
+          <p className="text-sm text-hub-text-secondary">
+            You have access to the highest available membership benefits. There are no higher packages to subscribe to.
+          </p>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {plans.map((plan) => {
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+          {visiblePlans.map((plan) => {
+            const isVvip = plan.slug === "vvip";
             const isVip = plan.slug === "vip";
             const isPro = plan.slug === "pro";
             const isStarter = plan.slug === "starter";
@@ -75,7 +112,9 @@ function PlansContent() {
               <div
                 key={plan.id}
                 className={`relative flex flex-col justify-between p-6 sm:p-8 rounded-3xl transition-all duration-300 glass-card-interactive card-specular-edge ${
-                  isVip
+                  isVvip
+                    ? "border-fuchsia-400/80 shadow-[0_0_35px_-5px_rgba(217,70,239,0.35)] bg-gradient-to-b from-fuchsia-950/30 via-hub-surface to-hub-surface"
+                    : isVip
                     ? "border-amber-400/80 shadow-[0_0_35px_-5px_rgba(229,193,88,0.3)] bg-gradient-to-b from-amber-950/30 via-hub-surface to-hub-surface"
                     : isPro
                     ? "border-emerald-500/50 hover:border-emerald-400/80"
@@ -85,6 +124,11 @@ function PlansContent() {
                 }`}
               >
                 {/* Highlight Badge */}
+                {isVvip && (
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-gradient-to-r from-fuchsia-500 via-pink-500 to-amber-400 text-black text-[11px] font-black tracking-widest uppercase font-mono shadow-[0_0_20px_rgba(217,70,239,0.5)]">
+                    ⚡ Live Test • 2 Bob
+                  </div>
+                )}
                 {isVip && (
                   <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-black text-[11px] font-black tracking-widest uppercase font-mono shadow-gold-glow">
                     Most Popular • Turnkey
@@ -108,7 +152,7 @@ function PlansContent() {
                   {/* Price Box */}
                   <div className="my-6 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08]">
                     <div className="flex items-baseline gap-1.5">
-                      <span className={`text-3xl font-black font-mono ${isVip ? "text-amber-300" : isPro ? "text-emerald-400" : isStarter ? "text-cyan-400" : "text-white"}`}>
+                      <span className={`text-3xl font-black font-mono ${isVvip ? "text-fuchsia-400" : isVip ? "text-amber-300" : isPro ? "text-emerald-400" : isStarter ? "text-cyan-400" : "text-white"}`}>
                         KES {plan.price_kes}
                       </span>
                       <span className="text-[11px] text-hub-text-muted uppercase font-mono tracking-wider">/ lifetime</span>
@@ -175,7 +219,9 @@ function PlansContent() {
                   type="button"
                   onClick={() => setSelectedPlan(plan)}
                   className={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 active:scale-95 shadow-md ${
-                    isVip
+                    isVvip
+                      ? "bg-gradient-to-r from-fuchsia-500 via-pink-500 to-amber-400 hover:brightness-110 text-black shadow-[0_0_20px_rgba(217,70,239,0.4)]"
+                      : isVip
                       ? "bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-400 text-black shadow-gold-glow"
                       : isPro
                       ? "bg-emerald-500 hover:bg-emerald-400 text-black"
@@ -184,7 +230,7 @@ function PlansContent() {
                       : "bg-white text-black hover:bg-white/90"
                   }`}
                 >
-                  <span>Select {plan.name}</span>
+                  <span>{isVvip ? "Test M-Pesa (2 Bob)" : `Select ${plan.name}`}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
@@ -193,21 +239,24 @@ function PlansContent() {
         </div>
       )}
 
-      {/* Promo Code Box */}
-      <PromoCodeRedeemBox className="my-6" />
+      {!isHighestTier && (
+        <>
+          {/* Promo Code Box */}
+          <PromoCodeRedeemBox className="my-6" />
 
-      {/* Interactive Feature Comparison Table */}
-      <div className="glass-panel rounded-3xl p-6 sm:p-8 space-y-6">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Full Plan Comparison</h2>
-          <p className="text-xs text-hub-text-secondary mt-1">Detailed feature entitlement matrix across all membership tiers.</p>
-        </div>
+          {/* Interactive Feature Comparison Table */}
+          <div className="glass-panel rounded-3xl p-6 sm:p-8 space-y-6">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Full Plan Comparison</h2>
+              <p className="text-xs text-hub-text-secondary mt-1">Detailed feature entitlement matrix across all membership tiers.</p>
+            </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
             <thead className="border-b border-white/[0.08] text-hub-text-muted font-mono uppercase">
               <tr>
                 <th className="py-3 px-4">Capability / Entitlement</th>
+                <th className="py-3 px-4 text-fuchsia-400 font-bold">VVIP (KES 2)</th>
                 <th className="py-3 px-4 text-cyan-400">Starter (KES 70)</th>
                 <th className="py-3 px-4 text-white">Basic (KES 150)</th>
                 <th className="py-3 px-4 text-emerald-400">Pro (KES 250)</th>
@@ -217,6 +266,7 @@ function PlansContent() {
             <tbody className="divide-y divide-white/[0.06]">
               <tr>
                 <td className="py-3 px-4 font-semibold text-white">Public Developer Directory Access</td>
+                <td className="py-3 px-4 text-emerald-400 font-mono font-bold">Full Access</td>
                 <td className="py-3 px-4 text-emerald-400 font-mono">Full Access</td>
                 <td className="py-3 px-4 text-emerald-400 font-mono">Full Access</td>
                 <td className="py-3 px-4 text-emerald-400 font-mono">Full Access</td>
@@ -224,6 +274,7 @@ function PlansContent() {
               </tr>
               <tr>
                 <td className="py-3 px-4 font-semibold text-white">AFTVnews Downloader Short Codes</td>
+                <td className="py-3 px-4 text-emerald-400 font-mono font-bold">All Codes</td>
                 <td className="py-3 px-4 text-emerald-400 font-mono">All Codes</td>
                 <td className="py-3 px-4 text-emerald-400 font-mono">All Codes</td>
                 <td className="py-3 px-4 text-emerald-400 font-mono">All Codes</td>
@@ -231,6 +282,7 @@ function PlansContent() {
               </tr>
               <tr>
                 <td className="py-3 px-4 font-semibold text-white">Level 1 Referral Reward</td>
+                <td className="py-3 px-4 font-mono text-fuchsia-400 font-bold">KES 1</td>
                 <td className="py-3 px-4 font-mono text-emerald-400 font-bold">KES 20</td>
                 <td className="py-3 px-4 font-mono text-emerald-400 font-bold">KES 50</td>
                 <td className="py-3 px-4 font-mono text-emerald-400 font-bold">KES 100</td>
@@ -238,6 +290,7 @@ function PlansContent() {
               </tr>
               <tr>
                 <td className="py-3 px-4 font-semibold text-white">Level 2 Network Bonus</td>
+                <td className="py-3 px-4 font-mono text-fuchsia-400 font-bold">KES 0</td>
                 <td className="py-3 px-4 font-mono text-cyan-400 font-bold">KES 5</td>
                 <td className="py-3 px-4 font-mono text-cyan-400 font-bold">KES 15</td>
                 <td className="py-3 px-4 font-mono text-cyan-400 font-bold">KES 25</td>
@@ -245,6 +298,7 @@ function PlansContent() {
               </tr>
               <tr>
                 <td className="py-3 px-4 font-semibold text-white">Personal Bookmarks Limit</td>
+                <td className="py-3 px-4 font-mono font-bold text-fuchsia-400">999 items</td>
                 <td className="py-3 px-4 font-mono">15 items</td>
                 <td className="py-3 px-4 font-mono">10 items</td>
                 <td className="py-3 px-4 font-mono">50 items</td>
@@ -252,6 +306,7 @@ function PlansContent() {
               </tr>
               <tr>
                 <td className="py-3 px-4 font-semibold text-white">Advanced Blueprints &amp; OpenClaw AI</td>
+                <td className="py-3 px-4 text-emerald-400 font-mono font-bold">Full Access</td>
                 <td className="py-3 px-4 text-hub-text-muted">—</td>
                 <td className="py-3 px-4 text-hub-text-muted">—</td>
                 <td className="py-3 px-4 text-emerald-400 font-mono">Full Access</td>
@@ -259,15 +314,18 @@ function PlansContent() {
               </tr>
               <tr>
                 <td className="py-3 px-4 font-semibold text-white">Turnkey Downloadable Starter Kits</td>
+                <td className="py-3 px-4 text-fuchsia-400 font-mono font-bold">Instant ZIP Downloads</td>
                 <td className="py-3 px-4 text-hub-text-muted">—</td>
                 <td className="py-3 px-4 text-hub-text-muted">—</td>
                 <td className="py-3 px-4 text-hub-text-muted">—</td>
                 <td className="py-3 px-4 text-amber-300 font-mono font-bold">Instant ZIP Downloads</td>
               </tr>
             </tbody>
-          </table>
-        </div>
-      </div>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Transparency Guarantee Box */}
       <div className="p-6 sm:p-8 rounded-3xl glass-panel space-y-4">
