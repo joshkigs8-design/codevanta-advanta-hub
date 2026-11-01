@@ -29,8 +29,8 @@ export default function MarkdownRenderer({
   const blocks = parseMarkdownBlocks(content);
 
   const containerClasses = isChat
-    ? `markdown-chat space-y-2.5 text-xs sm:text-[13px] leading-relaxed text-hub-text-secondary select-text ${className}`
-    : `markdown-body space-y-6 text-sm leading-relaxed text-hub-text-secondary ${className}`;
+    ? `markdown-chat space-y-2.5 text-xs sm:text-[13px] leading-relaxed text-hub-text-secondary select-text max-w-full break-words min-w-0 ${className}`
+    : `markdown-body space-y-6 text-sm leading-relaxed text-hub-text-secondary max-w-full break-words min-w-0 ${className}`;
 
   return (
     <div className={containerClasses}>
@@ -346,7 +346,7 @@ function renderBlock(block: BlockType, key: number, isChat: boolean) {
             <h3
               key={key}
               id={id}
-              className="text-sm font-black text-white tracking-tight border-b border-white/10 pb-1.5 mt-3 mb-1.5 first:mt-0 font-sans"
+              className="text-xs sm:text-sm font-black text-white tracking-tight border-b border-white/10 pb-1 mt-2.5 mb-1.5 first:mt-0 font-sans break-words"
             >
               {renderInline(block.text, isChat)}
             </h3>
@@ -357,9 +357,9 @@ function renderBlock(block: BlockType, key: number, isChat: boolean) {
             <h4
               key={key}
               id={id}
-              className="text-xs font-bold text-hub-gold tracking-tight flex items-center gap-1.5 mt-2.5 mb-1 font-sans"
+              className="text-[11px] sm:text-xs font-bold text-hub-gold tracking-tight flex items-center gap-1.5 mt-2 mb-1 font-sans break-words"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-hub-gold inline-block" />
+              <span className="w-1.5 h-1.5 rounded-full bg-hub-gold inline-block shrink-0" />
               <span>{renderInline(block.text, isChat)}</span>
             </h4>
           );
@@ -368,7 +368,7 @@ function renderBlock(block: BlockType, key: number, isChat: boolean) {
           <h5
             key={key}
             id={id}
-            className="text-xs font-semibold text-white tracking-tight mt-2 mb-0.5 font-sans"
+            className="text-[11px] sm:text-xs font-semibold text-white tracking-tight mt-1.5 mb-0.5 font-sans break-words"
           >
             {renderInline(block.text, isChat)}
           </h5>
@@ -423,18 +423,18 @@ function renderBlock(block: BlockType, key: number, isChat: boolean) {
       return (
         <div
           key={key}
-          className={`overflow-x-auto my-2.5 rounded-xl border border-white/15 bg-black/60 shadow-lg ${
-            isChat ? "-mx-1 sm:mx-0 scrollbar-thin max-w-full" : "my-6"
+          className={`overflow-x-auto my-2 rounded-xl border border-white/15 bg-black/60 shadow-lg max-w-full scrollbar-thin ${
+            isChat ? "-mx-0.5 sm:mx-0" : "my-6"
           }`}
         >
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[260px] sm:min-w-[320px]">
             <thead>
               <tr className="bg-white/[0.04] border-b border-white/10 text-white font-mono uppercase tracking-wider">
                 {block.headers.map((h, hIdx) => (
                   <th
                     key={hIdx}
                     className={`font-bold text-hub-gold whitespace-nowrap ${
-                      isChat ? "px-3 py-2 text-[10px]" : "px-4 py-3 text-[11px]"
+                      isChat ? "px-2.5 py-1.5 text-[10px] sm:text-[11px]" : "px-4 py-3 text-[11px]"
                     }`}
                   >
                     {renderInline(h, isChat)}
@@ -452,7 +452,7 @@ function renderBlock(block: BlockType, key: number, isChat: boolean) {
                     <td
                       key={cIdx}
                       className={`text-white/90 align-top leading-relaxed ${
-                        isChat ? "px-3 py-2 text-[11px]" : "px-4 py-3 text-xs sm:text-sm"
+                        isChat ? "px-2.5 py-1.5 text-[10px] sm:text-xs" : "px-4 py-3 text-xs sm:text-sm"
                       }`}
                     >
                       {renderInline(cell, isChat)}
@@ -810,7 +810,7 @@ function CodeCard({ lang, code, isChat }: { lang: string; code: string; isChat?:
           onClick={handleCopy}
           type="button"
           aria-label="Copy code snippet"
-          className="flex items-center gap-1 text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/15 text-white/80 hover:text-white transition-all active:scale-95"
+          className="flex items-center gap-1 text-[10px] sm:text-[11px] font-mono px-2.5 py-1 min-h-[28px] rounded-md bg-white/5 hover:bg-white/15 text-white/80 hover:text-white transition-all active:scale-95 touch-manipulation"
         >
           {copied ? (
             <>
@@ -828,8 +828,8 @@ function CodeCard({ lang, code, isChat }: { lang: string; code: string; isChat?:
 
       {/* Code Body */}
       <pre
-        className={`font-mono text-emerald-300/95 overflow-x-auto leading-relaxed selection:bg-hub-gold/30 scrollbar-thin ${
-          isChat ? "p-3 text-[11px]" : "p-4 text-xs"
+        className={`font-mono text-emerald-300/95 overflow-x-auto leading-relaxed selection:bg-hub-gold/30 scrollbar-thin max-w-full ${
+          isChat ? "p-2.5 sm:p-3 text-[10px] sm:text-[11px]" : "p-4 text-xs"
         }`}
       >
         <code>{code}</code>

@@ -95,7 +95,10 @@ function getLocalFallbackResponse(query: string): string {
       "| **Pro (250 KES)** | **100 KES** | **25 KES** |\n" +
       "| **VIP (350 KES)** | **150 KES** | **35 KES** |\n\n" +
       "> **Payouts:** You can request withdrawals to your **M-Pesa** number once your wallet reaches **50 KES**. Payouts are reviewed and disbursed manually via Paystack Transfer & M-Pesa within 24–48 business hours with verified transaction references.\n\n" +
-      "Read the full rules at [/referral-rules](/referral-rules) or manage your link in your [/dashboard](/dashboard)."
+      "**Where to find the referral system:**\n" +
+      "1. 🎁 [Referrals Program Overview](/referrals) — Interactive calculator and earnings breakdown\n" +
+      "2. 🔗 [Your Member Dashboard](/dashboard#referrals) — Copy your unique referral link and track wallet balance\n" +
+      "3. 📜 [Official 2-Tier Referral Rules](/referral-rules) — Full compensation terms and anti-fraud guidelines"
     );
   }
 

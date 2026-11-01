@@ -20,6 +20,11 @@
   box-sizing: border-box;
 }
 
+html {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
 body {
   background-color: var(--background);
   background-image:
@@ -30,6 +35,8 @@ body {
   font-family: "Space Grotesk", sans-serif;
   min-height: 100vh;
   overflow-x: hidden;
+  max-width: 100%;
+  width: 100%;
 }
 
 button, a, input, select, textarea {

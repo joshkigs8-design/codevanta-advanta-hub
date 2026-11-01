@@ -175,10 +175,10 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className="min-h-screen bg-hub-bg text-hub-text-primary antialiased flex flex-col justify-between selection:bg-hub-gold/30 selection:text-hub-gold">
-        <div>
+      <body className="min-h-screen bg-hub-bg text-hub-text-primary antialiased flex flex-col justify-between selection:bg-hub-gold/30 selection:text-hub-gold overflow-x-hidden max-w-full">
+        <div className="w-full max-w-full overflow-x-hidden">
           <Navbar />
-          <main className="w-full">{children}</main>
+          <main className="w-full max-w-full overflow-x-hidden">{children}</main>
         </div>
         <Footer />
         <Chatbot />

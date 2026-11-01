@@ -86,6 +86,14 @@ export default function DashboardPage() {
   useEffect(() => {
     let isMounted = true;
 
+    // Check URL hash for direct tab navigation (e.g. #referrals, #wallet)
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash.replace("#", "");
+      if (hash === "referrals" || hash === "wallet" || hash === "bookmarks") {
+        setActiveTab(hash as "referrals" | "wallet" | "bookmarks");
+      }
+    }
+
     // Live Firebase Auth verification status sync
     if (isFirebaseConfigured()) {
       auth.onAuthStateChanged(async (currentUser) => {

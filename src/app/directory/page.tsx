@@ -42,8 +42,10 @@ function DirectoryContent() {
   const [noApiKey, setNoApiKey] = useState(false);
   const [sort, setSort] = useState("featured");
   const [totalCount, setTotalCount] = useState(0);
-  const [authStatus, setAuthStatus] = useState<{ authenticated: boolean; isMember: boolean }>({
-    authenticated: false,
+  const [authStatus, setAuthStatus] = useState<
+    { state: "loading" | "authenticated" | "guest"; isMember: boolean }
+  >({
+    state: "loading",
     isMember: false,
   });
 
@@ -81,12 +83,16 @@ function DirectoryContent() {
       params.set("limit", "50");
 
       const res = await fetch(`/api/resources?${params.toString()}`);
+      if (!res.ok) {
+        throw new Error(`Failed to load directory resources (${res.status})`);
+      }
       const data = await res.json();
       setResources(data.resources || []);
       setTotalCount(data.total || 0);
-      if (data.auth) {
-        setAuthStatus(data.auth);
-      }
+      setAuthStatus({
+        state: data.authenticated ? "authenticated" : "guest",
+        isMember: Boolean(data.isMember),
+      });
     } catch {
       setResources([]);
     } finally {
@@ -279,7 +285,7 @@ function DirectoryContent() {
       </div>
 
       {/* Paywall Banner for Signed-Out Visitors */}
-      {!loading && !authStatus.authenticated && (
+      {!loading && authStatus.state === "guest" && (
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-950/70 via-black/80 to-amber-950/60 border border-amber-500/40 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
           <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="space-y-2 max-w-xl">
@@ -314,7 +320,7 @@ function DirectoryContent() {
       )}
 
       {/* Upgrade Banner for Free Tier Users */}
-      {!loading && authStatus.authenticated && !authStatus.isMember && (
+      {!loading && authStatus.state === "authenticated" && !authStatus.isMember && (
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-950/40 via-yellow-950/30 to-black/70 border border-amber-500/30 p-5 sm:p-6 backdrop-blur-xl">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="space-y-1">

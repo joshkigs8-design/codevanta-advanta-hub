@@ -106,6 +106,12 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/referrals" className="hover:text-white transition-colors flex items-center gap-1.5 font-bold text-hub-gold">
+                  <span>Earn with Referrals</span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-hub-gold/20 text-hub-gold border border-hub-gold/30 font-mono">50% Payout</span>
+                </Link>
+              </li>
+              <li>
                 <Link href="/referral-rules" className="hover:text-white transition-colors">
                   2-Tier Referral Compensation
                 </Link>

@@ -170,7 +170,7 @@ export default function TutorialAIAssistant({
                   <SheepAvatar className="w-6 h-6 shrink-0 mt-0.5 ring-1 ring-hub-gold/30" />
                 )}
                 <div
-                  className={`p-3 rounded-xl max-w-[85%] leading-relaxed ${
+                  className={`p-3 rounded-xl max-w-[88%] leading-relaxed min-w-0 ${
                     m.role === "user"
                       ? "bg-hub-gold text-white font-medium shadow-md break-words whitespace-pre-wrap select-text"
                       : "bg-hub-surface-elevated text-hub-text-secondary border border-white/10 overflow-hidden select-text"
@@ -211,13 +211,13 @@ export default function TutorialAIAssistant({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask about RAM sizing, model flags, errors..."
-              className="flex-1 px-3.5 py-2.5 rounded-xl bg-hub-surface border border-white/10 text-xs text-white placeholder-hub-text-muted focus:outline-none focus:border-hub-gold transition-colors font-sans"
+              className="min-w-0 flex-1 px-3.5 py-2.5 rounded-xl bg-hub-surface border border-white/10 text-xs text-white placeholder-hub-text-muted focus:outline-none focus:border-hub-gold transition-colors font-sans"
               disabled={loading}
             />
             <button
               type="submit"
               disabled={loading || !input.trim()}
-              className="p-2.5 rounded-xl bg-hub-gold hover:bg-hub-gold-hover text-white transition-all disabled:opacity-40 disabled:hover:bg-hub-gold active:scale-95 shadow-md shrink-0"
+              className="p-2.5 rounded-xl bg-hub-gold hover:bg-hub-gold-hover text-white transition-all disabled:opacity-40 disabled:hover:bg-hub-gold active:scale-95 shadow-md shrink-0 min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation"
               title="Send to AI Assistant"
             >
               <Send className="w-4 h-4" />

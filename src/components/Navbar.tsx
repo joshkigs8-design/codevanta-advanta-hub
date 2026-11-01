@@ -26,6 +26,7 @@ import {
   Layers,
   MessageCircle,
   BriefcaseBusiness,
+  Zap,
 } from "lucide-react";
 
 interface UserProfile {
@@ -82,13 +83,16 @@ export default function Navbar() {
 
     if (isFirebaseConfigured()) {
       const unsub = auth.onAuthStateChanged(async (currentUser) => {
-        if (currentUser) {
-          await syncUserWithFirestoreAndBackend(currentUser);
-          const res = await fetch("/api/auth/me");
-          const data = await res.json();
-          if (isMounted && data.authenticated && data.user) {
-            setUser(data.user);
-          }
+        if (!currentUser) {
+          if (isMounted) setUser(null);
+          return;
+        }
+
+        await syncUserWithFirestoreAndBackend(currentUser);
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        if (isMounted) {
+          setUser(data.authenticated && data.user ? data.user : null);
         }
       });
       return () => {
@@ -100,7 +104,7 @@ export default function Navbar() {
     return () => {
       isMounted = false;
     };
-  }, [pathname]);
+  }, []);
 
   const handleLogout = async () => {
     if (isFirebaseConfigured()) {
@@ -125,19 +129,22 @@ export default function Navbar() {
     { href: "/projects", label: "Projects", icon: Layers },
     { href: "/troubleshooting", label: "Fixes", icon: Wrench },
     { href: "/students", label: "Students", icon: GraduationCap },
+    { href: "/referrals", label: "Earn", icon: Zap },
     { href: "/plans", label: "Pricing", icon: Sparkles },
     { href: "/downloader-codes", label: "Downloader", icon: Tv },
   ];
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full border-b border-white/[0.08] bg-hub-base/80 backdrop-blur-2xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-[74px] flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-40 w-full border-b border-white/[0.08] bg-hub-base/80 backdrop-blur-2xl overflow-hidden max-w-full">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-[74px] flex items-center justify-between gap-2 xl:gap-4 w-full min-w-0">
           {/* Brand */}
-          <BrandLogo />
+          <div className="shrink-0">
+            <BrandLogo />
+          </div>
 
           {/* Desktop Nav - Floating Frosted Capsule */}
-          <nav className="hidden lg:flex items-center gap-1 rounded-full border border-white/[0.1] bg-black/50 backdrop-blur-xl p-1 shadow-2xl">
+          <nav className="hidden lg:flex items-center gap-0.5 xl:gap-1 rounded-full border border-white/[0.1] bg-black/50 backdrop-blur-xl p-1 shadow-2xl shrink-0">
             {navLinks.map((link) => {
               const Icon = link.icon;
               const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
@@ -145,13 +152,13 @@ export default function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                  className={`flex items-center gap-1 xl:gap-1.5 px-2.5 xl:px-3.5 py-1 xl:py-1.5 rounded-full text-[11px] xl:text-xs font-semibold transition-all ${
                     isActive
                       ? "bg-gradient-to-r from-amber-400 to-yellow-500 text-black shadow-gold-glow"
                       : "text-hub-text-secondary hover:text-white hover:bg-white/[0.08]"
                   }`}
                 >
-                  <Icon className="w-3.5 h-3.5" />
+                  <Icon className="w-3.5 h-3.5 shrink-0" />
                   <span>{link.label}</span>
                 </Link>
               );
@@ -159,13 +166,13 @@ export default function Navbar() {
           </nav>
 
           {/* Search Trigger & User Actions */}
-          <div className="hidden md:flex items-center gap-3">
-            {/* WhatsApp Community Channel */}
+          <div className="hidden md:flex items-center gap-2 xl:gap-3 shrink-0">
+            {/* WhatsApp Community Channel (Ultra-wide screens only) */}
             <a
               href="https://whatsapp.com/channel/0029Vb84p6QKGGGNAp8VIB2g"
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-xs font-mono text-emerald-400 hover:text-white hover:bg-emerald-900 transition-all shadow-sm"
+              className="hidden 2xl:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-xs font-mono text-emerald-400 hover:text-white hover:bg-emerald-900 transition-all shadow-sm"
               title="Join our official WhatsApp Channel"
             >
               <span className="relative flex h-2 w-2">
@@ -178,7 +185,7 @@ export default function Navbar() {
               href="https://www.joshkigen.me/"
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/45 border border-white/[0.1] text-xs font-mono text-hub-text-muted hover:text-white hover:border-hub-gold/50 transition-all"
+              className="hidden 2xl:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/45 border border-white/[0.1] text-xs font-mono text-hub-text-muted hover:text-white hover:border-hub-gold/50 transition-all"
               title="Visit Josh Kigen's portfolio"
             >
               <BriefcaseBusiness className="w-3.5 h-3.5 text-hub-gold" />
@@ -311,6 +318,26 @@ export default function Navbar() {
         {/* Mobile drawer */}
         {mobileMenuOpen && (
           <div className="md:hidden border-b border-white/[0.08] bg-hub-surface/95 backdrop-blur-2xl px-4 pt-3 pb-6 space-y-4 animate-fadeIn">
+            {/* Quick Referral Banner on Mobile */}
+            <Link
+              href="/referrals"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-transparent border border-hub-gold/40 text-hub-gold text-xs font-bold shadow-md hover:border-hub-gold transition-all"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-hub-gold/20 flex items-center justify-center text-hub-gold shrink-0">
+                  <Zap className="w-4 h-4 text-hub-gold" />
+                </div>
+                <div>
+                  <div className="text-white font-bold text-xs">2-Tier Referral Engine</div>
+                  <div className="text-[10px] text-hub-text-muted font-normal">Earn up to KES 150 per referral</div>
+                </div>
+              </div>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-hub-gold text-black font-extrabold uppercase shrink-0">
+                Earn
+              </span>
+            </Link>
+
             <div className="grid grid-cols-2 gap-2">
               {navLinks.map((link) => {
                 const Icon = link.icon;
