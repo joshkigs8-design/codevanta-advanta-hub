@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
     }
 
     const formattedPhone = phoneValidation.formatted;
+    const e164Phone = phoneValidation.e164;
 
     // 3. Fetch plan details from SQLite
     const db = getDb();
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest) {
             amount: Math.round(plan.price_kes * 100), // Paystack expects amount in KES cents (kobo equivalent)
             currency: "KES",
             mobile_money: {
-              phone: formattedPhone,
+              phone: e164Phone,
               provider: "mpesa",
             },
             reference: payment.provider_reference,

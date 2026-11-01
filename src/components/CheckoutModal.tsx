@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { MembershipPlan, PlanSlug } from "@/types";
 import {
   X,
@@ -12,14 +13,20 @@ import {
   Loader2,
   Lock,
   RefreshCw,
-  CheckCircle2,
-  Sparkles,
+  LogIn,
+  UserCheck,
 } from "lucide-react";
 
 interface CheckoutModalProps {
   plan: MembershipPlan | null;
   onClose: () => void;
   onSuccess?: () => void;
+}
+
+interface CurrentUser {
+  id: string;
+  email: string;
+  full_name: string;
 }
 
 const AVAILABLE_PLANS: Array<{ slug: PlanSlug; name: string; priceKes: number; tag: string }> = [
@@ -35,10 +42,15 @@ export default function CheckoutModal({ plan: initialPlan, onClose, onSuccess }:
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<"details" | "prompt" | "success" | "failed">("details");
   const [errorMessage, setErrorMessage] = useState("");
+  const [isAuthError, setIsAuthError] = useState(false);
   const [activeReference, setActiveReference] = useState("");
   const [promptMessage, setPromptMessage] = useState("");
   const [pollCount, setPollCount] = useState(0);
   const [receiptNumber, setReceiptNumber] = useState("");
+
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [authChecking, setAuthChecking] = useState(true);
+
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -56,11 +68,41 @@ export default function CheckoutModal({ plan: initialPlan, onClose, onSuccess }:
     };
   }, []);
 
+  // Check user authentication status on mount
+  useEffect(() => {
+    let isMounted = true;
+    setAuthChecking(true);
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (isMounted) {
+          if (data.authenticated && data.user) {
+            setCurrentUser(data.user);
+          } else {
+            setCurrentUser(null);
+          }
+        }
+      })
+      .catch(() => {
+        if (isMounted) setCurrentUser(null);
+      })
+      .finally(() => {
+        if (isMounted) setAuthChecking(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   if (!selectedPlan) return null;
 
   // Validate Kenyan Safaricom phone number format
   const cleanPhone = phoneNumber.replace(/[\s\-\(\)\.]/g, "");
-  const isPhoneValid = /^(07|01)\d{8}$/.test(cleanPhone) || /^(2547|2541)\d{8}$/.test(cleanPhone) || /^(\+2547|\+2541)\d{8}$/.test(cleanPhone);
+  const isPhoneValid =
+    /^(07|01)\d{8}$/.test(cleanPhone) ||
+    /^(2547|2541)\d{8}$/.test(cleanPhone) ||
+    /^(\+2547|\+2541)\d{8}$/.test(cleanPhone);
 
   const handlePlanSelect = (slug: PlanSlug) => {
     if (selectedPlan.slug === slug) return;
@@ -80,13 +122,22 @@ export default function CheckoutModal({ plan: initialPlan, onClose, onSuccess }:
    */
   const handleInitiateMpesaCharge = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!currentUser) {
+      setIsAuthError(true);
+      setErrorMessage("You must be logged in before checking out. Please sign in or create an account.");
+      setStep("failed");
+      return;
+    }
+
     if (!isPhoneValid) {
-      setErrorMessage("Please enter a valid Kenyan Safaricom phone number (e.g. 0712 345 678).");
+      setErrorMessage("Please enter a valid Kenyan Safaricom phone number (e.g. 0712 345 678 or 0110 123 456).");
       return;
     }
 
     setLoading(true);
     setErrorMessage("");
+    setIsAuthError(false);
 
     try {
       const res = await fetch("/api/checkout/paystack/charge", {
@@ -101,17 +152,20 @@ export default function CheckoutModal({ plan: initialPlan, onClose, onSuccess }:
       const data = await res.json();
 
       if (!res.ok || !data.success) {
+        if (res.status === 401) {
+          setIsAuthError(true);
+        }
         setErrorMessage(data.error || "Failed to initiate M-Pesa authorization prompt.");
         setStep("failed");
         setLoading(false);
         return;
       }
 
-      // Successful initiation: STK Prompt has been sent to customer's phone!
+      // Successful initiation: STK Prompt has been dispatched to customer's phone!
       setActiveReference(data.reference);
       setPromptMessage(
         data.displayText ||
-          `An M-Pesa prompt has been sent to ${data.phoneNumber || cleanPhone}. Please check your phone screen and enter your PIN.`
+          `An M-Pesa prompt has been dispatched to ${data.phoneNumber || cleanPhone}. Please check your phone screen and enter your PIN.`
       );
       setStep("prompt");
       setLoading(false);
@@ -145,7 +199,9 @@ export default function CheckoutModal({ plan: initialPlan, onClose, onSuccess }:
 
       if (attempts > maxAttempts) {
         if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-        setErrorMessage("Payment verification timed out. If you entered your M-Pesa PIN, your membership will activate automatically once Safaricom completes processing.");
+        setErrorMessage(
+          "Payment verification timed out. If you entered your M-Pesa PIN, your membership will activate automatically once Safaricom completes processing."
+        );
         setStep("failed");
         return;
       }
@@ -197,16 +253,19 @@ export default function CheckoutModal({ plan: initialPlan, onClose, onSuccess }:
     }
   };
 
+  const loginRedirectUrl = `/login?next=${encodeURIComponent(`/plans?select=${selectedPlan.slug}`)}`;
+  const registerRedirectUrl = `/register?next=${encodeURIComponent(`/plans?select=${selectedPlan.slug}`)}`;
+
   return (
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-lg rounded-3xl glass-panel card-specular-edge border border-white/[0.12] p-6 sm:p-8 shadow-2xl text-white overflow-hidden"
+        className="relative w-full max-w-lg rounded-3xl bg-[#0e121b]/98 backdrop-blur-2xl card-specular-edge border border-white/[0.14] p-6 sm:p-8 shadow-[0_25px_60px_rgba(0,0,0,0.9)] text-white overflow-hidden"
       >
         <button
           onClick={onClose}
@@ -279,6 +338,55 @@ export default function CheckoutModal({ plan: initialPlan, onClose, onSuccess }:
               </div>
             </div>
 
+            {/* Authentication Gate / Linked Account Badge */}
+            {authChecking ? (
+              <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] text-xs text-hub-text-muted flex items-center gap-2">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-hub-gold" />
+                <span>Checking account status...</span>
+              </div>
+            ) : !currentUser ? (
+              <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-500/40 text-left space-y-3">
+                <div className="flex items-center gap-2 text-amber-300 font-bold text-xs uppercase tracking-wider">
+                  <Lock className="w-4 h-4 text-hub-gold" />
+                  <span>Account Required for Lifetime Activation</span>
+                </div>
+                <p className="text-xs text-hub-text-secondary leading-relaxed">
+                  Please sign in or create a free CodeVanta account first so your membership, entitlements, and referral wallet are linked to your profile.
+                </p>
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <Link
+                    href={loginRedirectUrl}
+                    className="py-2.5 px-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] text-white text-xs font-bold text-center border border-white/10 transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <LogIn className="w-3.5 h-3.5" />
+                    <span>Sign In</span>
+                  </Link>
+                  <Link
+                    href={registerRedirectUrl}
+                    className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-black text-xs font-black text-center transition-all shadow-gold-glow flex items-center justify-center gap-1"
+                  >
+                    <span>Create Account</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-6 h-6 rounded-full bg-hub-gold/20 text-hub-gold flex items-center justify-center font-bold text-[10px] border border-hub-gold/40 shrink-0">
+                    <UserCheck className="w-3.5 h-3.5 text-hub-gold" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[10px] text-hub-text-muted block">Activating Entitlements For:</span>
+                    <span className="font-semibold text-white truncate block">{currentUser.email}</span>
+                  </div>
+                </div>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800/40 font-bold shrink-0">
+                  Linked
+                </span>
+              </div>
+            )}
+
             {/* Anti-Scam Security Notice */}
             <div className="p-3.5 rounded-xl bg-amber-950/20 border border-amber-500/30 text-xs text-amber-200/90 flex items-start gap-2.5">
               <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
@@ -305,7 +413,7 @@ export default function CheckoutModal({ plan: initialPlan, onClose, onSuccess }:
                   />
                 </div>
                 <span className="text-[11px] text-hub-text-secondary mt-1 block">
-                  Accepts standard 10-digit formats (e.g. 0712 345 678 or 0110 123 456).
+                  Accepts standard Kenyan formats (e.g. 0712 345 678, 0110 123 456, or +254 712 345 678).
                 </span>
               </div>
 
@@ -318,7 +426,7 @@ export default function CheckoutModal({ plan: initialPlan, onClose, onSuccess }:
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || authChecking || !currentUser}
                 className="w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-500 hover:brightness-110 text-black transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
               >
                 {loading ? (
@@ -454,10 +562,10 @@ export default function CheckoutModal({ plan: initialPlan, onClose, onSuccess }:
 
             <div className="space-y-1.5">
               <span className="text-[11px] font-mono uppercase tracking-widest text-red-400 font-bold block">
-                Authorization Incomplete
+                {isAuthError ? "Authentication Required" : "Authorization Incomplete"}
               </span>
               <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                M-Pesa Payment Not Completed
+                {isAuthError ? "Sign In to Complete Upgrade" : "M-Pesa Payment Not Completed"}
               </h3>
               <p className="text-xs sm:text-sm text-red-300/90 max-w-sm mx-auto leading-relaxed">
                 {errorMessage || "The M-Pesa prompt was cancelled or timed out before PIN authorization."}
@@ -465,13 +573,32 @@ export default function CheckoutModal({ plan: initialPlan, onClose, onSuccess }:
             </div>
 
             <div className="pt-2 flex flex-col gap-2.5">
-              <button
-                type="button"
-                onClick={() => setStep("details")}
-                className="w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider bg-white text-black hover:bg-white/90 transition-all active:scale-95 shadow-md"
-              >
-                Try Again with M-Pesa
-              </button>
+              {isAuthError ? (
+                <div className="space-y-2">
+                  <Link
+                    href={loginRedirectUrl}
+                    className="w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-black hover:brightness-110 transition-all flex items-center justify-center gap-2 shadow-gold-glow"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    <span>Sign In to Your Account</span>
+                  </Link>
+                  <Link
+                    href={registerRedirectUrl}
+                    className="w-full py-3 rounded-xl font-bold text-xs uppercase tracking-wider bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-all flex items-center justify-center gap-2"
+                  >
+                    <span>Create Free Account</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setStep("details")}
+                  className="w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider bg-white text-black hover:bg-white/90 transition-all active:scale-95 shadow-md"
+                >
+                  Try Again with M-Pesa
+                </button>
+              )}
 
               <button
                 type="button"

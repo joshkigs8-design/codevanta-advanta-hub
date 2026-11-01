@@ -12,7 +12,7 @@ const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY || "mock_paystack_secret
  * Accepts formats like: 07XXXXXXXX, 01XXXXXXXX, 2547XXXXXXXX, +2547XXXXXXXX
  * Normalizes to standard 10-digit 07XXXXXXXX or 01XXXXXXXX format.
  */
-export function formatKenyanPhoneNumber(phone: string): { isValid: boolean; formatted: string; raw: string } {
+export function formatKenyanPhoneNumber(phone: string): { isValid: boolean; formatted: string; e164: string; raw: string } {
   const raw = phone.trim();
   let cleaned = raw.replace(/[\s\-\(\)\.]/g, "");
 
@@ -24,10 +24,12 @@ export function formatKenyanPhoneNumber(phone: string): { isValid: boolean; form
 
   // Valid Kenyan mobile numbers: 10 digits starting with 07 or 01
   const isValid = /^(07|01)\d{8}$/.test(cleaned);
+  const e164 = isValid ? `+254${cleaned.slice(1)}` : "";
 
   return {
     isValid,
     formatted: cleaned,
+    e164,
     raw,
   };
 }

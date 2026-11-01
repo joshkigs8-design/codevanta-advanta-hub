@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import BrandLogo from "./BrandLogo";
@@ -24,9 +24,11 @@ import {
   Wrench,
   GraduationCap,
   Layers,
-  MessageCircle,
   BriefcaseBusiness,
   Zap,
+  ChevronDown,
+  ExternalLink,
+  MessageCircle,
 } from "lucide-react";
 
 interface UserProfile {
@@ -42,15 +44,42 @@ export default function Navbar() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
+
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close menus when route changes
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setUserMenuOpen(false);
+    setMoreMenuOpen(false);
+  }, [pathname]);
+
+  // Click outside listener for dropdowns
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
+        setMoreMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
 
     const checkAuth = async () => {
       try {
-        let res = await fetch("/api/auth/me");
-        let data = await res.json();
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
         if (data.authenticated && data.user) {
           if (isMounted) setUser(data.user);
           return;
@@ -122,30 +151,54 @@ export default function Navbar() {
     router.refresh();
   };
 
-  const navLinks = [
+  // Primary 6 core links for desktop capsule
+  const primaryLinks = [
     { href: "/directory", label: "Directory", icon: Compass },
     { href: "/tutorials", label: "Tutorials", icon: BookOpen },
     { href: "/learning-paths", label: "Paths", icon: Sparkles },
     { href: "/projects", label: "Projects", icon: Layers },
-    { href: "/troubleshooting", label: "Fixes", icon: Wrench },
-    { href: "/students", label: "Students", icon: GraduationCap },
-    { href: "/referrals", label: "Earn", icon: Zap },
+    { href: "/referrals", label: "Earn", icon: Zap, highlight: true },
     { href: "/plans", label: "Pricing", icon: Sparkles },
-    { href: "/downloader-codes", label: "Downloader", icon: Tv },
   ];
+
+  // Secondary tools housed in the "More" dropdown
+  const secondaryLinks = [
+    {
+      href: "/troubleshooting",
+      label: "Fixes & Debugging",
+      description: "Solutions for common developer errors",
+      icon: Wrench,
+    },
+    {
+      href: "/students",
+      label: "Student Pack",
+      description: "Free developer tools for learners",
+      icon: GraduationCap,
+    },
+    {
+      href: "/downloader-codes",
+      label: "Downloader Codes",
+      description: "Android TV short codes & sideloads",
+      icon: Tv,
+    },
+  ];
+
+  const isMoreActive = secondaryLinks.some(
+    (link) => pathname === link.href || pathname.startsWith(`${link.href}/`)
+  );
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full border-b border-white/[0.08] bg-hub-base/80 backdrop-blur-2xl overflow-hidden max-w-full">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-[74px] flex items-center justify-between gap-2 xl:gap-4 w-full min-w-0">
-          {/* Brand */}
+      <header className="sticky top-0 z-50 w-full border-b border-white/[0.08] bg-hub-base/90 backdrop-blur-2xl max-w-full">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-[74px] flex items-center justify-between gap-2 lg:gap-4 w-full min-w-0">
+          {/* Brand Logo */}
           <div className="shrink-0">
             <BrandLogo />
           </div>
 
-          {/* Desktop Nav - Floating Frosted Capsule */}
-          <nav className="hidden 2xl:flex items-center gap-0.5 xl:gap-1 rounded-full border border-white/[0.1] bg-black/50 backdrop-blur-xl p-1 shadow-2xl shrink-0">
-            {navLinks.map((link) => {
+          {/* Desktop Nav - Floating Frosted Capsule (Comfortably sized from lg screens up) */}
+          <nav className="hidden lg:flex items-center gap-0.5 xl:gap-1 rounded-full border border-white/[0.1] bg-black/50 backdrop-blur-xl p-1 shadow-2xl shrink-0">
+            {primaryLinks.map((link) => {
               const Icon = link.icon;
               const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
               return (
@@ -155,47 +208,119 @@ export default function Navbar() {
                   className={`flex items-center gap-1 xl:gap-1.5 px-2.5 xl:px-3.5 py-1 xl:py-1.5 rounded-full text-[11px] xl:text-xs font-semibold transition-all ${
                     isActive
                       ? "bg-gradient-to-r from-amber-400 to-yellow-500 text-black shadow-gold-glow"
+                      : link.highlight
+                      ? "text-amber-300 hover:text-white hover:bg-white/[0.08]"
                       : "text-hub-text-secondary hover:text-white hover:bg-white/[0.08]"
                   }`}
                 >
-                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  <Icon className={`w-3.5 h-3.5 shrink-0 ${link.highlight && !isActive ? "text-amber-400" : ""}`} />
                   <span>{link.label}</span>
+                  {link.highlight && !isActive && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse ml-0.5" />
+                  )}
                 </Link>
               );
             })}
+
+            {/* "More" Dropdown Menu */}
+            <div className="relative" ref={moreMenuRef}>
+              <button
+                type="button"
+                onClick={() => setMoreMenuOpen(!moreMenuOpen)}
+                className={`flex items-center gap-1 px-2.5 xl:px-3 py-1 xl:py-1.5 rounded-full text-[11px] xl:text-xs font-semibold transition-all ${
+                  isMoreActive || moreMenuOpen
+                    ? "bg-white/[0.12] text-white"
+                    : "text-hub-text-secondary hover:text-white hover:bg-white/[0.08]"
+                }`}
+              >
+                <span>More</span>
+                <ChevronDown
+                  className={`w-3 h-3 transition-transform duration-200 ${
+                    moreMenuOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {moreMenuOpen && (
+                <div className="absolute left-1/2 -translate-x-1/2 mt-2.5 w-64 rounded-2xl bg-[#0e121b]/98 backdrop-blur-2xl border border-white/[0.14] shadow-[0_20px_50px_rgba(0,0,0,0.8)] py-2 z-[100] text-sm animate-fadeIn">
+                  <div className="px-3.5 py-1.5 text-[10px] font-mono uppercase tracking-wider text-hub-text-muted font-bold">
+                    Tools &amp; Resources
+                  </div>
+
+                  <div className="space-y-0.5 px-1.5">
+                    {secondaryLinks.map((sec) => {
+                      const SecIcon = sec.icon;
+                      const isSecActive = pathname === sec.href;
+                      return (
+                        <Link
+                          key={sec.href}
+                          href={sec.href}
+                          onClick={() => setMoreMenuOpen(false)}
+                          className={`flex items-start gap-2.5 px-3 py-2 rounded-xl text-xs transition-all ${
+                            isSecActive
+                              ? "bg-hub-gold/20 text-hub-gold font-bold"
+                              : "text-hub-text-secondary hover:text-white hover:bg-white/[0.06]"
+                          }`}
+                        >
+                          <SecIcon className="w-4 h-4 text-hub-gold shrink-0 mt-0.5" />
+                          <div className="min-w-0">
+                            <div className="font-semibold text-white truncate">{sec.label}</div>
+                            <div className="text-[10px] text-hub-text-muted truncate mt-0.5">
+                              {sec.description}
+                            </div>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+
+                  <div className="my-1.5 border-t border-white/[0.08]" />
+
+                  <div className="px-3.5 py-1 text-[10px] font-mono uppercase tracking-wider text-hub-text-muted font-bold">
+                    Community &amp; Creator
+                  </div>
+
+                  <div className="space-y-0.5 px-1.5">
+                    <a
+                      href="https://whatsapp.com/channel/0029Vb84p6QKGGGNAp8VIB2g"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setMoreMenuOpen(false)}
+                      className="flex items-center justify-between px-3 py-2 rounded-xl text-xs text-hub-text-secondary hover:text-white hover:bg-white/[0.06] transition-all"
+                    >
+                      <div className="flex items-center gap-2">
+                        <MessageCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span className="font-medium">WhatsApp Channel</span>
+                      </div>
+                      <ExternalLink className="w-3 h-3 text-hub-text-muted" />
+                    </a>
+
+                    <a
+                      href="https://www.joshkigen.me/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setMoreMenuOpen(false)}
+                      className="flex items-center justify-between px-3 py-2 rounded-xl text-xs text-hub-text-secondary hover:text-white hover:bg-white/[0.06] transition-all"
+                    >
+                      <div className="flex items-center gap-2">
+                        <BriefcaseBusiness className="w-3.5 h-3.5 text-hub-gold shrink-0" />
+                        <span className="font-medium">Josh Kigen Portfolio</span>
+                      </div>
+                      <ExternalLink className="w-3 h-3 text-hub-text-muted" />
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
           </nav>
 
-          {/* Search Trigger & User Actions */}
-          <div className="hidden 2xl:flex items-center gap-2 xl:gap-3 shrink-0">
-            {/* WhatsApp Community Channel (Ultra-wide screens only) */}
-            <a
-              href="https://whatsapp.com/channel/0029Vb84p6QKGGGNAp8VIB2g"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden 2xl:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-xs font-mono text-emerald-400 hover:text-white hover:bg-emerald-900 transition-all shadow-sm"
-              title="Join our official WhatsApp Channel"
-            >
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-              </span>
-              <span>Channel</span>
-            </a>
-            <a
-              href="https://www.joshkigen.me/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden 2xl:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/45 border border-white/[0.1] text-xs font-mono text-hub-text-muted hover:text-white hover:border-hub-gold/50 transition-all"
-              title="Visit Josh Kigen's portfolio"
-            >
-              <BriefcaseBusiness className="w-3.5 h-3.5 text-hub-gold" />
-              <span>Portfolio</span>
-            </a>
-
+          {/* Search Trigger & User Actions (Visible on lg screens up) */}
+          <div className="hidden lg:flex items-center gap-2 xl:gap-3 shrink-0">
             {/* Quick Search Button */}
             <button
+              type="button"
               onClick={() => setSearchModalOpen(true)}
-              className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/45 border border-white/[0.1] text-xs text-hub-text-muted hover:text-white hover:border-hub-gold/50 transition-all font-mono shadow-sm group"
+              className="flex items-center gap-2 px-3 xl:px-3.5 py-1.5 rounded-full bg-black/45 border border-white/[0.1] text-xs text-hub-text-muted hover:text-white hover:border-hub-gold/50 transition-all font-mono shadow-sm group"
               title="Search documentation and tools (Ctrl+K)"
             >
               <Search className="w-3.5 h-3.5 text-hub-gold group-hover:scale-110 transition-transform" />
@@ -206,10 +331,11 @@ export default function Navbar() {
             </button>
 
             {user ? (
-              <div className="relative">
+              <div className="relative" ref={userMenuRef}>
                 <button
+                  type="button"
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-black/60 border border-white/[0.12] hover:border-hub-gold/50 text-sm transition-all text-hub-text-primary"
+                  className="flex items-center gap-2.5 px-3 xl:px-3.5 py-1.5 rounded-full bg-black/60 border border-white/[0.12] hover:border-hub-gold/50 text-sm transition-all text-hub-text-primary"
                 >
                   <div className="w-6 h-6 rounded-full bg-hub-gold/20 text-hub-gold flex items-center justify-center font-bold text-xs uppercase border border-hub-gold/40">
                     {user.full_name ? user.full_name.charAt(0) : "U"}
@@ -225,10 +351,16 @@ export default function Navbar() {
                       Member
                     </span>
                   )}
+                  <ChevronDown
+                    className={`w-3 h-3 text-hub-text-muted transition-transform duration-200 ${
+                      userMenuOpen ? "rotate-180" : ""
+                    }`}
+                  />
                 </button>
 
+                {/* Dropdown Menu: Elevated z-[100] with solid obsidian backdrop, floats cleanly over page cards */}
                 {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-60 rounded-2xl glass-panel shadow-2xl py-2 z-50 text-sm animate-fadeIn">
+                  <div className="absolute right-0 mt-2.5 w-64 rounded-2xl bg-[#0e121b]/98 backdrop-blur-2xl border border-white/[0.15] shadow-[0_20px_50px_rgba(0,0,0,0.85)] py-2 z-[100] text-sm animate-fadeIn">
                     <div className="px-4 py-2.5 border-b border-white/[0.08]">
                       <p className="font-semibold text-white truncate text-xs">{user.full_name}</p>
                       <p className="text-[11px] text-hub-text-muted truncate font-mono mt-0.5">{user.email}</p>
@@ -241,7 +373,7 @@ export default function Navbar() {
                         className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-hub-text-secondary hover:text-white hover:bg-white/[0.06] transition-colors"
                       >
                         <LayoutDashboard className="w-4 h-4 text-hub-gold" />
-                        Member Dashboard
+                        <span>Member Dashboard</span>
                       </Link>
 
                       <Link
@@ -250,7 +382,7 @@ export default function Navbar() {
                         className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-hub-text-secondary hover:text-white hover:bg-white/[0.06] transition-colors"
                       >
                         <Share2 className="w-4 h-4 text-emerald-400" />
-                        Referrals &amp; Wallet
+                        <span>Referrals &amp; Wallet</span>
                       </Link>
 
                       {user.role === "admin" && (
@@ -260,34 +392,35 @@ export default function Navbar() {
                           className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-red-400 hover:text-white hover:bg-red-950/40 transition-colors"
                         >
                           <ShieldAlert className="w-4 h-4 text-red-400" />
-                          Admin Control Panel
+                          <span>Admin Control Panel</span>
                         </Link>
                       )}
                     </div>
 
                     <div className="border-t border-white/[0.08] pt-1">
                       <button
+                        type="button"
                         onClick={handleLogout}
                         className="flex w-full items-center gap-2.5 px-4 py-2 text-xs font-medium text-red-400 hover:bg-red-950/30 transition-colors text-left"
                       >
                         <LogOut className="w-4 h-4" />
-                        Sign Out
+                        <span>Sign Out</span>
                       </button>
                     </div>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2">
                 <Link
                   href="/login"
-                  className="px-4 py-2 rounded-full text-xs font-semibold text-hub-text-secondary hover:text-white hover:bg-white/[0.08] transition-colors"
+                  className="px-3 xl:px-4 py-1.5 rounded-full text-xs font-semibold text-hub-text-secondary hover:text-white hover:bg-white/[0.08] transition-colors"
                 >
                   Sign In
                 </Link>
                 <Link
                   href="/register"
-                  className="flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-400 text-black transition-all active:scale-95 shadow-gold-glow group"
+                  className="flex items-center gap-1.5 px-4 xl:px-5 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-400 text-black transition-all active:scale-95 shadow-gold-glow group"
                 >
                   <span>Get Started</span>
                   <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
@@ -296,9 +429,10 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Compact menu and search buttons */}
-          <div className="flex xl:hidden items-center gap-2">
+          {/* Compact Menu & Search Buttons (Visible on Mobile / Tablet < lg) */}
+          <div className="flex lg:hidden items-center gap-2">
             <button
+              type="button"
               onClick={() => setSearchModalOpen(true)}
               className="p-2 rounded-xl text-hub-text-secondary hover:text-white hover:bg-white/[0.06]"
               aria-label="Search"
@@ -306,6 +440,7 @@ export default function Navbar() {
               <Search className="w-5 h-5 text-hub-gold" />
             </button>
             <button
+              type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 rounded-xl text-hub-text-secondary hover:text-white hover:bg-white/[0.06]"
               aria-label="Toggle Navigation"
@@ -315,9 +450,9 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Compact navigation drawer */}
+        {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
-          <div className="xl:hidden border-b border-white/[0.08] bg-hub-surface/95 backdrop-blur-2xl px-4 pt-3 pb-6 space-y-4 animate-fadeIn">
+          <div className="lg:hidden border-b border-white/[0.08] bg-[#0c1017]/98 backdrop-blur-2xl px-4 pt-3 pb-6 space-y-4 animate-fadeIn">
             {/* Quick Referral Banner on Mobile */}
             <Link
               href="/referrals"
@@ -339,7 +474,7 @@ export default function Navbar() {
             </Link>
 
             <div className="grid grid-cols-2 gap-2">
-              {navLinks.map((link) => {
+              {[...primaryLinks, ...secondaryLinks].map((link) => {
                 const Icon = link.icon;
                 const isActive = pathname === link.href;
                 return (
@@ -384,6 +519,7 @@ export default function Navbar() {
                     </Link>
                   )}
                   <button
+                    type="button"
                     onClick={handleLogout}
                     className="block w-full text-left px-3 py-2 rounded-xl text-xs text-red-400 hover:bg-red-950/20"
                   >
