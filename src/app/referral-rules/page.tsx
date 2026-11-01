@@ -156,7 +156,7 @@ export default function ReferralRulesPage() {
           <div className="flex items-start gap-2.5">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
             <div>
-              <strong className="text-white">Wallet & Withdrawals:</strong> Approved commissions are credited to your CodeVanta Wallet immediately. Users can request M-Pesa withdrawals from their dashboard once their approved balance reaches the minimum threshold of KES 50.
+              <strong className="text-white">Wallet & Manual Payouts:</strong> Approved commissions are credited to your CodeVanta Wallet immediately. Users can request cash withdrawals to their M-Pesa number from their dashboard once their approved balance reaches the minimum threshold of KES 50. All payouts are reviewed and disbursed manually via Paystack Transfer & M-Pesa within 24–48 business hours with verified transaction references.
             </div>
           </div>
         </div>

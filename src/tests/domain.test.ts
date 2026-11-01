@@ -10,9 +10,9 @@ import {
   setProgramStatus,
   processQualifyingReferralReward,
 } from "../lib/referral";
-import { getWallet, submitWithdrawalRequest } from "../lib/wallet";
+import { getWallet, submitWithdrawalRequest, processWithdrawalRequest } from "../lib/wallet";
 import { getUserEntitlements } from "../lib/entitlements";
-import { handlePaymentWebhook, initiateCheckout } from "../lib/payments";
+import { handlePaymentWebhook, initiateCheckout, verifyPaystackSignature } from "../lib/payments";
 import crypto from "node:crypto";
 import { MembershipPlan, ReferralReward } from "../types";
 
@@ -465,5 +465,85 @@ test("CodeVanta Advanta Hub — Comprehensive Domain Test Suite", async (t) => {
 
     const totalRewardsForPayment = db.prepare("SELECT COUNT(*) as count FROM referral_rewards WHERE qualifying_payment_id = ?").get(checkoutRes.payment!.id) as { count: number };
     assert.strictEqual(totalRewardsForPayment.count, 2, "Strictly 2 rewards (Level 1 + Level 2) created, no duplicates");
+  });
+
+  await t.test("9. Manual Referral Payout Disbursal via Paystack & Rejection Handling", () => {
+    const adminId = "00000000-0000-4000-a000-000000000001";
+    const payoutUserId = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    // 1. Create a member with 150 KES approved wallet balance
+    db.prepare(`
+      INSERT INTO profiles (id, email, password_hash, full_name, role, country, created_at, updated_at)
+      VALUES (?, 'payout_tester@codevanta.com', 'HASH', 'Payout Member', 'user', 'KE', ?, ?)
+    `).run(payoutUserId, now, now);
+
+    const { wallet: initialWallet } = getWallet(payoutUserId);
+    db.prepare("UPDATE wallet_accounts SET approved_balance = 150 WHERE id = ?").run(initialWallet.id);
+
+    // 2. Member requests withdrawal of KES 100
+    const subRes = submitWithdrawalRequest(payoutUserId, 100, "0712345678", "Payout Member", "paystack_transfer");
+    assert.strictEqual(subRes.success, true, "Withdrawal request submitted successfully");
+    const reqId = subRes.request!.id;
+
+    // Verify balance reduced to 50
+    const { wallet: afterSubWallet } = getWallet(payoutUserId);
+    assert.strictEqual(afterSubWallet.approved_balance, 50, "Approved balance deducted by requested 100");
+
+    // 3. Admin manually transfers via Paystack and approves with Paystack transfer reference
+    const paystackRef = `TRF_pstk_manual_${Date.now()}`;
+    const approvalRes = processWithdrawalRequest(
+      reqId,
+      adminId,
+      "approve",
+      paystackRef,
+      "Disbursed KES 100 manually via Paystack Transfer",
+      "paystack_transfer"
+    );
+    assert.strictEqual(approvalRes.success, true, "Payout approved and recorded successfully");
+
+    // 4. Verify request status is 'paid', external_transaction_id matches Paystack reference
+    const paidReq = db.prepare("SELECT * FROM withdrawal_requests WHERE id = ?").get(reqId) as any;
+    assert.strictEqual(paidReq.status, "paid", "Withdrawal status must be 'paid'");
+    assert.strictEqual(paidReq.external_transaction_id, paystackRef, "Paystack transfer reference must be stored");
+    assert.strictEqual(paidReq.payment_method, "paystack_transfer", "Payment method must be stored as Paystack Transfer");
+
+    // 5. Verify withdrawn_balance updated in wallet and ledger entry exists
+    const { wallet: finalWallet, ledger } = getWallet(payoutUserId);
+    assert.strictEqual(finalWallet.withdrawn_balance, 100, "Withdrawn balance must be KES 100");
+    assert.strictEqual(finalWallet.approved_balance, 50, "Approved balance remains KES 50");
+
+    const approvedLedger = ledger.find((e) => e.entry_type === "withdrawal_approved");
+    assert.ok(approvedLedger, "Ledger must contain withdrawal_approved entry");
+    assert.ok(approvedLedger.notes.includes(paystackRef), "Ledger note must reference the Paystack code");
+
+    // 6. Test Rejection: Member requests remaining KES 50, admin rejects with reason
+    const subRes2 = submitWithdrawalRequest(payoutUserId, 50, "0712345678", "Payout Member");
+    assert.strictEqual(subRes2.success, true, "Second withdrawal submitted");
+    const req2Id = subRes2.request!.id;
+
+    const rejectRes = processWithdrawalRequest(
+      req2Id,
+      adminId,
+      "reject",
+      undefined,
+      "Invalid recipient phone number on Paystack"
+    );
+    assert.strictEqual(rejectRes.success, true, "Withdrawal rejected");
+
+    const rejectedReq = db.prepare("SELECT * FROM withdrawal_requests WHERE id = ?").get(req2Id) as any;
+    assert.strictEqual(rejectedReq.status, "rejected", "Withdrawal status must be 'rejected'");
+    assert.strictEqual(rejectedReq.rejection_reason, "Invalid recipient phone number on Paystack");
+
+    // Funds restored back to approved balance (50 + 50 = 100)
+    const { wallet: restoredWallet, ledger: restoredLedger } = getWallet(payoutUserId);
+    assert.strictEqual(restoredWallet.approved_balance, 50, "Balance restored back to 50");
+
+    const rejectedLedger = restoredLedger.find((e) => e.entry_type === "withdrawal_rejected");
+    assert.ok(rejectedLedger, "Ledger must record withdrawal_rejected refund");
+
+    // 7. Verify Paystack Signature Verification utility
+    const testSignatureValid = verifyPaystackSignature("test_payload", "sandbox_paystack_test_signature");
+    assert.strictEqual(testSignatureValid, true, "Sandbox Paystack signature validates in test environment");
   });
 });

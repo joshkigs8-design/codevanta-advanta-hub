@@ -1872,7 +1872,7 @@ function seedInitialData(db: DatabaseSync) {
   );
   insertSetting.run(
     "minimum_withdrawal_kes",
-    "100",
+    "50",
     "Minimum allowed balance withdrawal in KES",
     now
   );

@@ -12,13 +12,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const { id } = params;
     const body = await req.json();
-    const { action, externalTransactionId, notes } = body;
+    const { action, externalTransactionId, notes, paymentMethod } = body;
 
     if (action !== "approve" && action !== "reject") {
       return NextResponse.json({ error: "Invalid action. Must be 'approve' or 'reject'." }, { status: 400 });
     }
 
-    const result = processWithdrawalRequest(id, user.id, action, externalTransactionId, notes);
+    const result = processWithdrawalRequest(id, user.id, action, externalTransactionId, notes, paymentMethod);
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
@@ -26,6 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     logAdminAction(user.id, `${action}_withdrawal`, "withdrawal_requests", id, {
       externalTransactionId,
       notes,
+      paymentMethod,
     });
 
     return NextResponse.json({

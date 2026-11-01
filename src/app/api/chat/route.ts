@@ -94,7 +94,7 @@ function getLocalFallbackResponse(query: string): string {
       "| **Basic (150 KES)** | **50 KES** | **15 KES** |\n" +
       "| **Pro (250 KES)** | **100 KES** | **25 KES** |\n" +
       "| **VIP (350 KES)** | **150 KES** | **35 KES** |\n\n" +
-      "> **M-Pesa Withdrawals:** You can withdraw approved earnings directly to your **M-Pesa** number once your wallet reaches **50 KES**.\n\n" +
+      "> **Payouts:** You can request withdrawals to your **M-Pesa** number once your wallet reaches **50 KES**. Payouts are reviewed and disbursed manually via Paystack Transfer & M-Pesa within 24–48 business hours with verified transaction references.\n\n" +
       "Read the full rules at [/referral-rules](/referral-rules) or manage your link in your [/dashboard](/dashboard)."
     );
   }

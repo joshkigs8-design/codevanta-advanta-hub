@@ -4,11 +4,14 @@ import { processQualifyingReferralReward } from "./referral";
 import { Payment, PaymentEvent, PlanSlug, PaymentStatus } from "@/types";
 
 const CALLBACK_SECRET = process.env.MPESA_CALLBACK_SECRET || "mock_webhook_signature_secret_sandbox";
+const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY || "mock_paystack_secret_sandbox";
 
 export function initiateCheckout(
   userId: string,
   planSlug: PlanSlug,
-  phoneNumber: string
+  phoneNumber: string,
+  provider: "sandbox" | "paystack" | "mpesa" = "sandbox",
+  customReference?: string
 ): { success: boolean; payment?: Payment; error?: string } {
   const db = getDb();
 
@@ -23,7 +26,11 @@ export function initiateCheckout(
   const paymentId = crypto.randomUUID();
   const idempotencyKey = `PAY-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
   const now = new Date().toISOString();
-  const providerRef = `MPESA-STK-${Date.now()}`;
+  const providerRef =
+    customReference ||
+    (provider === "paystack"
+      ? `PSTK-${Date.now()}-${crypto.randomBytes(3).toString("hex")}`
+      : `MPESA-STK-${Date.now()}`);
 
   const payment: Payment = {
     id: paymentId,
@@ -31,7 +38,7 @@ export function initiateCheckout(
     plan_id: plan.id,
     amount_kes: plan.price_kes,
     currency: "KES",
-    provider: "sandbox",
+    provider,
     provider_reference: providerRef,
     checkout_request_id: `ws_CO_${Date.now()}`,
     merchant_request_id: `MR_${Date.now()}`,
@@ -67,14 +74,20 @@ export function initiateCheckout(
   // Record payment event
   db.prepare(`
     INSERT INTO payment_events (id, payment_id, event_type, provider, event_payload, created_at)
-    VALUES (?, ?, 'checkout_initiated', 'sandbox', ?, ?)
-  `).run(crypto.randomUUID(), payment.id, JSON.stringify({ planSlug, amount: plan.price_kes, phone: phoneNumber }), now);
+    VALUES (?, ?, 'checkout_initiated', ?, ?, ?)
+  `).run(
+    crypto.randomUUID(),
+    payment.id,
+    provider,
+    JSON.stringify({ planSlug, amount: plan.price_kes, phone: phoneNumber, providerRef }),
+    now
+  );
 
   return { success: true, payment };
 }
 
 export function verifyWebhookSignature(payloadString: string, signatureHeader?: string | null): boolean {
-  if (process.env.NODE_ENV === "development" && (!signatureHeader || signatureHeader === "sandbox_test_signature")) {
+  if (process.env.NODE_ENV !== "production" && (!signatureHeader || signatureHeader === "sandbox_test_signature")) {
     return true;
   }
   if (!signatureHeader) return false;
@@ -82,6 +95,24 @@ export function verifyWebhookSignature(payloadString: string, signatureHeader?: 
   const hmac = crypto.createHmac("sha256", CALLBACK_SECRET);
   const expectedSignature = hmac.update(payloadString).digest("hex");
   return crypto.timingSafeEqual(Buffer.from(signatureHeader), Buffer.from(expectedSignature));
+}
+
+export function verifyPaystackSignature(payloadString: string, signatureHeader?: string | null): boolean {
+  if (
+    process.env.NODE_ENV !== "production" &&
+    (!signatureHeader || signatureHeader === "sandbox_paystack_test_signature" || signatureHeader === "sandbox_test_signature")
+  ) {
+    return true;
+  }
+  if (!signatureHeader || !PAYSTACK_SECRET) return false;
+
+  try {
+    const hmac = crypto.createHmac("sha512", PAYSTACK_SECRET);
+    const expectedSignature = hmac.update(payloadString).digest("hex");
+    return signatureHeader === expectedSignature;
+  } catch {
+    return false;
+  }
 }
 
 export interface WebhookResult {
@@ -99,9 +130,16 @@ export function handlePaymentWebhook(
   }
 ): WebhookResult {
   const db = getDb();
-  const payment = db
+  let payment = db
     .prepare("SELECT * FROM payments WHERE id = ?")
     .get(payload.paymentId) as Payment | undefined;
+
+  // Fallback: look up by provider_reference or idempotency_key (used by Paystack webhooks)
+  if (!payment) {
+    payment = db
+      .prepare("SELECT * FROM payments WHERE provider_reference = ? OR idempotency_key = ?")
+      .get(payload.paymentId, payload.paymentId) as Payment | undefined;
+  }
 
   if (!payment) {
     return { success: false, message: "Payment transaction not found." };
@@ -117,7 +155,7 @@ export function handlePaymentWebhook(
   db.exec("BEGIN IMMEDIATE;");
   try {
     if (payload.status === "completed") {
-      const receiptNo = payload.mpesaReceiptNumber || `MPESA-${Date.now()}`;
+      const receiptNo = payload.mpesaReceiptNumber || `REF-${Date.now()}`;
 
       // 1. Update payment record
       db.prepare(`
@@ -169,10 +207,11 @@ export function handlePaymentWebhook(
     // Record webhook event
     db.prepare(`
       INSERT INTO payment_events (id, payment_id, event_type, provider, event_payload, created_at)
-      VALUES (?, ?, 'webhook_received', 'mpesa_sandbox', ?, ?)
+      VALUES (?, ?, 'webhook_received', ?, ?, ?)
     `).run(
       crypto.randomUUID(),
       payment.id,
+      payment.provider || "gateway",
       JSON.stringify(payload),
       nowIso
     );

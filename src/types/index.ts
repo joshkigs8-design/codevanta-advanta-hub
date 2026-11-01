@@ -304,7 +304,13 @@ export interface WithdrawalRequest {
   net_amount_kes: number;
   phone_number: string;
   account_name: string;
-  payment_method: "mpesa_b2c" | "manual_bank" | "manual_mpesa";
+  payment_method:
+    | "mpesa_b2c"
+    | "manual_bank"
+    | "manual_mpesa"
+    | "paystack"
+    | "paystack_transfer"
+    | "paystack_mpesa";
   status: WithdrawalStatus;
   external_transaction_id?: string;
   admin_notes?: string;
@@ -327,7 +333,7 @@ export interface Payment {
   plan_id: string;
   amount_kes: number;
   currency: string;
-  provider: "mpesa" | "sandbox" | "card";
+  provider: "mpesa" | "sandbox" | "card" | "paystack";
   provider_reference: string;
   checkout_request_id?: string;
   merchant_request_id?: string;

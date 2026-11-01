@@ -54,7 +54,7 @@ export function submitWithdrawalRequest(
   amountKes: number,
   phoneNumber: string,
   accountName: string,
-  paymentMethod: "mpesa_b2c" | "manual_mpesa" | "manual_bank" = "mpesa_b2c"
+  paymentMethod: "mpesa_b2c" | "manual_mpesa" | "manual_bank" | "paystack" | "paystack_transfer" | "paystack_mpesa" = "mpesa_b2c"
 ): { success: boolean; error?: string; request?: WithdrawalRequest } {
   const db = getDb();
 
@@ -71,7 +71,7 @@ export function submitWithdrawalRequest(
   const minSetting = db
     .prepare("SELECT value FROM programme_settings WHERE key = 'minimum_withdrawal_kes'")
     .get() as { value: string } | undefined;
-  const minAmount = minSetting ? parseFloat(minSetting.value) : 100;
+  const minAmount = minSetting ? parseFloat(minSetting.value) : 50;
 
   if (amountKes < minAmount) {
     return {
@@ -184,7 +184,8 @@ export function processWithdrawalRequest(
   adminUserId: string,
   action: "approve" | "reject",
   externalTransactionId?: string,
-  notes?: string
+  notes?: string,
+  paymentMethod?: string
 ): { success: boolean; error?: string } {
   const db = getDb();
   const request = db
@@ -212,9 +213,9 @@ export function processWithdrawalRequest(
 
       db.prepare(`
         UPDATE withdrawal_requests
-        SET status = 'paid', external_transaction_id = ?, admin_notes = ?, reviewed_by = ?, reviewed_at = ?, updated_at = ?
+        SET status = 'paid', external_transaction_id = ?, admin_notes = ?, payment_method = COALESCE(?, payment_method), reviewed_by = ?, reviewed_at = ?, updated_at = ?
         WHERE id = ?
-      `).run(externalTransactionId || "MANUAL-DISBURSED", notes || "Processed successfully", adminUserId, nowIso, nowIso, requestId);
+      `).run(externalTransactionId || "MANUAL-DISBURSED", notes || "Processed successfully", paymentMethod || null, adminUserId, nowIso, nowIso, requestId);
 
       const ledgerId = crypto.randomUUID();
       db.prepare(`
@@ -228,7 +229,7 @@ export function processWithdrawalRequest(
         0,
         wallet.approved_balance,
         requestId,
-        `Withdrawal completed. Ref: ${externalTransactionId || "Manual"}`,
+        `Withdrawal completed via ${paymentMethod || request.payment_method}. Ref: ${externalTransactionId || "Manual"}`,
         nowIso
       );
     } else {

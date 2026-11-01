@@ -632,7 +632,17 @@ export default function DashboardPage() {
 
           {/* Withdrawal Request Form */}
           <div className="p-6 rounded-2xl bg-hub-surface border border-hub-border space-y-4">
-            <h3 className="text-base font-bold text-white">Request M-Pesa Withdrawal</h3>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <h3 className="text-base font-bold text-white">Request M-Pesa Withdrawal</h3>
+                <p className="text-xs text-hub-text-secondary mt-0.5">
+                  Commissions are reviewed and disbursed manually via Paystack Transfer / M-Pesa within 24–48 business hours.
+                </p>
+              </div>
+              <span className="text-xs font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/40 px-2.5 py-1 rounded-full self-start">
+                Payout Channel: Paystack Transfer
+              </span>
+            </div>
 
             {withdrawSuccess && (
               <div className="p-3 rounded-lg bg-emerald-950 text-emerald-300 border border-emerald-800 text-xs">
@@ -657,7 +667,7 @@ export default function DashboardPage() {
                   value={withdrawAmount}
                   onChange={(e) => setWithdrawAmount(e.target.value)}
                   placeholder="100"
-                  className="w-full px-3 py-2 rounded-lg bg-hub-surface-elevated border border-hub-border text-sm text-white focus:outline-none focus:border-hub-gold"
+                  className="w-full px-3 py-2 rounded-lg bg-hub-surface-elevated border border-hub-border text-sm text-white focus:outline-none focus:border-hub-gold font-mono"
                 />
               </div>
 
@@ -671,7 +681,7 @@ export default function DashboardPage() {
                   value={withdrawPhone}
                   onChange={(e) => setWithdrawPhone(e.target.value)}
                   placeholder="07XX XXX XXX"
-                  className="w-full px-3 py-2 rounded-lg bg-hub-surface-elevated border border-hub-border text-sm text-white focus:outline-none focus:border-hub-gold"
+                  className="w-full px-3 py-2 rounded-lg bg-hub-surface-elevated border border-hub-border text-sm text-white focus:outline-none focus:border-hub-gold font-mono"
                 />
               </div>
 
@@ -700,6 +710,68 @@ export default function DashboardPage() {
                 </button>
               </div>
             </form>
+          </div>
+
+          {/* Withdrawal Requests History */}
+          <div className="p-6 rounded-2xl bg-hub-surface border border-hub-border space-y-4">
+            <h3 className="text-base font-bold text-white">Withdrawal Requests & Payout Status</h3>
+
+            {walletData.withdrawals && walletData.withdrawals.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-hub-border text-hub-text-muted font-mono uppercase">
+                    <tr>
+                      <th className="py-2.5 px-3">Date</th>
+                      <th className="py-2.5 px-3">Amount</th>
+                      <th className="py-2.5 px-3">Recipient Phone</th>
+                      <th className="py-2.5 px-3">Channel & Ref</th>
+                      <th className="py-2.5 px-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-hub-border">
+                    {walletData.withdrawals.map((w) => (
+                      <tr key={w.id} className="hover:bg-hub-surface-elevated/40">
+                        <td className="py-2.5 px-3 font-mono text-hub-text-muted">
+                          {w.created_at.split("T")[0]}
+                        </td>
+                        <td className="py-2.5 px-3 font-mono font-bold text-hub-gold">
+                          KES {w.net_amount_kes}
+                        </td>
+                        <td className="py-2.5 px-3 font-mono text-white">
+                          {w.phone_number} ({w.account_name})
+                        </td>
+                        <td className="py-2.5 px-3 font-mono text-xs">
+                          {w.external_transaction_id ? (
+                            <span className="text-emerald-400 font-bold">
+                              {w.external_transaction_id}
+                            </span>
+                          ) : (
+                            <span className="text-hub-text-muted italic">Processing...</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[11px] font-mono uppercase ${
+                              w.status === "paid" || w.status === "approved"
+                                ? "bg-emerald-950/70 text-emerald-400 border border-emerald-800/50"
+                                : w.status === "rejected" || w.status === "cancelled"
+                                ? "bg-red-950/70 text-red-400 border border-red-800/50"
+                                : "bg-amber-950/70 text-amber-400 border border-amber-800/50"
+                            }`}
+                          >
+                            {w.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-xs text-hub-text-secondary py-2">
+                No withdrawal payout requests submitted yet.
+              </p>
+            )}
           </div>
 
           {/* Append-Only Ledger History */}
