@@ -43,6 +43,7 @@ const sidebarGroups = [
       { href: "/admin/resources", label: "Resources", icon: Package },
       { href: "/admin/tutorials", label: "Tutorials", icon: BookOpen },
       { href: "/admin/reports", label: "Reports", icon: BarChart3 },
+      { href: "/admin/consultations", label: "Advisory requests", icon: ClipboardList },
     ],
   },
   {

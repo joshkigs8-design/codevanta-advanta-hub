@@ -37,6 +37,22 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    if (event === "charge.failed") {
+      const reference = data.reference;
+      const paymentId = data.metadata?.paymentId || reference;
+
+      handlePaymentWebhook({
+        paymentId,
+        status: "failed",
+        rawBody,
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: "Payment failure recorded via webhook",
+      });
+    }
+
     // Acknowledge other Paystack lifecycle events
     return NextResponse.json({ success: true, message: `Event '${event}' received.` });
   } catch (err: unknown) {

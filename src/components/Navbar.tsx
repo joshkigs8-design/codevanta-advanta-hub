@@ -25,6 +25,7 @@ import {
   GraduationCap,
   Layers,
   MessageCircle,
+  BriefcaseBusiness,
 } from "lucide-react";
 
 interface UserProfile {
@@ -172,6 +173,16 @@ export default function Navbar() {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
               <span>Channel</span>
+            </a>
+            <a
+              href="https://www.joshkigen.me/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/45 border border-white/[0.1] text-xs font-mono text-hub-text-muted hover:text-white hover:border-hub-gold/50 transition-all"
+              title="Visit Josh Kigen's portfolio"
+            >
+              <BriefcaseBusiness className="w-3.5 h-3.5 text-hub-gold" />
+              <span>Portfolio</span>
             </a>
 
             {/* Quick Search Button */}

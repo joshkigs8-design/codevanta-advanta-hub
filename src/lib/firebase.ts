@@ -18,8 +18,18 @@ export const isFirebaseConfigured = (): boolean => {
   );
 };
 
-// Singleton initialization
-export const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+// Safe singleton initialization
+export const app: FirebaseApp =
+  getApps().length > 0
+    ? getApp()
+    : initializeApp(
+        isFirebaseConfigured()
+          ? firebaseConfig
+          : {
+              apiKey: "AIzaSy_MOCK_SANDBOX_KEY_FOR_TESTS",
+              projectId: "codevanta-hub",
+            }
+      );
 export const auth: Auth = getAuth(app);
 export const firestore: Firestore = getFirestore(app);
 export const googleProvider: GoogleAuthProvider = new GoogleAuthProvider();

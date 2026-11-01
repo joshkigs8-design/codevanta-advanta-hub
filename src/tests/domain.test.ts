@@ -12,7 +12,7 @@ import {
 } from "../lib/referral";
 import { getWallet, submitWithdrawalRequest, processWithdrawalRequest } from "../lib/wallet";
 import { getUserEntitlements } from "../lib/entitlements";
-import { handlePaymentWebhook, initiateCheckout, verifyPaystackSignature } from "../lib/payments";
+import { handlePaymentWebhook, initiateCheckout, verifyPaystackSignature, formatKenyanPhoneNumber } from "../lib/payments";
 import crypto from "node:crypto";
 import { MembershipPlan, ReferralReward } from "../types";
 
@@ -545,5 +545,67 @@ test("CodeVanta Advanta Hub — Comprehensive Domain Test Suite", async (t) => {
     // 7. Verify Paystack Signature Verification utility
     const testSignatureValid = verifyPaystackSignature("test_payload", "sandbox_paystack_test_signature");
     assert.strictEqual(testSignatureValid, true, "Sandbox Paystack signature validates in test environment");
+  });
+
+  await t.test("10. Paystack Custom M-Pesa Charge API, Phone Validation & Idempotency", () => {
+    // 1. Phone number formatting & validation
+    const p1 = formatKenyanPhoneNumber("0712345678");
+    assert.strictEqual(p1.isValid, true);
+    assert.strictEqual(p1.formatted, "0712345678");
+
+    const p2 = formatKenyanPhoneNumber("+254712345678");
+    assert.strictEqual(p2.isValid, true);
+    assert.strictEqual(p2.formatted, "0712345678");
+
+    const p3 = formatKenyanPhoneNumber("254110123456");
+    assert.strictEqual(p3.isValid, true);
+    assert.strictEqual(p3.formatted, "0110123456");
+
+    const pInvalid = formatKenyanPhoneNumber("1234567");
+    assert.strictEqual(pInvalid.isValid, false);
+
+    // 2. Initiate Paystack M-Pesa checkout
+    const testPayerId = crypto.randomUUID();
+    const now = new Date().toISOString();
+    db.prepare(`
+      INSERT INTO profiles (id, email, password_hash, full_name, role, country, created_at, updated_at)
+      VALUES (?, 'paystack_payer@example.com', 'testhash', 'Paystack Customer', 'user', 'KE', ?, ?)
+    `).run(testPayerId, now, now);
+
+    const checkout = initiateCheckout(testPayerId, "basic", "0712345678", "paystack");
+    assert.strictEqual(checkout.success, true);
+    assert.ok(checkout.payment);
+    assert.strictEqual(checkout.payment.amount_kes, 150);
+    assert.strictEqual(checkout.payment.provider, "paystack");
+    assert.strictEqual(checkout.payment.status, "pending");
+
+    // 3. Webhook processing with SHA512
+    const webhookRes = handlePaymentWebhook({
+      paymentId: checkout.payment.id,
+      status: "completed",
+      mpesaReceiptNumber: "PSTK_REC_998877",
+    });
+    assert.strictEqual(webhookRes.success, true);
+
+    // Verify profile upgraded and membership created
+    const profile = db.prepare("SELECT role FROM profiles WHERE id = ?").get(testPayerId) as { role: string };
+    assert.strictEqual(profile.role, "member");
+
+    const mem = db.prepare("SELECT * FROM memberships WHERE user_id = ? AND status = 'active'").get(testPayerId) as any;
+    assert.ok(mem);
+    assert.strictEqual(mem.plan_slug, "basic");
+    assert.strictEqual(mem.payment_reference, "PSTK_REC_998877");
+
+    // 4. Idempotency test: Re-executing same webhook must not duplicate membership or error
+    const dupeWebhookRes = handlePaymentWebhook({
+      paymentId: checkout.payment.id,
+      status: "completed",
+      mpesaReceiptNumber: "PSTK_REC_998877",
+    });
+    assert.strictEqual(dupeWebhookRes.success, true);
+    assert.ok(dupeWebhookRes.message.includes("idempotently"));
+
+    const activeMems = db.prepare("SELECT COUNT(*) as count FROM memberships WHERE user_id = ? AND status = 'active'").get(testPayerId) as { count: number };
+    assert.strictEqual(activeMems.count, 1, "Only 1 active membership allowed");
   });
 });

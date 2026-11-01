@@ -33,7 +33,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export default async function HomePage() {
+export default async function HomePage({ searchParams }: { searchParams?: { consultation?: string } }) {
   const db = getDb();
 
   // Fetch featured resources
@@ -132,6 +132,13 @@ export default async function HomePage() {
 
   return (
     <div className="home-cinematic space-y-24 pb-24">
+      {searchParams?.consultation === "received" && (
+        <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
+          <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-200">
+            Your advisory request was received. We will review it and contact you using the details provided.
+          </div>
+        </div>
+      )}
       {/* ========================================================================= */}
       {/* 1. HERO SECTION WITH BESPOKE ARCHITECTURAL VISUAL ART                     */}
       {/* ========================================================================= */}
@@ -1194,21 +1201,35 @@ export default async function HomePage() {
             {/* Interactive consultation lead form (matching MODO bottom lead form) */}
             <div className="lg:col-span-7">
               <form
-                action="/register"
-                method="GET"
+                action="/api/consultations"
+                method="POST"
                 className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-2 bg-black/40 rounded-2xl border border-white/10"
               >
                 <input
                   type="text"
+                  name="name"
                   placeholder="Your Name"
                   required
                   className="px-4 py-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder-white/45 text-xs focus:outline-none focus:border-hub-gold transition-colors"
                 />
                 <input
                   type="email"
-                  placeholder="Email or Phone"
+                  name="email"
+                  placeholder="Email"
                   required
                   className="px-4 py-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder-white/45 text-xs focus:outline-none focus:border-hub-gold transition-colors"
+                />
+                <input
+                  type="tel"
+                  name="phone"
+                  placeholder="Phone (optional)"
+                  className="px-4 py-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder-white/45 text-xs focus:outline-none focus:border-hub-gold transition-colors"
+                />
+                <textarea
+                  name="project_description"
+                  placeholder="Briefly describe your project"
+                  rows={2}
+                  className="sm:col-span-2 px-4 py-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder-white/45 text-xs focus:outline-none focus:border-hub-gold transition-colors resize-none"
                 />
                 <button
                   type="submit"

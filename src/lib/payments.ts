@@ -1,10 +1,36 @@
 import { getDb } from "./db";
 import crypto from "node:crypto";
 import { processQualifyingReferralReward } from "./referral";
+import { syncMembershipActivationToFirestore } from "./firestoreService";
 import { Payment, PaymentEvent, PlanSlug, PaymentStatus } from "@/types";
 
 const CALLBACK_SECRET = process.env.MPESA_CALLBACK_SECRET || "mock_webhook_signature_secret_sandbox";
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY || "mock_paystack_secret_sandbox";
+
+/**
+ * Format and validate Kenyan Safaricom phone numbers for M-Pesa.
+ * Accepts formats like: 07XXXXXXXX, 01XXXXXXXX, 2547XXXXXXXX, +2547XXXXXXXX
+ * Normalizes to standard 10-digit 07XXXXXXXX or 01XXXXXXXX format.
+ */
+export function formatKenyanPhoneNumber(phone: string): { isValid: boolean; formatted: string; raw: string } {
+  const raw = phone.trim();
+  let cleaned = raw.replace(/[\s\-\(\)\.]/g, "");
+
+  if (cleaned.startsWith("+254")) {
+    cleaned = "0" + cleaned.slice(4);
+  } else if (cleaned.startsWith("254") && cleaned.length === 12) {
+    cleaned = "0" + cleaned.slice(3);
+  }
+
+  // Valid Kenyan mobile numbers: 10 digits starting with 07 or 01
+  const isValid = /^(07|01)\d{8}$/.test(cleaned);
+
+  return {
+    isValid,
+    formatted: cleaned,
+    raw,
+  };
+}
 
 export function initiateCheckout(
   userId: string,
@@ -109,7 +135,12 @@ export function verifyPaystackSignature(payloadString: string, signatureHeader?:
   try {
     const hmac = crypto.createHmac("sha512", PAYSTACK_SECRET);
     const expectedSignature = hmac.update(payloadString).digest("hex");
-    return signatureHeader === expectedSignature;
+    
+    // Constant-time comparison to prevent timing attacks
+    const expectedBuf = Buffer.from(expectedSignature, "utf8");
+    const sigBuf = Buffer.from(signatureHeader, "utf8");
+    if (expectedBuf.length !== sigBuf.length) return false;
+    return crypto.timingSafeEqual(expectedBuf, sigBuf);
   } catch {
     return false;
   }
@@ -221,10 +252,23 @@ export function handlePaymentWebhook(
     // Trigger Referral Attribution & Reward Ledger (in its own atomic transaction)
     if (payload.status === "completed") {
       const plan = db
-        .prepare("SELECT slug FROM membership_plans WHERE id = ?")
-        .get(payment.plan_id) as { slug: PlanSlug } | undefined;
+        .prepare("SELECT slug, name FROM membership_plans WHERE id = ?")
+        .get(payment.plan_id) as { slug: PlanSlug; name: string } | undefined;
       if (plan) {
         processQualifyingReferralReward(payment.id, payment.user_id, plan.slug);
+
+        // Synchronize membership activation and payment records into Cloud Firestore
+        syncMembershipActivationToFirestore({
+          userId: payment.user_id,
+          planSlug: plan.slug,
+          planName: plan.name,
+          amountKes: payment.amount_kes,
+          paymentId: payment.id,
+          reference: payload.mpesaReceiptNumber || payment.provider_reference,
+          phoneNumber: payment.phone_number,
+        }).catch((fsErr) => {
+          console.warn("Firestore membership activation sync notice:", fsErr);
+        });
       }
     }
 
@@ -238,3 +282,9 @@ export function handlePaymentWebhook(
     return { success: false, message: err instanceof Error ? err.message : "Error handling payment webhook" };
   }
 }
+
+/**
+ * Idempotently completes a confirmed payment, updates local memberships,
+ * triggers referral reward payouts, and synchronizes status with Cloud Firestore.
+ */
+export const completeConfirmedPayment = handlePaymentWebhook;

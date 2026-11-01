@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import BrandLogo from "./BrandLogo";
-import { ShieldCheck, Heart, MessageCircle, ExternalLink, ArrowRight } from "lucide-react";
+import { ShieldCheck, Heart, MessageCircle, ExternalLink, ArrowRight, BriefcaseBusiness } from "lucide-react";
 
 export default function Footer() {
   return (
@@ -36,6 +36,16 @@ export default function Footer() {
                 <ExternalLink className="w-3 h-3 opacity-70 group-hover:translate-x-0.5 transition-transform" />
               </a>
             </div>
+            <a
+              href="https://www.joshkigen.me/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-xs text-hub-text-muted hover:text-hub-gold transition-colors"
+            >
+              <BriefcaseBusiness className="w-3.5 h-3.5" />
+              <span>Visit Josh Kigen&apos;s Portfolio</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
           </div>
 
           {/* Col 2: Discovery */}
@@ -131,6 +141,17 @@ export default function Footer() {
                 <Link href="/admin/login" className="hover:text-white transition-colors font-mono text-[11px] text-hub-text-muted">
                   Administrative Portal
                 </Link>
+              </li>
+              <li>
+                <a
+                  href="https://www.joshkigen.me/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white transition-colors inline-flex items-center gap-1.5"
+                >
+                  Personal Portfolio
+                  <ExternalLink className="w-3 h-3" />
+                </a>
               </li>
             </ul>
           </div>

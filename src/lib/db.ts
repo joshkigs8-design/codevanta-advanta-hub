@@ -138,6 +138,16 @@ export function getDb(): DatabaseSync {
       FOREIGN KEY (referrer_user_id) REFERENCES profiles(id),
       FOREIGN KEY (paid_by) REFERENCES profiles(id)
     );
+    CREATE TABLE IF NOT EXISTS consultation_requests (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      phone TEXT,
+      project_description TEXT,
+      status TEXT NOT NULL DEFAULT 'new',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
   `);
   seedInitialData(dbInstance);
   initPhase2SchemaAndData(dbInstance);

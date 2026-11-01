@@ -64,6 +64,84 @@ export async function getFirestoreUserProfile(uid: string): Promise<FirestoreUse
 }
 
 /**
+ * Synchronize confirmed membership activation and payment records into Firestore.
+ */
+export async function syncMembershipActivationToFirestore(params: {
+  userId: string;
+  planSlug: string;
+  planName: string;
+  amountKes: number;
+  paymentId: string;
+  reference: string;
+  phoneNumber?: string;
+}): Promise<boolean> {
+  if (!isFirebaseConfigured() || !firestore) {
+    return false;
+  }
+  try {
+    const { userId, planSlug, planName, amountKes, paymentId, reference, phoneNumber } = params;
+
+    // 1. Update user profile document in Firestore
+    const userDocRef = doc(firestore, "users", userId);
+    await setDoc(
+      userDocRef,
+      {
+        planId: planSlug,
+        planName: planName,
+        role: "member",
+        paymentStatus: "paid",
+        accountStatus: "active",
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    // 2. Record subscription document in Firestore
+    const subDocRef = doc(firestore, "subscriptions", `sub_${paymentId}`);
+    await setDoc(
+      subDocRef,
+      {
+        userId,
+        planId: planSlug,
+        planName,
+        status: "active",
+        amount_paid_kes: amountKes,
+        paymentReference: reference,
+        startsAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    // 3. Record payment document in Firestore
+    const paymentDocRef = doc(firestore, "payments", paymentId);
+    await setDoc(
+      paymentDocRef,
+      {
+        id: paymentId,
+        userId,
+        planId: planSlug,
+        planName,
+        amount_kes: amountKes,
+        currency: "KES",
+        provider: "paystack_mpesa",
+        provider_reference: reference,
+        phone_number: phoneNumber || null,
+        status: "completed",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return true;
+  } catch (error) {
+    console.error("Firestore membership activation sync error:", error);
+    return false;
+  }
+}
+
+/**
  * Fetch published resources from Firestore
  */
 export async function getFirestorePublishedResources(): Promise<Resource[]> {

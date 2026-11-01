@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { MembershipPlan } from "@/types";
+import React, { useState, useEffect, useRef } from "react";
+import { MembershipPlan, PlanSlug } from "@/types";
 import {
   X,
   Check,
@@ -10,9 +10,10 @@ import {
   Phone,
   ArrowRight,
   Loader2,
-  CreditCard,
-  Send,
-  ExternalLink,
+  Lock,
+  RefreshCw,
+  CheckCircle2,
+  Sparkles,
 } from "lucide-react";
 
 interface CheckoutModalProps {
@@ -21,147 +22,177 @@ interface CheckoutModalProps {
   onSuccess?: () => void;
 }
 
-export default function CheckoutModal({ plan, onClose, onSuccess }: CheckoutModalProps) {
-  const [phoneNumber, setPhoneNumber] = useState("0700000001");
-  const [paymentMethod, setPaymentMethod] = useState<"paystack" | "mpesa_stk">("paystack");
+const AVAILABLE_PLANS: Array<{ slug: PlanSlug; name: string; priceKes: number; tag: string }> = [
+  { slug: "starter", name: "Starter", priceKes: 70, tag: "KES 70" },
+  { slug: "basic", name: "Basic", priceKes: 150, tag: "KES 150" },
+  { slug: "pro", name: "Pro", priceKes: 250, tag: "KES 250" },
+  { slug: "vip", name: "VIP", priceKes: 350, tag: "KES 350" },
+];
+
+export default function CheckoutModal({ plan: initialPlan, onClose, onSuccess }: CheckoutModalProps) {
+  const [selectedPlan, setSelectedPlan] = useState<MembershipPlan | null>(initialPlan);
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState<"details" | "prompt" | "success" | "error">("details");
+  const [step, setStep] = useState<"details" | "prompt" | "success" | "failed">("details");
   const [errorMessage, setErrorMessage] = useState("");
-  const [paymentId, setPaymentId] = useState("");
+  const [activeReference, setActiveReference] = useState("");
   const [promptMessage, setPromptMessage] = useState("");
+  const [pollCount, setPollCount] = useState(0);
+  const [receiptNumber, setReceiptNumber] = useState("");
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  if (!plan) return null;
+  useEffect(() => {
+    if (initialPlan) {
+      setSelectedPlan(initialPlan);
+    }
+  }, [initialPlan]);
 
-  const handleInitiate = async (e: React.FormEvent) => {
+  // Clean up polling interval when component unmounts or step changes
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, []);
+
+  if (!selectedPlan) return null;
+
+  // Validate Kenyan Safaricom phone number format
+  const cleanPhone = phoneNumber.replace(/[\s\-\(\)\.]/g, "");
+  const isPhoneValid = /^(07|01)\d{8}$/.test(cleanPhone) || /^(2547|2541)\d{8}$/.test(cleanPhone) || /^(\+2547|\+2541)\d{8}$/.test(cleanPhone);
+
+  const handlePlanSelect = (slug: PlanSlug) => {
+    if (selectedPlan.slug === slug) return;
+    const match = AVAILABLE_PLANS.find((p) => p.slug === slug);
+    if (match) {
+      setSelectedPlan({
+        ...selectedPlan,
+        slug: match.slug,
+        name: match.name,
+        price_kes: match.priceKes,
+      });
+    }
+  };
+
+  /**
+   * 1. Initiate Paystack POST /charge with currency: KES & mobile_money.provider: mpesa
+   */
+  const handleInitiateMpesaCharge = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isPhoneValid) {
+      setErrorMessage("Please enter a valid Kenyan Safaricom phone number (e.g. 0712 345 678).");
+      return;
+    }
+
     setLoading(true);
     setErrorMessage("");
 
     try {
-      if (paymentMethod === "paystack") {
-        // 1. Initiate Paystack checkout
-        const res = await fetch("/api/checkout/paystack/initialize", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            planSlug: plan.slug,
-            phoneNumber,
-          }),
-        });
+      const res = await fetch("/api/checkout/paystack/charge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planSlug: selectedPlan.slug,
+          phoneNumber: cleanPhone,
+        }),
+      });
 
-        const data = await res.json();
-        if (!res.ok) {
-          setErrorMessage(data.error || "Failed to initiate Paystack checkout");
-          setStep("error");
-          setLoading(false);
-          return;
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setErrorMessage(data.error || "Failed to initiate M-Pesa authorization prompt.");
+        setStep("failed");
+        setLoading(false);
+        return;
+      }
+
+      // Successful initiation: STK Prompt has been sent to customer's phone!
+      setActiveReference(data.reference);
+      setPromptMessage(
+        data.displayText ||
+          `An M-Pesa prompt has been sent to ${data.phoneNumber || cleanPhone}. Please check your phone screen and enter your PIN.`
+      );
+      setStep("prompt");
+      setLoading(false);
+      setPollCount(0);
+
+      // 2. Start polling the backend verification endpoint
+      startVerificationPolling(data.reference);
+    } catch {
+      setErrorMessage("Network connection error while contacting Paystack. Please check your internet and try again.");
+      setStep("failed");
+      setLoading(false);
+    }
+  };
+
+  /**
+   * 2. Transaction verification polling
+   * Polls every 2.5s for up to 90 seconds. Does NOT activate memberships client-side;
+   * membership activation is executed exclusively server-side upon verified Paystack confirmation.
+   */
+  const startVerificationPolling = (reference: string) => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+    }
+
+    let attempts = 0;
+    const maxAttempts = 36; // 36 * 2.5s = 90 seconds timeout
+
+    pollIntervalRef.current = setInterval(async () => {
+      attempts += 1;
+      setPollCount(attempts);
+
+      if (attempts > maxAttempts) {
+        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+        setErrorMessage("Payment verification timed out. If you entered your M-Pesa PIN, your membership will activate automatically once Safaricom completes processing.");
+        setStep("failed");
+        return;
+      }
+
+      try {
+        const verifyRes = await fetch(`/api/checkout/paystack/verify?reference=${encodeURIComponent(reference)}`);
+        const verifyData = await verifyRes.json();
+
+        if (verifyData.status === "success") {
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+          setReceiptNumber(verifyData.reference || reference);
+          setStep("success");
+          if (onSuccess) onSuccess();
+        } else if (verifyData.status === "failed") {
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+          setErrorMessage(verifyData.message || "M-Pesa authorization prompt was cancelled, declined, or timed out.");
+          setStep("failed");
         }
+      } catch (err) {
+        console.warn("Transient verification check error, will retry:", err);
+      }
+    }, 2500);
+  };
 
-        // If live Paystack authorization URL is returned, redirect to checkout
-        if (data.mode === "live" && data.authorizationUrl) {
-          window.location.href = data.authorizationUrl;
-          return;
-        }
+  /**
+   * Manual instant check trigger
+   */
+  const handleManualCheck = async () => {
+    if (!activeReference) return;
+    setLoading(true);
+    try {
+      const verifyRes = await fetch(`/api/checkout/paystack/verify?reference=${encodeURIComponent(activeReference)}`);
+      const verifyData = await verifyRes.json();
 
-        // In sandbox / simulated mode, display simulation prompt and verify
-        setPaymentId(data.payment.id);
-        setPromptMessage(`Paystack checkout initiated for KES ${plan.price_kes}. Simulating successful charge...`);
-        setStep("prompt");
-
-        setTimeout(async () => {
-          try {
-            const webhookRes = await fetch("/api/checkout/paystack/webhook", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "x-paystack-signature": "sandbox_paystack_test_signature",
-              },
-              body: JSON.stringify({
-                event: "charge.success",
-                data: {
-                  reference: data.reference,
-                  amount: plan.price_kes * 100,
-                  currency: "KES",
-                  status: "success",
-                  metadata: {
-                    paymentId: data.payment.id,
-                    planSlug: plan.slug,
-                  },
-                },
-              }),
-            });
-
-            const webhookData = await webhookRes.json();
-            if (webhookRes.ok && webhookData.success) {
-              setStep("success");
-              if (onSuccess) onSuccess();
-            } else {
-              setErrorMessage(webhookData.message || "Webhook processing failed");
-              setStep("error");
-            }
-          } catch {
-            setErrorMessage("Error verifying sandbox Paystack payment");
-            setStep("error");
-          } finally {
-            setLoading(false);
-          }
-        }, 2500);
-      } else {
-        // M-Pesa STK Simulator flow
-        const res = await fetch("/api/checkout/initiate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            planSlug: plan.slug,
-            phoneNumber,
-          }),
-        });
-
-        const data = await res.json();
-        if (!res.ok) {
-          setErrorMessage(data.error || "Failed to initiate M-Pesa payment");
-          setStep("error");
-          setLoading(false);
-          return;
-        }
-
-        setPaymentId(data.payment.id);
-        setPromptMessage(`STK prompt simulated to ${phoneNumber} for KES ${plan.price_kes}.`);
-        setStep("prompt");
-
-        setTimeout(async () => {
-          try {
-            const webhookRes = await fetch("/api/checkout/webhook", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "x-mpesa-signature": "sandbox_test_signature",
-              },
-              body: JSON.stringify({
-                paymentId: data.payment.id,
-                status: "completed",
-                mpesaReceiptNumber: `SAMP${Date.now().toString().slice(-6)}`,
-              }),
-            });
-            const webhookData = await webhookRes.json();
-            if (webhookRes.ok && webhookData.success) {
-              setStep("success");
-              if (onSuccess) onSuccess();
-            } else {
-              setErrorMessage(webhookData.message || "Webhook processing failed");
-              setStep("error");
-            }
-          } catch {
-            setErrorMessage("Error verifying sandbox payment");
-            setStep("error");
-          } finally {
-            setLoading(false);
-          }
-        }, 2500);
+      if (verifyData.status === "success") {
+        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+        setReceiptNumber(verifyData.reference || activeReference);
+        setStep("success");
+        if (onSuccess) onSuccess();
+      } else if (verifyData.status === "failed") {
+        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+        setErrorMessage(verifyData.message || "Payment was declined or cancelled on your phone.");
+        setStep("failed");
       }
     } catch {
-      setErrorMessage("Network error during payment initiation.");
-      setStep("error");
+      // Ignored
+    } finally {
       setLoading(false);
     }
   };
@@ -170,136 +201,134 @@ export default function CheckoutModal({ plan, onClose, onSuccess }: CheckoutModa
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-lg rounded-2xl bg-hub-surface-elevated border border-hub-border p-6 sm:p-8 shadow-2xl text-hub-text-primary"
+        className="relative w-full max-w-lg rounded-3xl glass-panel card-specular-edge border border-white/[0.12] p-6 sm:p-8 shadow-2xl text-white overflow-hidden"
       >
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-lg bg-hub-surface text-hub-text-muted hover:text-white"
+          className="absolute top-5 right-5 p-2 rounded-xl bg-white/[0.04] text-hub-text-muted hover:text-white border border-white/[0.08] transition-colors"
+          title="Close dialog"
         >
           <X className="w-5 h-5" />
         </button>
 
+        {/* ========================================================================= */}
+        {/* STEP 1: PLAN CONFIRMATION & M-PESA PHONE ENTRY                           */}
+        {/* ========================================================================= */}
         {step === "details" && (
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-mono uppercase tracking-wider text-hub-gold font-bold">
-                Membership Upgrade
-              </span>
+          <div className="space-y-5">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-mono text-[11px] uppercase tracking-wider font-bold mb-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Paystack M-Pesa Checkout</span>
+              </div>
+              <h3 className="text-2xl font-black text-white tracking-tight">
+                Upgrade to CodeVanta {selectedPlan.name}
+              </h3>
+              <p className="text-xs text-hub-text-secondary mt-1">
+                Enter your Safaricom phone number to receive an instant M-Pesa STK PIN authorization prompt.
+              </p>
             </div>
 
-            <h3 className="text-2xl font-bold text-white tracking-tight">{plan.name}</h3>
-
-            <div className="mt-4 p-4 rounded-xl bg-hub-surface border border-hub-border flex items-baseline justify-between">
-              <div>
-                <span className="text-2xl font-extrabold text-white">KES {plan.price_kes}</span>
-                <span className="text-xs text-hub-text-muted ml-1.5 uppercase font-mono">one-time / lifetime</span>
+            {/* Plan Selector Strip */}
+            <div>
+              <label className="block text-[11px] font-mono uppercase tracking-wider text-hub-text-muted mb-2 font-bold">
+                Select Membership Tier:
+              </label>
+              <div className="grid grid-cols-4 gap-2">
+                {AVAILABLE_PLANS.map((p) => {
+                  const isSelected = selectedPlan.slug === p.slug;
+                  return (
+                    <button
+                      key={p.slug}
+                      type="button"
+                      onClick={() => handlePlanSelect(p.slug)}
+                      className={`py-2 px-2 rounded-xl border text-center transition-all ${
+                        isSelected
+                          ? "bg-hub-gold/20 border-hub-gold text-hub-gold font-bold shadow-gold-glow"
+                          : "bg-white/[0.02] border-white/10 text-white/70 hover:text-white hover:bg-white/[0.05]"
+                      }`}
+                    >
+                      <div className="text-xs font-extrabold">{p.name}</div>
+                      <div className="text-[10px] font-mono text-hub-text-muted mt-0.5">{p.tag}</div>
+                    </button>
+                  );
+                })}
               </div>
-              <div className="text-right">
-                <span className="text-xs font-semibold text-emerald-400 block">Referral Rewards:</span>
-                <span className="text-xs font-mono text-hub-text-secondary">
-                  L1 KES {plan.direct_referral_reward_kes} • L2 KES {plan.indirect_referral_reward_kes}
+            </div>
+
+            {/* Price Card */}
+            <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.08] flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-hub-text-muted block">
+                  Total Due (One-Time)
+                </span>
+                <span className="text-3xl font-black text-white font-mono tracking-tight mt-0.5 block">
+                  KES {selectedPlan.price_kes}
                 </span>
               </div>
-            </div>
-
-            <p className="text-xs text-hub-text-secondary mt-3 leading-relaxed">
-              {plan.description}
-            </p>
-
-            {/* Anti-recruitment transparency note */}
-            <div className="mt-4 p-3 rounded-lg bg-hub-bg border border-hub-border text-xs text-hub-text-muted flex items-start gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-              <span>
-                <strong>Zero Recruitment Requirement:</strong> All developer tools, curated guides, and benefits in this
-                plan are unlocked immediately for your personal development.
-              </span>
-            </div>
-
-            <form onSubmit={handleInitiate} className="mt-6 space-y-4">
-              {/* Payment Method Selector */}
-              <div>
-                <label className="block text-xs font-medium text-hub-text-secondary mb-1.5">
-                  Select Payment Gateway
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("paystack")}
-                    className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
-                      paymentMethod === "paystack"
-                        ? "border-hub-gold bg-hub-gold/10 text-white"
-                        : "border-hub-border bg-hub-surface text-hub-text-muted hover:text-white"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <CreditCard className="w-4 h-4 text-hub-gold" />
-                      {paymentMethod === "paystack" && <Check className="w-3.5 h-3.5 text-hub-gold" />}
-                    </div>
-                    <div className="mt-2">
-                      <div className="text-xs font-bold text-white">Paystack</div>
-                      <div className="text-[11px] text-hub-text-muted">M-Pesa, Card & Bank</div>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("mpesa_stk")}
-                    className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
-                      paymentMethod === "mpesa_stk"
-                        ? "border-hub-gold bg-hub-gold/10 text-white"
-                        : "border-hub-border bg-hub-surface text-hub-text-muted hover:text-white"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <Phone className="w-4 h-4 text-emerald-400" />
-                      {paymentMethod === "mpesa_stk" && <Check className="w-3.5 h-3.5 text-emerald-400" />}
-                    </div>
-                    <div className="mt-2">
-                      <div className="text-xs font-bold text-white">M-Pesa STK</div>
-                      <div className="text-[11px] text-hub-text-muted">Instant Push Simulator</div>
-                    </div>
-                  </button>
-                </div>
+              <div className="text-right">
+                <span className="text-[11px] font-mono px-2.5 py-1 rounded-full bg-emerald-950/60 text-emerald-300 border border-emerald-800/40 font-bold block">
+                  Lifetime Access
+                </span>
+                <span className="text-[10px] text-hub-text-muted mt-1 block">Zero recurring monthly fees</span>
               </div>
+            </div>
 
+            {/* Anti-Scam Security Notice */}
+            <div className="p-3.5 rounded-xl bg-amber-950/20 border border-amber-500/30 text-xs text-amber-200/90 flex items-start gap-2.5">
+              <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="leading-relaxed">
+                <strong className="text-amber-300">Safe Checkout:</strong> We will <strong>NEVER</strong> ask for your M-Pesa PIN on this website. You will enter your PIN exclusively on your phone&apos;s official Safaricom pop-up prompt.
+              </div>
+            </div>
+
+            {/* M-Pesa Phone Form */}
+            <form onSubmit={handleInitiateMpesaCharge} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-hub-text-secondary mb-1.5">
-                  M-Pesa Mobile Number
+                <label className="block text-xs font-semibold text-white/90 mb-1.5">
+                  Safaricom M-Pesa Phone Number
                 </label>
                 <div className="relative">
-                  <Phone className="w-4 h-4 absolute left-3 top-3 text-hub-text-muted" />
+                  <Phone className="w-4 h-4 absolute left-3.5 top-3.5 text-emerald-400" />
                   <input
                     type="tel"
                     required
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
-                    placeholder="07XX XXX XXX or 2547XXXXXXXX"
-                    className="w-full pl-9 pr-4 py-2.5 rounded-lg bg-hub-surface border border-hub-border focus:border-hub-gold focus:outline-none text-sm text-white font-mono"
+                    placeholder="07XX XXX XXX or 01XX XXX XXX"
+                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-hub-base/80 border border-white/15 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/50 focus:outline-none text-sm text-white font-mono placeholder:text-white/30"
                   />
                 </div>
-                <span className="text-[11px] text-hub-text-muted block mt-1">
-                  Used for account verification and referral commission disbursements.
+                <span className="text-[11px] text-hub-text-secondary mt-1 block">
+                  Accepts standard 10-digit formats (e.g. 0712 345 678 or 0110 123 456).
                 </span>
               </div>
+
+              {errorMessage && (
+                <div className="p-3 rounded-xl bg-red-950/60 border border-red-800/50 text-red-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 rounded-lg font-semibold bg-hub-gold hover:bg-hub-gold-hover text-hub-forest-dark transition-all flex items-center justify-center gap-2 shadow-gold-glow active:scale-95"
+                className="w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-500 hover:brightness-110 text-black transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
               >
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Processing Checkout...</span>
+                    <span>Dispatching M-Pesa Prompt...</span>
                   </>
                 ) : (
                   <>
-                    <span>Proceed with {paymentMethod === "paystack" ? "Paystack" : "M-Pesa"} (KES {plan.price_kes})</span>
+                    <span>Pay KES {selectedPlan.price_kes} via M-Pesa</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -308,62 +337,150 @@ export default function CheckoutModal({ plan, onClose, onSuccess }: CheckoutModa
           </div>
         )}
 
+        {/* ========================================================================= */}
+        {/* STEP 2: PENDING M-PESA STK PROMPT AUTHORIZATION (WAITING FOR PIN ON PHONE) */}
+        {/* ========================================================================= */}
         {step === "prompt" && (
-          <div className="text-center py-6 space-y-4">
-            <div className="w-16 h-16 rounded-full bg-hub-gold/15 border border-hub-gold/30 mx-auto flex items-center justify-center">
-              <Loader2 className="w-8 h-8 text-hub-gold animate-spin" />
+          <div className="text-center py-4 sm:py-6 space-y-6">
+            <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full bg-emerald-500/20 animate-ping opacity-75" />
+              <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/30 to-black border-2 border-emerald-400 flex items-center justify-center text-emerald-400 shadow-xl shadow-emerald-500/20">
+                <Phone className="w-8 h-8 animate-bounce" />
+              </div>
             </div>
 
-            <h3 className="text-xl font-bold text-white">Processing Payment</h3>
-            <p className="text-sm text-hub-text-secondary max-w-sm mx-auto">
-              {promptMessage}
-            </p>
+            <div className="space-y-2">
+              <span className="text-[11px] font-mono uppercase tracking-widest text-emerald-400 font-bold block">
+                Authorization Prompt Sent
+              </span>
+              <h3 className="text-2xl font-black text-white tracking-tight">
+                Check Your Phone Screen Now
+              </h3>
+              <p className="text-xs sm:text-sm text-hub-text-secondary max-w-sm mx-auto leading-relaxed">
+                {promptMessage}
+              </p>
+            </div>
 
-            <div className="p-3 rounded-lg bg-hub-surface text-xs text-hub-text-muted font-mono">
-              Ref: {paymentId}
+            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] text-xs space-y-2 text-left">
+              <div className="flex items-center justify-between text-hub-text-muted font-mono text-[11px]">
+                <span>Transaction Ref:</span>
+                <span className="text-white font-bold">{activeReference}</span>
+              </div>
+              <div className="flex items-center justify-between text-hub-text-muted font-mono text-[11px]">
+                <span>Amount:</span>
+                <span className="text-emerald-400 font-bold">KES {selectedPlan.price_kes}</span>
+              </div>
+              <div className="flex items-center justify-between text-hub-text-muted font-mono text-[11px]">
+                <span>Status:</span>
+                <span className="text-amber-400 font-bold flex items-center gap-1.5">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Awaiting PIN confirmation...
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-2">
+              <button
+                type="button"
+                onClick={handleManualCheck}
+                disabled={loading}
+                className="w-full py-3 rounded-xl font-bold text-xs bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-all flex items-center justify-center gap-2 active:scale-95"
+              >
+                {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                <span>I have entered my PIN / Check Status</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+                  setStep("details");
+                }}
+                className="text-xs text-hub-text-muted hover:text-white transition-colors"
+              >
+                Change Phone Number or Plan
+              </button>
             </div>
           </div>
         )}
 
+        {/* ========================================================================= */}
+        {/* STEP 3: PAYMENT CONFIRMED & MEMBERSHIP ACTIVATED                         */}
+        {/* ========================================================================= */}
         {step === "success" && (
-          <div className="text-center py-6 space-y-4">
-            <div className="w-16 h-16 rounded-full bg-emerald-950/80 border border-emerald-500/50 mx-auto flex items-center justify-center text-emerald-400">
+          <div className="text-center py-6 space-y-5">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/30 to-black border-2 border-emerald-400 mx-auto flex items-center justify-center text-emerald-400 shadow-xl shadow-emerald-500/20">
               <Check className="w-8 h-8" />
             </div>
 
-            <h3 className="text-2xl font-bold text-white">Membership Activated!</h3>
-            <p className="text-sm text-hub-text-secondary max-w-sm mx-auto">
-              Your account has been upgraded to <strong className="text-hub-gold">{plan.name}</strong>.
-              All entitled tools, blueprints, and referral privileges are now active.
-            </p>
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-mono uppercase tracking-widest text-emerald-400 font-bold block">
+                M-Pesa Payment Confirmed
+              </span>
+              <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                Welcome to CodeVanta {selectedPlan.name}!
+              </h3>
+              <p className="text-xs sm:text-sm text-hub-text-secondary max-w-sm mx-auto leading-relaxed">
+                Your payment of <strong className="text-white">KES {selectedPlan.price_kes}</strong> has been successfully verified. Your account entitlements and member privileges have been unlocked.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs font-mono text-hub-text-muted space-y-1">
+              <div>Receipt Reference: <span className="text-emerald-400 font-bold">{receiptNumber || activeReference}</span></div>
+              <div>Tier: <span className="text-hub-gold uppercase font-bold">{selectedPlan.name} (Lifetime)</span></div>
+            </div>
 
             <button
+              type="button"
               onClick={() => {
                 onClose();
-                window.location.reload();
+                window.location.href = "/dashboard?payment=success";
               }}
-              className="mt-4 px-6 py-2.5 rounded-lg font-semibold bg-hub-gold text-hub-forest-dark hover:bg-hub-gold-hover transition-colors"
+              className="w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider bg-gradient-to-r from-hub-gold via-amber-400 to-hub-gold text-hub-forest-dark hover:brightness-110 transition-all shadow-gold-glow active:scale-95"
             >
-              Go to Dashboard
+              Continue to Member Dashboard &rarr;
             </button>
           </div>
         )}
 
-        {step === "error" && (
-          <div className="text-center py-6 space-y-4">
-            <div className="w-16 h-16 rounded-full bg-red-950/80 border border-red-500/50 mx-auto flex items-center justify-center text-red-400">
+        {/* ========================================================================= */}
+        {/* STEP 4: PAYMENT FAILED OR CANCELLED                                      */}
+        {/* ========================================================================= */}
+        {step === "failed" && (
+          <div className="text-center py-6 space-y-5">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500/30 to-black border-2 border-red-500/50 mx-auto flex items-center justify-center text-red-400 shadow-xl shadow-red-500/20">
               <AlertCircle className="w-8 h-8" />
             </div>
 
-            <h3 className="text-xl font-bold text-white">Payment Incomplete</h3>
-            <p className="text-sm text-red-400 max-w-sm mx-auto">{errorMessage}</p>
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-mono uppercase tracking-widest text-red-400 font-bold block">
+                Authorization Incomplete
+              </span>
+              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                M-Pesa Payment Not Completed
+              </h3>
+              <p className="text-xs sm:text-sm text-red-300/90 max-w-sm mx-auto leading-relaxed">
+                {errorMessage || "The M-Pesa prompt was cancelled or timed out before PIN authorization."}
+              </p>
+            </div>
 
-            <button
-              onClick={() => setStep("details")}
-              className="mt-4 px-6 py-2 rounded-lg text-sm bg-hub-surface border border-hub-border text-white hover:bg-hub-surface-elevated"
-            >
-              Try Again
-            </button>
+            <div className="pt-2 flex flex-col gap-2.5">
+              <button
+                type="button"
+                onClick={() => setStep("details")}
+                className="w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider bg-white text-black hover:bg-white/90 transition-all active:scale-95 shadow-md"
+              >
+                Try Again with M-Pesa
+              </button>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-xs text-hub-text-muted hover:text-white transition-colors py-1"
+              >
+                Cancel and Return
+              </button>
+            </div>
           </div>
         )}
       </div>

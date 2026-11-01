@@ -137,7 +137,10 @@ const jsonLd = {
         contactType: "technical support",
         email: "support@codevanta.online",
       },
-      sameAs: ["https://github.com/joshkigs8-design/codevanta-advanta-hub"],
+      sameAs: [
+        "https://www.joshkigen.me/",
+        "https://github.com/joshkigs8-design/codevanta-advanta-hub",
+      ],
     },
     {
       "@type": "WebSite",
