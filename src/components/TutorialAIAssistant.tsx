@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import SheepAvatar from "@/components/SheepAvatar";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
 import {
   Sparkles,
   Send,
@@ -171,11 +172,15 @@ export default function TutorialAIAssistant({
                 <div
                   className={`p-3 rounded-xl max-w-[85%] leading-relaxed ${
                     m.role === "user"
-                      ? "bg-hub-gold text-white font-medium shadow-md"
-                      : "bg-hub-surface-elevated text-hub-text-secondary border border-white/10 whitespace-pre-wrap"
+                      ? "bg-hub-gold text-white font-medium shadow-md break-words whitespace-pre-wrap select-text"
+                      : "bg-hub-surface-elevated text-hub-text-secondary border border-white/10 overflow-hidden select-text"
                   }`}
                 >
-                  {m.content}
+                  {m.role === "user" ? (
+                    m.content
+                  ) : (
+                    <MarkdownRenderer content={m.content} variant="chat" />
+                  )}
                 </div>
                 {m.role === "user" && (
                   <div className="w-6 h-6 rounded-md bg-white/10 text-white border border-white/20 flex items-center justify-center shrink-0 mt-0.5">
