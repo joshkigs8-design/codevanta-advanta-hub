@@ -144,7 +144,7 @@ export default function Navbar() {
           </div>
 
           {/* Desktop Nav - Floating Frosted Capsule */}
-          <nav className="hidden lg:flex items-center gap-0.5 xl:gap-1 rounded-full border border-white/[0.1] bg-black/50 backdrop-blur-xl p-1 shadow-2xl shrink-0">
+          <nav className="hidden xl:flex items-center gap-0.5 xl:gap-1 rounded-full border border-white/[0.1] bg-black/50 backdrop-blur-xl p-1 shadow-2xl shrink-0">
             {navLinks.map((link) => {
               const Icon = link.icon;
               const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
@@ -296,8 +296,8 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Mobile menu and search buttons */}
-          <div className="flex md:hidden items-center gap-2">
+          {/* Compact menu and search buttons */}
+          <div className="flex xl:hidden items-center gap-2">
             <button
               onClick={() => setSearchModalOpen(true)}
               className="p-2 rounded-xl text-hub-text-secondary hover:text-white hover:bg-white/[0.06]"
@@ -315,9 +315,9 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Mobile drawer */}
+        {/* Compact navigation drawer */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-b border-white/[0.08] bg-hub-surface/95 backdrop-blur-2xl px-4 pt-3 pb-6 space-y-4 animate-fadeIn">
+          <div className="xl:hidden border-b border-white/[0.08] bg-hub-surface/95 backdrop-blur-2xl px-4 pt-3 pb-6 space-y-4 animate-fadeIn">
             {/* Quick Referral Banner on Mobile */}
             <Link
               href="/referrals"
