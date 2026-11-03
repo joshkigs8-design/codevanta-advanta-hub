@@ -12,10 +12,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
     }
 
+    const cleanEmail = email.toLowerCase().trim();
     const db = getDb();
-    const profile = db
+    let profile = db
       .prepare("SELECT * FROM profiles WHERE email = ?")
-      .get(email.toLowerCase().trim()) as {
+      .get(cleanEmail) as {
         id: string;
         email: string;
         password_hash: string;
@@ -23,12 +24,65 @@ export async function POST(req: NextRequest) {
         role: "user" | "member" | "admin";
       } | undefined;
 
-    if (!profile) {
-      return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
+    let passwordValid = false;
+    if (profile && profile.password_hash && profile.password_hash !== "FIREBASE_AUTH") {
+      try {
+        passwordValid = bcrypt.compareSync(password, profile.password_hash);
+      } catch {
+        passwordValid = false;
+      }
     }
 
-    const passwordValid = bcrypt.compareSync(password, profile.password_hash);
+    // If local comparison fails or user account is managed by Firebase Auth, verify via Firebase Auth REST API
     if (!passwordValid) {
+      const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+      if (apiKey) {
+        try {
+          const fbRes = await fetch(
+            `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: cleanEmail,
+                password,
+                returnSecureToken: true,
+              }),
+            }
+          );
+          const fbData = await fbRes.json();
+          if (fbData && fbData.idToken && fbData.localId) {
+            passwordValid = true;
+            const isAdmin = cleanEmail === "joshkigs8@gmail.com" || cleanEmail === (process.env.ADMIN_DEFAULT_EMAIL || "").toLowerCase().trim();
+            const targetRole = isAdmin ? "admin" : (profile?.role || "user");
+            const now = new Date().toISOString();
+
+            if (!profile) {
+              const newId = fbData.localId;
+              const fullName = fbData.displayName || cleanEmail.split("@")[0];
+              db.prepare(`
+                INSERT OR REPLACE INTO profiles (id, email, password_hash, full_name, role, country, email_verified, created_at, updated_at)
+                VALUES (?, ?, 'FIREBASE_AUTH', ?, ?, 'KE', 1, ?, ?)
+              `).run(newId, cleanEmail, fullName, targetRole, now, now);
+              profile = {
+                id: newId,
+                email: cleanEmail,
+                password_hash: "FIREBASE_AUTH",
+                full_name: fullName,
+                role: targetRole,
+              };
+            } else if (isAdmin && profile.role !== "admin") {
+              db.prepare("UPDATE profiles SET role = 'admin', updated_at = ? WHERE id = ?").run(now, profile.id);
+              profile.role = "admin";
+            }
+          }
+        } catch (fbErr) {
+          console.error("Firebase auth verification fallback notice:", fbErr);
+        }
+      }
+    }
+
+    if (!profile || !passwordValid) {
       return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
     }
 

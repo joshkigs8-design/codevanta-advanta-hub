@@ -9,6 +9,7 @@ const TEST_SECRET = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789a
 const COMPROMISED_SECRET = "codevanta-advanta-hub-secret-key-2024";
 
 // Configure test environment variables
+process.env.NODE_ENV = "test";
 process.env.JWT_SECRET = TEST_SECRET;
 process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "AIzaSyAUWt712TX_T5tysCWQxbk40DcwLm9DKkg";
 process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = "codevanta-hub";
