@@ -2,6 +2,7 @@
 import { getResourceLogo } from '@/lib/resourceImages';
 import PromoCodeRedeemBox from '@/components/PromoCodeRedeemBox';
 import SafeImage from "@/components/SafeImage";
+import ReferralStudio from "@/components/ReferralStudio";
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
@@ -546,6 +547,12 @@ export default function DashboardPage() {
               </Link>
             </div>
           </div>
+
+          <ReferralStudio
+            fullName={user?.full_name || ""}
+            referralCode={referralStats.code}
+            referralUrl={referralStats.referralUrl}
+          />
 
           {/* Referral Metrics */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

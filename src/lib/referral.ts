@@ -45,25 +45,31 @@ export function getReferralCodeForUser(userId: string): ReferralCode | null {
     .get(userId) as ReferralCode | undefined;
 
   if (!refCode) {
-    // Generate unique referral code
-    const randomHex = crypto.randomBytes(3).toString("hex").toUpperCase();
-    const code = `CV${randomHex}`;
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const randomHex = crypto.randomBytes(3).toString("hex").toUpperCase();
+      const code = `CV${randomHex}`;
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
 
-    db.prepare("INSERT INTO referral_codes (id, user_id, code, clicks, created_at) VALUES (?, ?, ?, 0, ?)")
-      .run(id, userId, code, now);
+      try {
+        db.prepare("INSERT INTO referral_codes (id, user_id, code, clicks, created_at) VALUES (?, ?, ?, 0, ?)")
+          .run(id, userId, code, now);
 
-    refCode = {
-      id,
-      user_id: userId,
-      code,
-      clicks: 0,
-      created_at: now,
-    };
+        refCode = {
+          id,
+          user_id: userId,
+          code,
+          clicks: 0,
+          created_at: now,
+        };
+        break;
+      } catch (error) {
+        if (attempt === 4) throw error;
+      }
+    }
   }
 
-  return refCode;
+  return refCode || null;
 }
 
 export function recordReferralClick(code: string): boolean {
