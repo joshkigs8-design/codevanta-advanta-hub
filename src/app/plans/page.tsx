@@ -23,7 +23,6 @@ const PLAN_RANK: Record<PlanSlug, number> = {
   basic: 2,
   pro: 3,
   vip: 4,
-  vvip: 5,
 };
 
 function PlansContent() {
@@ -99,9 +98,8 @@ function PlansContent() {
           <span>Loading membership plans...</span>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {visiblePlans.map((plan) => {
-            const isVvip = plan.slug === "vvip";
             const isVip = plan.slug === "vip";
             const isPro = plan.slug === "pro";
             const isStarter = plan.slug === "starter";
@@ -111,9 +109,7 @@ function PlansContent() {
               <div
                 key={plan.id}
                 className={`relative flex flex-col justify-between p-6 sm:p-8 rounded-3xl transition-all duration-300 glass-card-interactive card-specular-edge ${
-                  isVvip
-                    ? "border-fuchsia-400/80 shadow-[0_0_35px_-5px_rgba(217,70,239,0.35)] bg-gradient-to-b from-fuchsia-950/30 via-hub-surface to-hub-surface"
-                    : isVip
+                  isVip
                     ? "border-amber-400/80 shadow-[0_0_35px_-5px_rgba(229,193,88,0.3)] bg-gradient-to-b from-amber-950/30 via-hub-surface to-hub-surface"
                     : isPro
                     ? "border-emerald-500/50 hover:border-emerald-400/80"
@@ -123,11 +119,6 @@ function PlansContent() {
                 }`}
               >
                 {/* Highlight Badge */}
-                {isVvip && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-gradient-to-r from-fuchsia-500 via-pink-500 to-amber-400 text-black text-[11px] font-black tracking-widest uppercase font-mono shadow-[0_0_20px_rgba(217,70,239,0.5)]">
-                    ⚡ Live Test • 2 Bob
-                  </div>
-                )}
                 {isVip && (
                   <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-black text-[11px] font-black tracking-widest uppercase font-mono shadow-gold-glow">
                     Most Popular • Turnkey
@@ -151,7 +142,7 @@ function PlansContent() {
                   {/* Price Box */}
                   <div className="my-6 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08]">
                     <div className="flex items-baseline gap-1.5">
-                      <span className={`text-3xl font-black font-mono ${isVvip ? "text-fuchsia-400" : isVip ? "text-amber-300" : isPro ? "text-emerald-400" : isStarter ? "text-cyan-400" : "text-white"}`}>
+                      <span className={`text-3xl font-black font-mono ${isVip ? "text-amber-300" : isPro ? "text-emerald-400" : isStarter ? "text-cyan-400" : "text-white"}`}>
                         KES {plan.price_kes}
                       </span>
                       <span className="text-[11px] text-hub-text-muted uppercase font-mono tracking-wider">/ lifetime</span>
@@ -218,9 +209,7 @@ function PlansContent() {
                   type="button"
                   onClick={() => setSelectedPlan(plan)}
                   className={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 active:scale-95 shadow-md ${
-                    isVvip
-                      ? "bg-gradient-to-r from-fuchsia-500 via-pink-500 to-amber-400 hover:brightness-110 text-black shadow-[0_0_20px_rgba(217,70,239,0.4)]"
-                      : isVip
+                    isVip
                       ? "bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-400 text-black shadow-gold-glow"
                       : isPro
                       ? "bg-emerald-500 hover:bg-emerald-400 text-black"
@@ -229,7 +218,7 @@ function PlansContent() {
                       : "bg-white text-black hover:bg-white/90"
                   }`}
                 >
-                  <span>{isVvip ? "Test M-Pesa (2 Bob)" : `Select ${plan.name}`}</span>
+                  <span>{`Select ${plan.name}`}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
@@ -253,7 +242,6 @@ function PlansContent() {
             <thead className="border-b border-white/[0.08] text-hub-text-muted font-mono uppercase">
               <tr>
                 <th className="py-3 px-4">Capability / Entitlement</th>
-                <th className="py-3 px-4 text-fuchsia-400 font-bold">VVIP (KES 2)</th>
                 <th className="py-3 px-4 text-cyan-400">Starter (KES 70)</th>
                 <th className="py-3 px-4 text-white">Basic (KES 150)</th>
                 <th className="py-3 px-4 text-emerald-400">Pro (KES 250)</th>
@@ -263,7 +251,6 @@ function PlansContent() {
             <tbody className="divide-y divide-white/[0.06]">
               <tr>
                 <td className="py-3 px-4 font-semibold text-white">Public Developer Directory Access</td>
-                <td className="py-3 px-4 text-emerald-400 font-mono font-bold">Full Access</td>
                 <td className="py-3 px-4 text-emerald-400 font-mono">Full Access</td>
                 <td className="py-3 px-4 text-emerald-400 font-mono">Full Access</td>
                 <td className="py-3 px-4 text-emerald-400 font-mono">Full Access</td>
@@ -271,7 +258,6 @@ function PlansContent() {
               </tr>
               <tr>
                 <td className="py-3 px-4 font-semibold text-white">AFTVnews Downloader Short Codes</td>
-                <td className="py-3 px-4 text-emerald-400 font-mono font-bold">All Codes</td>
                 <td className="py-3 px-4 text-emerald-400 font-mono">All Codes</td>
                 <td className="py-3 px-4 text-emerald-400 font-mono">All Codes</td>
                 <td className="py-3 px-4 text-emerald-400 font-mono">All Codes</td>
@@ -279,7 +265,6 @@ function PlansContent() {
               </tr>
               <tr>
                 <td className="py-3 px-4 font-semibold text-white">Level 1 Referral Reward</td>
-                <td className="py-3 px-4 font-mono text-fuchsia-400 font-bold">KES 1</td>
                 <td className="py-3 px-4 font-mono text-emerald-400 font-bold">KES 20</td>
                 <td className="py-3 px-4 font-mono text-emerald-400 font-bold">KES 50</td>
                 <td className="py-3 px-4 font-mono text-emerald-400 font-bold">KES 100</td>
@@ -287,7 +272,6 @@ function PlansContent() {
               </tr>
               <tr>
                 <td className="py-3 px-4 font-semibold text-white">Level 2 Network Bonus</td>
-                <td className="py-3 px-4 font-mono text-fuchsia-400 font-bold">KES 0</td>
                 <td className="py-3 px-4 font-mono text-cyan-400 font-bold">KES 5</td>
                 <td className="py-3 px-4 font-mono text-cyan-400 font-bold">KES 15</td>
                 <td className="py-3 px-4 font-mono text-cyan-400 font-bold">KES 25</td>
@@ -295,7 +279,6 @@ function PlansContent() {
               </tr>
               <tr>
                 <td className="py-3 px-4 font-semibold text-white">Personal Bookmarks Limit</td>
-                <td className="py-3 px-4 font-mono font-bold text-fuchsia-400">999 items</td>
                 <td className="py-3 px-4 font-mono">15 items</td>
                 <td className="py-3 px-4 font-mono">10 items</td>
                 <td className="py-3 px-4 font-mono">50 items</td>
@@ -303,7 +286,6 @@ function PlansContent() {
               </tr>
               <tr>
                 <td className="py-3 px-4 font-semibold text-white">Advanced Blueprints &amp; OpenClaw AI</td>
-                <td className="py-3 px-4 text-emerald-400 font-mono font-bold">Full Access</td>
                 <td className="py-3 px-4 text-hub-text-muted">—</td>
                 <td className="py-3 px-4 text-hub-text-muted">—</td>
                 <td className="py-3 px-4 text-emerald-400 font-mono">Full Access</td>
@@ -311,7 +293,6 @@ function PlansContent() {
               </tr>
               <tr>
                 <td className="py-3 px-4 font-semibold text-white">Turnkey Downloadable Starter Kits</td>
-                <td className="py-3 px-4 text-fuchsia-400 font-mono font-bold">Instant ZIP Downloads</td>
                 <td className="py-3 px-4 text-hub-text-muted">—</td>
                 <td className="py-3 px-4 text-hub-text-muted">—</td>
                 <td className="py-3 px-4 text-hub-text-muted">—</td>

@@ -2,11 +2,20 @@ const { DatabaseSync } = require('node:sqlite');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 
+const adminEmail = process.env.ADMIN_INITIAL_EMAIL || 'joshkigs8@gmail.com';
+const password = process.env.ADMIN_INITIAL_PASSWORD || process.argv[2];
+
+if (!password) {
+  console.error("Error: Admin password must be provided via ADMIN_INITIAL_PASSWORD environment variable or CLI argument.");
+  console.error("Usage: ADMIN_INITIAL_PASSWORD=<secure_password> node scripts/set-admin.js");
+  process.exit(1);
+}
+
 const dbPath = path.resolve(__dirname, '../codevanta.sqlite');
 const db = new DatabaseSync(dbPath);
 
-const hash = bcrypt.hashSync('Josh3940.', 10);
-const res = db.prepare("UPDATE profiles SET email = 'joshkigs8@gmail.com', password_hash = ?, full_name = 'Josh' WHERE role = 'admin' OR id = '00000000-0000-4000-a000-000000000001'").run(hash);
+const hash = bcrypt.hashSync(password, 10);
+const res = db.prepare("UPDATE profiles SET email = ?, password_hash = ?, full_name = 'Josh' WHERE role = 'admin' OR id = '00000000-0000-4000-a000-000000000001'").run(adminEmail, hash);
 
 console.log('Updated admin rows:', res.changes);
 console.log('Current profiles in SQLite:');

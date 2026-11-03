@@ -2,6 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
+import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import { initPhase2SchemaAndData } from "./seeds";
 import type {
@@ -151,43 +152,7 @@ export function getDb(): DatabaseSync {
   `);
   seedInitialData(dbInstance);
   initPhase2SchemaAndData(dbInstance);
-
-  try {
-    const existingVvip = dbInstance.prepare("SELECT id FROM membership_plans WHERE slug = 'vvip'").get();
-    if (!existingVvip) {
-      const nowIso = new Date().toISOString();
-      dbInstance.prepare(`
-        INSERT OR REPLACE INTO membership_plans (
-          id, slug, name, description, price_kes, direct_referral_reward_kes, indirect_referral_reward_kes,
-          billing_cycle, is_active, entitlements, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        "plan-vvip-2",
-        "vvip",
-        "VVIP Tier (Live Test)",
-        "Live M-Pesa 2 Bob verification package. Full turnkey access to complete developer blueprints, downloadable starter kits, and priority perks.",
-        2,
-        1,
-        0,
-        "lifetime",
-        1,
-        JSON.stringify({
-          can_access_basic_directory: true,
-          can_use_advanced_search: true,
-          can_access_curated_collections: true,
-          can_access_learning_paths: true,
-          can_access_original_blueprints: true,
-          can_download_starter_kits: true,
-          can_access_early_releases: true,
-          max_bookmarks: 999,
-        }),
-        nowIso,
-        nowIso
-      );
-    }
-  } catch {
-    // ignore
-  }
+  dbInstance.prepare("DELETE FROM membership_plans WHERE slug = 'vvip' OR id = 'plan-vvip-2'").run();
 
   try {
     const adminUser = dbInstance.prepare("SELECT id FROM profiles WHERE role = 'admin' OR email = 'joshkigs8@gmail.com'").get() as { id: string } | undefined;
@@ -1962,7 +1927,10 @@ function seedInitialData(db: DatabaseSync) {
   );
 
   // 2. Default Administrator Account
-  const adminPasswordHash = bcrypt.hashSync("Josh3940.", 10);
+  const initialAdminPassword = process.env.ADMIN_INITIAL_PASSWORD;
+  const adminPasswordHash = initialAdminPassword
+    ? bcrypt.hashSync(initialAdminPassword, 10)
+    : bcrypt.hashSync(crypto.randomUUID() + "-locked-admin-pwd", 12);
 
   const insertProfile = db.prepare(`
     INSERT INTO profiles (id, email, password_hash, full_name, avatar_url, role, phone_number, country, created_at, updated_at)
@@ -2092,30 +2060,6 @@ function seedInitialData(db: DatabaseSync) {
       can_download_starter_kits: true,
       can_access_early_releases: true,
       max_bookmarks: 250,
-    }),
-    now,
-    now
-  );
-
-  insertPlan.run(
-    "plan-vvip-2",
-    "vvip",
-    "VVIP Tier (Live Test)",
-    "Live M-Pesa 2 Bob verification package. Full turnkey access to complete developer blueprints, downloadable starter kits, and priority perks.",
-    2,
-    1,
-    0,
-    "lifetime",
-    1,
-    JSON.stringify({
-      can_access_basic_directory: true,
-      can_use_advanced_search: true,
-      can_access_curated_collections: true,
-      can_access_learning_paths: true,
-      can_access_original_blueprints: true,
-      can_download_starter_kits: true,
-      can_access_early_releases: true,
-      max_bookmarks: 999,
     }),
     now,
     now

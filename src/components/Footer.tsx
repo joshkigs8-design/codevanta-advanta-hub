@@ -144,11 +144,6 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/admin/login" className="hover:text-white transition-colors font-mono text-[11px] text-hub-text-muted">
-                  Administrative Portal
-                </Link>
-              </li>
-              <li>
                 <a
                   href="https://www.joshkigen.me/"
                   target="_blank"

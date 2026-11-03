@@ -81,10 +81,10 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Check if the user possesses admin privileges via bootstrap email or custom token claims
+    // Check if the user possesses admin privileges via bootstrap verified email or custom token claims
     function isAdmin() {
       return isAuthenticated() && (
-        request.auth.token.email == 'joshkigs8@gmail.com' ||
+        (request.auth.token.email == 'joshkigs8@gmail.com' && request.auth.token.email_verified == true) ||
         request.auth.token.admin == true ||
         request.auth.token.role == 'admin'
       );
@@ -94,8 +94,7 @@ service cloud.firestore {
     function isEmailVerified() {
       return isAuthenticated() && (
         request.auth.token.email_verified == true ||
-        isAdmin() ||
-        request.auth.token.email == 'joshkigs8@gmail.com'
+        isAdmin()
       );
     }
 
@@ -105,7 +104,7 @@ service cloud.firestore {
 
     // 1. Users Collection
     // Read: Owner or Admin only (PII protected; Admin has full list & read access)
-    // Create: Admin or Owner on initial signup; unverified users can bootstrap profile without privileged roles
+    // Create: Admin or Owner on initial signup; unverified users can bootstrap profile without privileged roles/plans/fields
     // Update: Admin has full write access; Owner must be email-verified and cannot escalate role or edit system fields
     // Delete: Admin only
     match /users/{userId} {
@@ -115,14 +114,17 @@ service cloud.firestore {
         isAuthenticated() &&
         isOwner(userId) &&
         request.resource.data.uid == userId &&
-        (!request.resource.data.keys().hasAny(['role', 'planId']) || request.resource.data.role == 'user')
+        (!('role' in request.resource.data) || request.resource.data.role == 'user') &&
+        (!('planId' in request.resource.data) || request.resource.data.planId == 'free') &&
+        (!('paymentStatus' in request.resource.data) || request.resource.data.paymentStatus == 'unpaid') &&
+        !('referralRewards' in request.resource.data)
       );
                     
       allow update: if isAdmin() || (
         isOwner(userId) &&
         isEmailVerified() &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-          'role', 'planId', 'accountStatus', 'paymentStatus', 'referralRewards', 'referredBy', 'createdAt'
+          'uid', 'role', 'planId', 'accountStatus', 'paymentStatus', 'referralRewards', 'referredBy', 'createdAt'
         ])
       );
                         

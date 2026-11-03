@@ -97,17 +97,19 @@ export async function syncUserWithFirestoreAndBackend(
     }
   }
 
-  // Synchronize with backend session cookie
+  // Synchronize with backend session cookie with verified ID Token
   try {
+    const idToken = await user.getIdToken();
     await fetch("/api/auth/firebase-session", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
       body: JSON.stringify({
-        uid: user.uid,
-        email: user.email,
+        idToken,
         displayName: additionalData?.displayName || user.displayName,
         referralCode: additionalData?.referralCode,
-        emailVerified: Boolean(user.emailVerified),
       }),
     });
   } catch (err) {

@@ -6,17 +6,19 @@ import { getReferralCodeForUser } from "@/lib/referral";
 async function syncFirestoreUsersToLocal(db: any) {
   try {
     const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-    if (!apiKey) return;
+    const adminEmail = process.env.ADMIN_SYNC_EMAIL;
+    const adminPassword = process.env.ADMIN_SYNC_PASSWORD;
+    if (!apiKey || !adminEmail || !adminPassword) return;
 
-    // Use admin credentials to authenticate against Firebase Auth REST API
+    // Use admin credentials configured via environment variables to authenticate against Firebase Auth REST API
     const signInRes = await fetch(
       `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: "joshkigs8@gmail.com",
-          password: "Josh3940.",
+          email: adminEmail,
+          password: adminPassword,
           returnSecureToken: true,
         }),
       }

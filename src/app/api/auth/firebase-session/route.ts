@@ -2,20 +2,49 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { signToken } from "@/lib/auth";
 import { getReferralCodeForUser, attributeReferral } from "@/lib/referral";
+import { verifyFirebaseIdToken } from "@/lib/verifyFirebaseToken";
+import { UserRole } from "@/types";
 import crypto from "node:crypto";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { uid, email, displayName, referralCode, emailVerified } = body;
+    const authHeader = req.headers.get("authorization");
+    let idToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
 
-    if (!email) {
-      return NextResponse.json({ error: "Email is required." }, { status: 400 });
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch {
+      // Empty or invalid body is acceptable if Authorization header is provided
     }
 
-    const cleanEmail = email.toLowerCase().trim();
-    const cleanName = displayName?.trim() || cleanEmail.split("@")[0];
-    const isEmailVerified = Boolean(emailVerified);
+    if (!idToken && body?.idToken && typeof body.idToken === "string") {
+      idToken = body.idToken.trim();
+    }
+
+    // 1. Mandatory requirement: A genuine, valid Firebase ID token must be provided
+    if (!idToken) {
+      return NextResponse.json(
+        { error: "Authentication failed: Missing Firebase ID token. A verified session requires a genuine token." },
+        { status: 401 }
+      );
+    }
+
+    // 2. Cryptographically verify the token claims with Google Identity Toolkit
+    const verifiedUser = await verifyFirebaseIdToken(idToken);
+    if (!verifiedUser) {
+      return NextResponse.json(
+        { error: "Authentication failed: Invalid, expired, or untrusted Firebase ID token." },
+        { status: 401 }
+      );
+    }
+
+    // Verified claims derived SOLELY from the cryptographic token
+    const cleanEmail = verifiedUser.email;
+    const verifiedUid = verifiedUser.uid;
+    const isEmailVerified = verifiedUser.emailVerified;
+    const cleanName = verifiedUser.displayName?.trim() || (typeof body?.displayName === "string" ? body.displayName.trim() : "") || cleanEmail.split("@")[0];
+
     const db = getDb();
 
     // Check if user exists in local database
@@ -24,7 +53,7 @@ export async function POST(req: NextRequest) {
       .get(cleanEmail) as {
         id: string;
         email: string;
-        role: "user" | "member" | "admin";
+        role: UserRole;
         full_name: string;
         email_verified?: number;
       } | undefined;
@@ -34,13 +63,20 @@ export async function POST(req: NextRequest) {
       (process.env.ADMIN_DEFAULT_EMAIL || "").toLowerCase().trim(),
     ].filter(Boolean);
     const isAdminEmail = adminEmails.includes(cleanEmail);
+    // Security Rule: Unverified email addresses can NEVER gain administrative privileges
+    const isEligibleForAdmin = isAdminEmail && isEmailVerified;
     const now = new Date().toISOString();
 
     if (profile) {
-      if (isAdminEmail && profile.role !== "admin") {
-        db.prepare("UPDATE profiles SET role = 'admin' WHERE id = ?").run(profile.id);
+      if (isEligibleForAdmin && profile.role !== "admin") {
+        db.prepare("UPDATE profiles SET role = 'admin', updated_at = ? WHERE id = ?").run(now, profile.id);
         profile.role = "admin";
+      } else if (!isEligibleForAdmin && profile.role === "admin" && isAdminEmail) {
+        // Demote if admin email is unverified
+        db.prepare("UPDATE profiles SET role = 'user', updated_at = ? WHERE id = ?").run(now, profile.id);
+        profile.role = "user";
       }
+
       if (isEmailVerified && !profile.email_verified) {
         db.prepare("UPDATE profiles SET email_verified = 1, updated_at = ? WHERE id = ?").run(now, profile.id);
         profile.email_verified = 1;
@@ -48,9 +84,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (!profile) {
-      // First-time registration / sign-in
-      const role = isAdminEmail ? "admin" : "user";
-      const id = uid || crypto.randomUUID();
+      // First-time registration / sign-in with verified identity
+      const role: UserRole = isEligibleForAdmin ? "admin" : "user";
+      const id = verifiedUid || crypto.randomUUID();
 
       db.prepare(`
         INSERT OR REPLACE INTO profiles (id, email, password_hash, full_name, avatar_url, role, phone_number, country, email_verified, created_at, updated_at)
@@ -69,7 +105,7 @@ export async function POST(req: NextRequest) {
       getReferralCodeForUser(id);
 
       // Attribute referral code if provided
-      const effectiveRef = referralCode?.trim() || req.cookies.get("cv_ref_code")?.value?.trim();
+      const effectiveRef = (typeof body?.referralCode === "string" ? body.referralCode.trim() : null) || req.cookies.get("cv_ref_code")?.value?.trim();
       if (effectiveRef && role !== "admin") {
         const rawIp = req.headers.get("x-real-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
         const ua = req.headers.get("user-agent") || "unknown";
@@ -79,7 +115,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Sign session token
+    // Sign session token with verified claims
     const token = signToken({
       userId: profile.id,
       email: profile.email,

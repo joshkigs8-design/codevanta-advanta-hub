@@ -35,7 +35,6 @@ interface CurrentUser {
 }
 
 const AVAILABLE_PLANS: Array<{ slug: PlanSlug; name: string; priceKes: number; tag: string }> = [
-  { slug: "vvip", name: "VVIP (2 Bob)", priceKes: 2, tag: "KES 2" },
   { slug: "starter", name: "Starter", priceKes: 70, tag: "KES 70" },
   { slug: "basic", name: "Basic", priceKes: 150, tag: "KES 150" },
   { slug: "pro", name: "Pro", priceKes: 250, tag: "KES 250" },
