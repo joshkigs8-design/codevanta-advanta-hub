@@ -10,6 +10,7 @@ export interface NormalizedSyncUser {
   referredBy?: string | null;
   planSlug?: string | null;
   planName?: string | null;
+  membershipReference?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -51,6 +52,10 @@ export function normalizeUser(doc: any, nowIso: string): NormalizedSyncUser | nu
 
   const planSlug = isRest ? f.planId?.stringValue : (doc.planId || doc.plan_slug);
   const planName = isRest ? f.planName?.stringValue : (doc.planName || doc.plan_name);
+  const rawMembershipRef = isRest
+    ? f.membershipReference?.stringValue
+    : (doc.membershipReference || doc.membership_reference);
+  const membershipReference = rawMembershipRef ? String(rawMembershipRef).trim() : null;
 
   let createdAt = nowIso;
   if (isRest) {
@@ -86,6 +91,7 @@ export function normalizeUser(doc: any, nowIso: string): NormalizedSyncUser | nu
     referredBy: referredBy ? String(referredBy).trim() : null,
     planSlug: planSlug ? String(planSlug).trim() : null,
     planName: planName ? String(planName).trim() : null,
+    membershipReference,
     createdAt,
     updatedAt,
   };
@@ -180,6 +186,7 @@ export function syncUsersToDb(db: any, rawUsers: any[]): number {
         if (plan) {
           const membershipId = `mem-fs-${user.id}`;
           const planName = user.planName || plan.name;
+          const ref = user.membershipReference || "FIRESTORE_SYNC";
           try {
             upsertMembership.run(
               membershipId,
@@ -189,18 +196,66 @@ export function syncUsersToDb(db: any, rawUsers: any[]): number {
               planName,
               user.createdAt,
               null,
-              "FIRESTORE_SYNC",
+              ref,
               user.createdAt,
               user.updatedAt
             );
           } catch {
             // ignore
           }
+
+          // If membership was activated via promo code (PROMO_...), rehydrate promo redemptions & count!
+          if (ref.startsWith("PROMO_")) {
+            const codeStr = ref.replace("PROMO_", "").trim().toUpperCase();
+            try {
+              let promo = db.prepare("SELECT id FROM promo_codes WHERE code = ?").get(codeStr) as { id: string } | undefined;
+              if (!promo) {
+                const newPromoId = `promo_${crypto.randomUUID()}`;
+                db.prepare(`
+                  INSERT INTO promo_codes (id, code, description, plan_slug, max_uses, used_count, is_active, created_by, created_at, updated_at)
+                  VALUES (?, ?, ?, ?, 10, 0, 1, 'system_rehydrate', ?, ?)
+                `).run(newPromoId, codeStr, `Promo Pass (${codeStr})`, user.planSlug, user.createdAt, user.updatedAt);
+                promo = { id: newPromoId };
+              }
+
+              db.prepare(`
+                INSERT INTO promo_code_redemptions (id, promo_code_id, promo_code, user_id, user_email, plan_slug, redeemed_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(promo_code_id, user_id) DO NOTHING
+              `).run(
+                `red-${promo.id}-${user.id}`,
+                promo.id,
+                codeStr,
+                user.id,
+                user.email,
+                user.planSlug,
+                user.createdAt
+              );
+
+              db.prepare(`
+                UPDATE promo_codes
+                SET used_count = (SELECT COUNT(*) FROM promo_code_redemptions WHERE promo_code_id = promo_codes.id)
+                WHERE id = ?
+              `).run(promo.id);
+            } catch (pErr) {
+              console.warn("Failed to rehydrate promo redemption for user:", user.email, pErr);
+            }
+          }
         }
       }
     } catch (e) {
       console.warn("Failed to upsert user into SQLite:", user.email, e);
     }
+  }
+
+  // Ensure all promo codes have their used_count accurately calculated
+  try {
+    db.prepare(`
+      UPDATE promo_codes
+      SET used_count = (SELECT COUNT(*) FROM promo_code_redemptions WHERE promo_code_id = promo_codes.id)
+    `).run();
+  } catch {
+    // ignore
   }
 
   return count;
@@ -252,9 +307,84 @@ export async function fetchAndSyncFirestoreUsers(db: any, idToken?: string): Pro
 }
 
 /**
+ * Fetch promo redemptions from Firestore REST API and upsert them to SQLite.
+ */
+export async function fetchAndSyncFirestorePromoRedemptions(db: any, idToken?: string): Promise<number> {
+  const token = idToken?.trim();
+  if (!token) return 0;
+
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "codevanta-hub";
+  let count = 0;
+  try {
+    const res = await fetch(
+      `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/promo_redemptions?pageSize=100`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    if (!res.ok) return 0;
+    const data = await res.json();
+    if (!data.documents || !Array.isArray(data.documents)) return 0;
+
+    for (const doc of data.documents) {
+      const f = doc.fields || {};
+      const redemptionId = f.id?.stringValue || doc.name?.split("/").pop();
+      const promoCodeStr = (f.promoCode?.stringValue || f.code?.stringValue || "").trim().toUpperCase();
+      const userId = f.userId?.stringValue || f.user_id?.stringValue;
+      const userEmail = f.email?.stringValue || f.userEmail?.stringValue || "";
+      const planSlug = f.planSlug?.stringValue || "vip";
+      const redeemedAt = f.redeemedAt?.timestampValue || f.redeemedAt?.stringValue || doc.createTime || new Date().toISOString();
+
+      if (!promoCodeStr || !userId) continue;
+
+      let promo = db.prepare("SELECT id FROM promo_codes WHERE code = ?").get(promoCodeStr) as { id: string } | undefined;
+      if (!promo) {
+        const newPromoId = `promo_${crypto.randomUUID()}`;
+        db.prepare(`
+          INSERT INTO promo_codes (id, code, description, plan_slug, max_uses, used_count, is_active, created_by, created_at, updated_at)
+          VALUES (?, ?, ?, ?, 10, 0, 1, 'system_rehydrate', ?, ?)
+        `).run(newPromoId, promoCodeStr, `Promo Pass (${promoCodeStr})`, planSlug, redeemedAt, redeemedAt);
+        promo = { id: newPromoId };
+      }
+
+      try {
+        db.prepare(`
+          INSERT INTO promo_code_redemptions (id, promo_code_id, promo_code, user_id, user_email, plan_slug, redeemed_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(promo_code_id, user_id) DO NOTHING
+        `).run(
+          redemptionId,
+          promo.id,
+          promoCodeStr,
+          userId,
+          userEmail,
+          planSlug,
+          redeemedAt
+        );
+        count++;
+      } catch {
+        // ignore duplicate
+      }
+    }
+
+    db.prepare(`
+      UPDATE promo_codes
+      SET used_count = (SELECT COUNT(*) FROM promo_code_redemptions WHERE promo_code_id = promo_codes.id)
+    `).run();
+
+    return count;
+  } catch (err) {
+    console.warn("Could not fetch and sync Firestore promo redemptions:", err);
+    return count;
+  }
+}
+
+/**
  * Main sync entry point for admin API routes.
  */
 export async function syncFirestoreUsersToLocal(db: any, idToken?: string): Promise<number> {
-  return fetchAndSyncFirestoreUsers(db, idToken);
+  const usersSynced = await fetchAndSyncFirestoreUsers(db, idToken);
+  await fetchAndSyncFirestorePromoRedemptions(db, idToken);
+  return usersSynced;
 }
 

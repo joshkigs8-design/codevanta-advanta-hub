@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { logAdminAction } from "@/lib/audit";
 import { verifyFirebaseIdToken } from "@/lib/verifyFirebaseToken";
+import { syncFirestoreUsersToLocal } from "@/lib/firestoreSync";
 import { PromoCode, PromoCodeRedemption } from "@/types";
 import crypto from "node:crypto";
 
@@ -38,6 +39,22 @@ export async function GET(req: NextRequest) {
 
   const db = getDb();
   try {
+    const authHeader = req.headers.get("authorization");
+    const idToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined;
+
+    // Proactively rehydrate Firestore users and promo redemptions into SQLite
+    await syncFirestoreUsersToLocal(db, idToken);
+
+    // Synchronize used_count to real redemption records
+    try {
+      db.prepare(`
+        UPDATE promo_codes
+        SET used_count = (SELECT COUNT(*) FROM promo_code_redemptions WHERE promo_code_id = promo_codes.id)
+      `).run();
+    } catch {
+      // ignore
+    }
+
     const codes = db
       .prepare("SELECT * FROM promo_codes ORDER BY created_at DESC")
       .all() as PromoCode[];

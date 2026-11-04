@@ -254,6 +254,26 @@ export async function POST(req: NextRequest) {
             },
           }),
         });
+
+        // Record in Firestore promo_redemptions collection (allowed by firestore.rules for authenticated owner)
+        const redemptionDocUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/promo_redemptions?documentId=${redemptionId}`;
+        await fetch(redemptionDocUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${bearerToken}`,
+          },
+          body: JSON.stringify({
+            fields: {
+              id: { stringValue: redemptionId },
+              userId: { stringValue: verifiedUid },
+              email: { stringValue: user.email },
+              promoCode: { stringValue: promo.code },
+              planSlug: { stringValue: promo.plan_slug },
+              redeemedAt: { timestampValue: nowIso },
+            },
+          }),
+        });
       } catch (err) {
         console.warn("Firestore promo REST sync notice:", err);
       }
@@ -278,6 +298,16 @@ export async function POST(req: NextRequest) {
           },
           { merge: true }
         );
+
+        const redRef = doc(firestore, "promo_redemptions", redemptionId);
+        await setDoc(redRef, {
+          id: redemptionId,
+          userId: verifiedUid,
+          email: user.email,
+          promoCode: promo.code,
+          planSlug: promo.plan_slug,
+          redeemedAt: serverTimestamp(),
+        });
       } catch (fsErr) {
         console.warn("Firestore promo sync notice:", fsErr);
       }

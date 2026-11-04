@@ -272,5 +272,37 @@ test("Firestore User Sync to SQLite Engine", async (t) => {
     db.prepare("DELETE FROM memberships WHERE user_id = ?").run(testUserId);
     db.prepare("DELETE FROM profiles WHERE id = ?").run(testUserId);
   });
+
+  await t.test("9. Rehydrates promo code redemptions and increments used_count from Firestore sync", () => {
+    const promoTestUser = {
+      uid: "promo-synced-user-1",
+      email: "promouser@example.com",
+      displayName: "Promo Claimer",
+      role: "member",
+      planId: "vip",
+      planName: "VIP Architecture",
+      membershipReference: "PROMO_LAUNCHDAY",
+    };
+
+    // Ensure promo code exists
+    const launchPromo = db.prepare("SELECT * FROM promo_codes WHERE code = 'LAUNCHDAY'").get() as any;
+    assert.ok(launchPromo, "LAUNCHDAY promo must exist");
+    const initialUsedCount = launchPromo.used_count;
+
+    syncUsersToDb(db, [promoTestUser]);
+
+    const updatedPromo = db.prepare("SELECT * FROM promo_codes WHERE code = 'LAUNCHDAY'").get() as any;
+    assert.strictEqual(updatedPromo.used_count, initialUsedCount + 1, "Used count must increase by 1 from synced claim");
+
+    const redemption = db.prepare("SELECT * FROM promo_code_redemptions WHERE user_id = 'promo-synced-user-1'").get() as any;
+    assert.ok(redemption, "Redemption record must be persisted in SQLite");
+    assert.strictEqual(redemption.promo_code, "LAUNCHDAY");
+
+    // Clean up
+    db.prepare("DELETE FROM promo_code_redemptions WHERE user_id = 'promo-synced-user-1'").run();
+    db.prepare("DELETE FROM memberships WHERE user_id = 'promo-synced-user-1'").run();
+    db.prepare("DELETE FROM profiles WHERE id = 'promo-synced-user-1'").run();
+    db.prepare("UPDATE promo_codes SET used_count = ? WHERE code = 'LAUNCHDAY'").run(initialUsedCount);
+  });
 });
 
