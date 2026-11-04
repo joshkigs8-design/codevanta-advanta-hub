@@ -4,7 +4,6 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Chatbot from "@/components/Chatbot";
 import CookieConsent from "@/components/CookieConsent";
-import LaunchCountdownGate from "@/components/LaunchCountdownGate";
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.codevanta.online";
 
@@ -182,7 +181,6 @@ export default function RootLayout({
         <Footer />
         <Chatbot />
         <CookieConsent />
-        <LaunchCountdownGate />
       </body>
     </html>
   );

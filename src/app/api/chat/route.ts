@@ -56,16 +56,18 @@ function getLocalFallbackResponse(query: string): string {
     );
   }
 
-  if (q.includes("downloader") || q.includes("code") || q.includes("android tv") || q.includes("firestick") || q.includes("apk")) {
+  if (q.includes("downloader") || q.includes("code") || q.includes("android tv") || q.includes("firestick") || q.includes("apk") || q.includes("vlc") || q.includes("kodi") || q.includes("smarttube")) {
     return (
-      "Here are our verified **AFTVnews Downloader short codes** for Android TV & Firestick sideloading:\n\n" +
-      "1. `7987405` — **Reezn APK (v2)** (Streaming & Media Player)\n" +
-      "2. `6985536` — **SK TECH Store** (App Store & Utility Suite)\n" +
-      "3. `1109875` — **Nuvio TV Player** (Clean Open Source Player)\n" +
-      "4. `250931` — **TROYPOINT Toolbox** (The Fire TV Setup Standard)\n" +
-      "5. `990781` — **DownloaderCodes Mega Toolbox** (Launchers & Tools)\n" +
-      "6. `285544` — **Nebula Manager** (Android TV Channel & App Manager)\n\n" +
-      "You can browse the full catalog with direct APK mirrors at [/downloader-codes](/downloader-codes).\n\n" +
+      "Here are verified **AFTVnews Downloader short codes** from our catalog of 60+ TV tools:\n\n" +
+      "1. `6505538` — **VLC Media Player for Android TV** (Plays M3U IPTV, network streams & all video formats)\n" +
+      "2. `8628413` — **Kodi 21.3 Omega** (Home Theater & Add-on Engine)\n" +
+      "3. `28544` — **SmartTube Stable** (Ad-free YouTube 4K 60FPS for TV)\n" +
+      "4. `272483` — **TiviMate IPTV Player** (Premier EPG Guide & TV Player)\n" +
+      "5. `250931` — **TROYPOINT Toolbox** (Master Fire TV Setup Directory)\n" +
+      "6. `28907` — **Projectivy Launcher** (Ad-free custom TV launcher)\n" +
+      "7. `44863` — **X-plore File Manager** (Dual-pane file & cloud transfer)\n" +
+      "8. `51408` — **Send Files to TV** (Wireless APK/media transfer)\n\n" +
+      "Browse all 60+ verified codes with 1-click copy & direct mirrors at [/downloader-codes](/downloader-codes).\n\n" +
       "📢 **Never miss a code drop:** Join our official [WhatsApp Channel](https://whatsapp.com/channel/0029Vb84p6QKGGGNAp8VIB2g)!"
     );
   }
