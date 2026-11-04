@@ -90,6 +90,12 @@ export default function Footer() {
             <h4 className="text-xs font-mono uppercase tracking-wider text-hub-gold font-bold">Tools &amp; Streaming</h4>
             <ul className="space-y-2.5 text-xs">
               <li>
+                <Link href="/tools" className="hover:text-white transition-colors flex items-center gap-1.5 font-bold text-hub-gold">
+                  <span>Smart Utilities (QR &amp; M-Pesa)</span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-950 text-emerald-300 font-mono">Free</span>
+                </Link>
+              </li>
+              <li>
                 <Link href="/downloader-codes" className="hover:text-white transition-colors flex items-center gap-1.5">
                   <span>Downloader Short Codes</span>
                   <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-950 text-amber-300 font-mono">Popular</span>

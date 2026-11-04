@@ -96,6 +96,8 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
         return <Layers className="w-4 h-4 text-amber-400 shrink-0" />;
       case "student_benefit":
         return <GraduationCap className="w-4 h-4 text-sky-400 shrink-0" />;
+      case "tool":
+        return <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />;
       default:
         return <Search className="w-4 h-4 text-hub-text-muted shrink-0" />;
     }
@@ -115,6 +117,8 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
         return "Project Lab";
       case "student_benefit":
         return "Student Perk";
+      case "tool":
+        return "Free Smart Utility";
       default:
         return "Resource";
     }

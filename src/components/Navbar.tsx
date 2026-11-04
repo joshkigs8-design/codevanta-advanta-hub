@@ -164,6 +164,18 @@ export default function Navbar() {
   // Secondary tools housed in the "More" dropdown
   const secondaryLinks = [
     {
+      href: "/tools",
+      label: "Smart Utilities",
+      description: "Free QR generator, M-Pesa calculator & image compressor",
+      icon: Sparkles,
+    },
+    {
+      href: "/downloader-codes",
+      label: "Downloader Codes",
+      description: "Android TV short codes & sideloads",
+      icon: Tv,
+    },
+    {
       href: "/troubleshooting",
       label: "Fixes & Debugging",
       description: "Solutions for common developer errors",
@@ -174,12 +186,6 @@ export default function Navbar() {
       label: "Student Pack",
       description: "Free developer tools for learners",
       icon: GraduationCap,
-    },
-    {
-      href: "/downloader-codes",
-      label: "Downloader Codes",
-      description: "Android TV short codes & sideloads",
-      icon: Tv,
     },
   ];
 

@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export interface SearchResultItem {
   id: string;
-  type: "tutorial" | "resource" | "learning_path" | "troubleshooting" | "project" | "student_benefit";
+  type: "tutorial" | "resource" | "learning_path" | "troubleshooting" | "project" | "student_benefit" | "tool";
   title: string;
   description: string;
   url: string;
@@ -174,6 +174,60 @@ export async function GET(req: NextRequest) {
       }
     } catch {
       // ignore
+    }
+
+    // 7. Search Everyday Utilities & Downloader Codes
+    const lowerQ = q.toLowerCase();
+    const staticTools: SearchResultItem[] = [
+      {
+        id: "tool-qr-generator",
+        type: "tool",
+        title: "Smart QR Code Generator",
+        description: "Generate instant QR codes for URLs, Wi-Fi networks, WhatsApp chat, and vCards.",
+        url: "/tools?tab=qr",
+        badge: "Free Utility",
+        metadata: "QR Code",
+      },
+      {
+        id: "tool-mpesa-calculator",
+        type: "tool",
+        title: "Kenyan M-Pesa Tariff Calculator (2024–2026)",
+        description: "Calculate send fees, agent withdrawal, and 'Tuma na ya kutoa' with official Safaricom rates.",
+        url: "/tools?tab=mpesa",
+        badge: "Free Utility",
+        metadata: "M-Pesa Tariffs",
+      },
+      {
+        id: "tool-image-compressor",
+        type: "tool",
+        title: "In-Browser Image Compressor & Converter",
+        description: "Compress and resize images up to 90% in WebP/JPG/PNG with 100% client-side privacy.",
+        url: "/tools?tab=compress",
+        badge: "Free Utility",
+        metadata: "Image Optimizer",
+      },
+      {
+        id: "tool-downloader-codes",
+        type: "tool",
+        title: "Android TV & Firestick Downloader Codes",
+        description: "60 verified short codes for VLC, Kodi, SmartTube, TROYPOINT toolbox, and streaming APKs.",
+        url: "/downloader-codes",
+        badge: "Streaming Tool",
+        metadata: "Downloader Codes",
+      },
+    ];
+
+    for (const tool of staticTools) {
+      if (
+        lowerQ.includes("tool") ||
+        lowerQ.includes("util") ||
+        (tool.id === "tool-qr-generator" && (lowerQ.includes("qr") || lowerQ.includes("wifi") || lowerQ.includes("code"))) ||
+        (tool.id === "tool-mpesa-calculator" && (lowerQ.includes("mpesa") || lowerQ.includes("m-pesa") || lowerQ.includes("calc") || lowerQ.includes("tuma") || lowerQ.includes("tariff") || lowerQ.includes("safari") || lowerQ.includes("charge"))) ||
+        (tool.id === "tool-image-compressor" && (lowerQ.includes("image") || lowerQ.includes("compress") || lowerQ.includes("photo") || lowerQ.includes("webp") || lowerQ.includes("resize"))) ||
+        (tool.id === "tool-downloader-codes" && (lowerQ.includes("down") || lowerQ.includes("vlc") || lowerQ.includes("kodi") || lowerQ.includes("fire") || lowerQ.includes("apk") || lowerQ.includes("smarttube")))
+      ) {
+        results.unshift(tool);
+      }
     }
 
     return NextResponse.json({ results, total: results.length });
