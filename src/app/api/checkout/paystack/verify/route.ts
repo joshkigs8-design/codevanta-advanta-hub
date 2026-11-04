@@ -23,6 +23,58 @@ export async function GET(req: NextRequest) {
       .prepare("SELECT * FROM payments WHERE provider_reference = ? OR id = ?")
       .get(reference, reference) as Payment | undefined;
 
+    const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
+
+    // Resilient fallback: If transaction is missing in local SQLite (e.g. serverless container cold start),
+    // query Paystack API directly and reconstruct the record in local database.
+    if (!payment && paystackSecret && !paystackSecret.includes("mock_")) {
+      try {
+        const verifyRes = await fetch(
+          `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${paystackSecret}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+        const verifyData = await verifyRes.json();
+        if (verifyRes.ok && verifyData.status && verifyData.data) {
+          const meta = verifyData.data.metadata || {};
+          const planSlug = meta.planSlug || "vip";
+          const matchedPlan = db.prepare("SELECT * FROM membership_plans WHERE slug = ?").get(planSlug) as any;
+          if (matchedPlan) {
+            const nowIso = new Date().toISOString();
+            const recoveredPaymentId = meta.paymentId || `pay_ps_${Date.now()}`;
+            db.prepare(`
+              INSERT OR IGNORE INTO payments (
+                id, user_id, plan_id, amount_kes, currency, provider, provider_reference,
+                checkout_request_id, merchant_request_id, phone_number, status, idempotency_key, created_at, updated_at
+              ) VALUES (?, ?, ?, ?, 'KES', 'paystack', ?, ?, ?, ?, 'pending', ?, ?, ?)
+            `).run(
+              recoveredPaymentId,
+              meta.userId || user.id,
+              matchedPlan.id,
+              matchedPlan.price_kes,
+              reference,
+              `ws_${reference}`,
+              `mr_${reference}`,
+              verifyData.data.customer?.phone || null,
+              `IDEMP-${reference}`,
+              nowIso,
+              nowIso
+            );
+            payment = db
+              .prepare("SELECT * FROM payments WHERE provider_reference = ? OR id = ?")
+              .get(reference, reference) as Payment | undefined;
+          }
+        }
+      } catch (err) {
+        console.warn("Could not recover payment from Paystack API:", err);
+      }
+    }
+
     if (!payment) {
       return NextResponse.json({ error: "Payment transaction could not be found." }, { status: 404 });
     }
@@ -58,8 +110,6 @@ export async function GET(req: NextRequest) {
     }
 
     // 3. Query Paystack Transaction Verification API
-    const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
-
     if (
       paystackSecret &&
       !paystackSecret.includes("mock_") &&

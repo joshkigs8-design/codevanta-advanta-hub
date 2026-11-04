@@ -2,14 +2,37 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { logAdminAction } from "@/lib/audit";
+import { verifyFirebaseIdToken } from "@/lib/verifyFirebaseToken";
 import { PromoCode, PromoCodeRedemption } from "@/types";
 import crypto from "node:crypto";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+async function checkAdminAuth(req: NextRequest): Promise<{ isAdmin: boolean; adminUserId: string }> {
   const user = getCurrentUser();
-  if (!user || user.role !== "admin") {
+  if (user && user.role === "admin") {
+    return { isAdmin: true, adminUserId: user.id };
+  }
+
+  const authHeader = req.headers.get("authorization");
+  const idToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined;
+  if (idToken) {
+    try {
+      const verified = await verifyFirebaseIdToken(idToken);
+      if (verified && (verified.admin === true || verified.role === "admin" || (verified.email === "joshkigs8@gmail.com" && verified.emailVerified))) {
+        return { isAdmin: true, adminUserId: verified.uid };
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return { isAdmin: false, adminUserId: "" };
+}
+
+export async function GET(req: NextRequest) {
+  const { isAdmin } = await checkAdminAuth(req);
+  if (!isAdmin) {
     return NextResponse.json({ error: "Unauthorized. Admin privileges required." }, { status: 403 });
   }
 
@@ -45,8 +68,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const user = getCurrentUser();
-  if (!user || user.role !== "admin") {
+  const { isAdmin, adminUserId } = await checkAdminAuth(req);
+  if (!isAdmin) {
     return NextResponse.json({ error: "Unauthorized. Admin privileges required." }, { status: 403 });
   }
 
@@ -63,7 +86,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Promo code must be at least 3 characters long." }, { status: 400 });
     }
 
-    if (!["basic", "pro", "vip"].includes(plan_slug)) {
+    if (!["starter", "basic", "pro", "vip"].includes(plan_slug)) {
       plan_slug = "vip";
     }
 
@@ -90,13 +113,13 @@ export async function POST(req: NextRequest) {
       plan_slug,
       maxUsesInt,
       expires_at || null,
-      user.id,
+      adminUserId || "admin",
       now,
       now
     );
 
     logAdminAction(
-      user.id,
+      adminUserId || "admin",
       "create_promocode",
       "promo_code",
       id,

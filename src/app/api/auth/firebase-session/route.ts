@@ -103,8 +103,21 @@ export async function POST(req: NextRequest) {
         email_verified: isEmailVerified ? 1 : 0,
       };
 
-      // Generate user referral code
-      getReferralCodeForUser(id);
+      // Sync or generate user referral code
+      const userRefCode = typeof body?.userReferralCode === "string" ? body.userReferralCode.trim().toUpperCase() : null;
+      if (userRefCode) {
+        try {
+          db.prepare(`
+            INSERT INTO referral_codes (id, user_id, code, clicks, created_at)
+            VALUES (?, ?, ?, 0, ?)
+            ON CONFLICT(user_id) DO UPDATE SET code = excluded.code
+          `).run(`ref-${id}`, id, userRefCode, now);
+        } catch {
+          // ignore
+        }
+      } else {
+        getReferralCodeForUser(id);
+      }
 
       // Attribute referral code if provided
       const effectiveRef = (typeof body?.referralCode === "string" ? body.referralCode.trim() : null) || req.cookies.get("cv_ref_code")?.value?.trim();
@@ -114,6 +127,20 @@ export async function POST(req: NextRequest) {
         const ipHash = crypto.createHash("sha256").update(rawIp).digest("hex");
         const uaHash = crypto.createHash("sha256").update(ua).digest("hex");
         attributeReferral(effectiveRef, id, ipHash, uaHash);
+      }
+    } else {
+      // Existing profile: ensure permanent referral code is rehydrated into SQLite
+      const userRefCode = typeof body?.userReferralCode === "string" ? body.userReferralCode.trim().toUpperCase() : null;
+      if (userRefCode) {
+        try {
+          db.prepare(`
+            INSERT INTO referral_codes (id, user_id, code, clicks, created_at)
+            VALUES (?, ?, ?, 0, ?)
+            ON CONFLICT(user_id) DO UPDATE SET code = excluded.code
+          `).run(`ref-${profile.id}`, profile.id, userRefCode, now);
+        } catch {
+          // ignore
+        }
       }
     }
 

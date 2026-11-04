@@ -1,13 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
+import { syncFirestoreUsersToLocal } from "@/lib/firestoreSync";
+import { verifyFirebaseIdToken } from "@/lib/verifyFirebaseToken";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = getSession();
-    if (!session || session.role !== "admin") {
+    let isAdmin = false;
+    const user = getCurrentUser();
+    if (user?.role === "admin") {
+      isAdmin = true;
+    }
+
+    const authHeader = req.headers.get("authorization");
+    const idToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined;
+
+    if (!isAdmin && idToken) {
+      try {
+        const verified = await verifyFirebaseIdToken(idToken);
+        if (verified && (verified.admin === true || verified.role === "admin" || (verified.email === "joshkigs8@gmail.com" && verified.emailVerified))) {
+          isAdmin = true;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    if (!isAdmin) {
       return NextResponse.json({ error: "Forbidden: Admin privileges required" }, { status: 403 });
     }
+
+    const db = getDb();
+    await syncFirestoreUsersToLocal(db, idToken);
 
     const { searchParams } = new URL(req.url);
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
@@ -16,7 +40,6 @@ export async function GET(req: NextRequest) {
     const provider = searchParams.get("provider") || "";
     const search = (searchParams.get("search") || "").trim();
 
-    const db = getDb();
     const conditions: string[] = [];
     const params: unknown[] = [];
 

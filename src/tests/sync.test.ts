@@ -102,5 +102,63 @@ test("Firestore User Sync to SQLite Engine", async (t) => {
     // Clean up
     db.prepare("DELETE FROM profiles WHERE email IN ('sync1@example.com', 'sync2@example.com')").run();
   });
+
+  await t.test("5. Synchronizes referredBy attribution from Firestore user into SQLite", () => {
+    const referrerUser = {
+      uid: "sync-referrer-1",
+      email: "referrer@example.com",
+      displayName: "Referrer Person",
+      role: "member",
+      referralCode: "CVREF1",
+    };
+    const referredUser = {
+      uid: "sync-referred-2",
+      email: "referred@example.com",
+      displayName: "Referred Friend",
+      role: "user",
+      referredBy: "CVREF1",
+      referralCode: "CVFRIEND2",
+    };
+
+    syncUsersToDb(db, [referrerUser, referredUser]);
+
+    const refCode = db.prepare("SELECT * FROM referral_codes WHERE code = 'CVREF1'").get() as any;
+    assert.ok(refCode, "Referrer code CVREF1 must exist in referral_codes");
+    assert.strictEqual(refCode.user_id, "sync-referrer-1");
+
+    const attr = db.prepare("SELECT * FROM referral_attributions WHERE referred_user_id = 'sync-referred-2'").get() as any;
+    assert.ok(attr, "Attribution record must exist in referral_attributions");
+    assert.strictEqual(attr.referrer_user_id, "sync-referrer-1");
+    assert.strictEqual(attr.referral_code, "CVREF1");
+
+    // Clean up
+    db.prepare("DELETE FROM referral_attributions WHERE referred_user_id = 'sync-referred-2'").run();
+    db.prepare("DELETE FROM referral_codes WHERE user_id IN ('sync-referrer-1', 'sync-referred-2')").run();
+    db.prepare("DELETE FROM profiles WHERE id IN ('sync-referrer-1', 'sync-referred-2')").run();
+  });
+
+  await t.test("6. Records referral clicks accurately and updates counter", async () => {
+    const { recordReferralClick, getReferralCodeForUser } = await import("../lib/referral");
+    const testUserId = "click-test-user-1";
+    const now = new Date().toISOString();
+    db.prepare(`
+      INSERT OR REPLACE INTO profiles (id, email, password_hash, full_name, role, country, email_verified, created_at, updated_at)
+      VALUES (?, 'clicktest@example.com', 'HASH', 'Click Tester', 'user', 'KE', 1, ?, ?)
+    `).run(testUserId, now, now);
+
+    const ref = getReferralCodeForUser(testUserId, "CVCLICK99");
+    assert.ok(ref);
+    assert.strictEqual(ref.code, "CVCLICK99");
+
+    const recorded = recordReferralClick("CVCLICK99");
+    assert.ok(recorded);
+
+    const updated = db.prepare("SELECT clicks FROM referral_codes WHERE code = 'CVCLICK99'").get() as any;
+    assert.strictEqual(updated.clicks, 1);
+
+    // Clean up
+    db.prepare("DELETE FROM referral_codes WHERE code = 'CVCLICK99'").run();
+    db.prepare("DELETE FROM profiles WHERE id = ?").run(testUserId);
+  });
 });
 

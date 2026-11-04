@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { auth } from "@/lib/firebase";
 
 interface ReferralCodeItem {
   id: string;
@@ -56,7 +57,9 @@ export default function AdminReferralsPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/referrals?search=${encodeURIComponent(search)}`);
+      const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch(`/api/admin/referrals?search=${encodeURIComponent(search)}`, { headers });
       const data = await res.json();
       setReferrals(data.referrals || []);
       setAttributions(data.attributions || []);

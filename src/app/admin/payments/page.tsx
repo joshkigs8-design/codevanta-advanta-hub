@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { auth } from "@/lib/firebase";
 import {
   Copy,
   Check,
@@ -83,8 +84,10 @@ export default function AdminPaymentsPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       const q = new URLSearchParams({ search, status: statusFilter });
-      const res = await fetch(`/api/admin/payments?${q.toString()}`);
+      const res = await fetch(`/api/admin/payments?${q.toString()}`, { headers });
       const data = await res.json();
       setPayments(data.payments || []);
       setWithdrawals(data.withdrawals || []);

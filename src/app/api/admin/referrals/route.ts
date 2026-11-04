@@ -1,20 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
+import { syncFirestoreUsersToLocal } from "@/lib/firestoreSync";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = getSession();
-    if (!session || session.role !== "admin") {
+    const user = getCurrentUser();
+    if (!user || user.role !== "admin") {
       return NextResponse.json({ error: "Forbidden: Admin privileges required" }, { status: 403 });
     }
+
+    const authHeader = req.headers.get("authorization");
+    const idToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined;
+    const db = getDb();
+
+    // Proactively sync all Firestore users into SQLite so all referral codes and attributions are populated
+    await syncFirestoreUsersToLocal(db, idToken);
 
     const { searchParams } = new URL(req.url);
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "20", 10)));
     const search = (searchParams.get("search") || "").trim();
 
-    const db = getDb();
     const conditions: string[] = [];
     const params: unknown[] = [];
 

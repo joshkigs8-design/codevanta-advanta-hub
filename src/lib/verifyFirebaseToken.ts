@@ -9,6 +9,8 @@ export interface VerifiedFirebaseUser {
   email: string;
   emailVerified: boolean;
   displayName?: string;
+  role?: string;
+  admin?: boolean;
 }
 
 export async function verifyFirebaseIdToken(idToken: string): Promise<VerifiedFirebaseUser | null> {

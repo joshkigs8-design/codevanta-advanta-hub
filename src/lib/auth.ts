@@ -110,26 +110,55 @@ export function getCurrentUser(): Profile | null {
     (process.env.ADMIN_DEFAULT_EMAIL || "").toLowerCase().trim(),
   ].filter(Boolean);
 
-  if (!row && session.email && adminEmails.includes(session.email.toLowerCase().trim()) && session.emailVerified) {
+  if (!row && session.userId && session.email) {
     const now = new Date().toISOString();
-    const id = session.userId || "00000000-0000-4000-a000-000000000001";
-    db.prepare(`
-      INSERT INTO profiles (id, email, password_hash, full_name, role, country, email_verified, created_at, updated_at)
-      VALUES (?, ?, 'ADMIN_SESSION', ?, 'admin', 'KE', 1, ?, ?)
-      ON CONFLICT(email) DO UPDATE SET
-        password_hash = excluded.password_hash,
-        full_name = excluded.full_name,
-        role = 'admin',
-        email_verified = 1,
-        updated_at = excluded.updated_at
-    `).run(id, session.email.toLowerCase().trim(), session.fullName || "Admin", now, now);
+    const isAdmin = adminEmails.includes(session.email.toLowerCase().trim()) && session.emailVerified;
+    const effectiveRole: UserRole = isAdmin ? "admin" : (session.role || "user");
+    try {
+      db.prepare(`
+        INSERT INTO profiles (id, email, password_hash, full_name, role, country, email_verified, created_at, updated_at)
+        VALUES (?, ?, 'SESSION_VERIFIED', ?, ?, 'KE', ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          email = excluded.email,
+          full_name = excluded.full_name,
+          role = CASE WHEN profiles.role = 'admin' THEN 'admin' ELSE excluded.role END,
+          email_verified = CASE WHEN profiles.email_verified = 1 THEN 1 ELSE excluded.email_verified END,
+          updated_at = excluded.updated_at
+      `).run(
+        session.userId,
+        session.email.toLowerCase().trim(),
+        session.fullName || session.email.split("@")[0] || "User",
+        effectiveRole,
+        session.emailVerified ? 1 : 0,
+        now,
+        now
+      );
 
-    row = db
-      .prepare("SELECT id, email, full_name, avatar_url, role, phone_number, country, email_verified, created_at, updated_at FROM profiles WHERE id = ?")
-      .get(id) as any;
+      row = db
+        .prepare("SELECT id, email, full_name, avatar_url, role, phone_number, country, email_verified, created_at, updated_at FROM profiles WHERE id = ?")
+        .get(session.userId) as any;
+    } catch {
+      // ignore
+    }
   }
 
-  if (!row) return null;
+  if (!row) {
+    if (session.userId && session.email) {
+      return {
+        id: session.userId,
+        email: session.email.toLowerCase().trim(),
+        full_name: session.fullName || session.email.split("@")[0] || "User",
+        avatar_url: undefined,
+        role: session.role || "user",
+        phone_number: undefined,
+        country: "KE",
+        email_verified: Boolean(session.emailVerified),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+    }
+    return null;
+  }
 
   return {
     ...row,

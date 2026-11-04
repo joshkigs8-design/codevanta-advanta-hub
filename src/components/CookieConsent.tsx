@@ -8,17 +8,15 @@ export default function CookieConsent() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    // Always persist referral code from URL immediately on any page load
+    persistReferralParam();
+
     // Check if consent has already been recorded
     const consent = localStorage.getItem("cv_cookie_consent");
     if (!consent) {
       // Small entrance delay for smooth UX
       const timer = setTimeout(() => setIsVisible(true), 600);
       return () => clearTimeout(timer);
-    }
-
-    // If accepted, check for pending referral parameter in URL
-    if (consent === "accepted") {
-      persistReferralParam();
     }
   }, []);
 
@@ -30,6 +28,13 @@ export default function CookieConsent() {
         const cleanRef = ref.toUpperCase().trim();
         document.cookie = `cv_ref_code=${cleanRef}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
         localStorage.setItem("cv_ref_code", cleanRef);
+
+        // Record click if not yet tracked in this browsing session
+        const trackedKey = `cv_tracked_click_${cleanRef}`;
+        if (!sessionStorage.getItem(trackedKey)) {
+          sessionStorage.setItem(trackedKey, "1");
+          fetch(`/api/referrals/click?code=${encodeURIComponent(cleanRef)}`).catch(() => {});
+        }
       }
     } catch {
       // Ignore in non-browser or restricted environments

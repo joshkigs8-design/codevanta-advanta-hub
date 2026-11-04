@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { PromoCode, PromoCodeRedemption } from "@/types";
+import { auth } from "@/lib/firebase";
 import {
   Ticket,
   Plus,
@@ -40,11 +41,17 @@ export default function AdminPromoCodesPage() {
   const [creating, setCreating] = useState(false);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
+  const getAuthHeaders = async (): Promise<Record<string, string>> => {
+    const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   const fetchPromoCodes = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/promocodes");
+      const headers = await getAuthHeaders();
+      const res = await fetch("/api/admin/promocodes", { headers });
       if (!res.ok) {
         throw new Error(await res.text());
       }
@@ -69,9 +76,10 @@ export default function AdminPromoCodesPage() {
 
   const handleToggleActive = async (id: string, currentActive: boolean) => {
     try {
+      const authHeaders = await getAuthHeaders();
       const res = await fetch(`/api/admin/promocodes/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ is_active: !currentActive }),
       });
       if (res.ok) {
@@ -85,7 +93,11 @@ export default function AdminPromoCodesPage() {
   const handleDelete = async (id: string, codeName: string) => {
     if (!confirm(`Are you sure you want to delete promo code "${codeName}"?`)) return;
     try {
-      const res = await fetch(`/api/admin/promocodes/${id}`, { method: "DELETE" });
+      const authHeaders = await getAuthHeaders();
+      const res = await fetch(`/api/admin/promocodes/${id}`, {
+        method: "DELETE",
+        headers: authHeaders,
+      });
       if (res.ok) {
         fetchPromoCodes();
       }
@@ -99,9 +111,10 @@ export default function AdminPromoCodesPage() {
     setCreating(true);
     setActionSuccess(null);
     try {
+      const authHeaders = await getAuthHeaders();
       const res = await fetch("/api/admin/promocodes", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           code: newCode,
           description: newDescription,

@@ -50,6 +50,8 @@ export async function syncUserWithFirestoreAndBackend(
     referralCode?: string;
   }
 ): Promise<void> {
+  let generatedReferralCode = "";
+
   if (isFirebaseConfigured() && firestore) {
     try {
       const userRef = doc(firestore, "users", user.uid);
@@ -59,6 +61,7 @@ export async function syncUserWithFirestoreAndBackend(
       if (!docSnap.exists()) {
         // Generate new unique referral code
         referralCode = generateReferralCode();
+        generatedReferralCode = referralCode;
         const cleanEmail = user.email || "";
         const cleanName = additionalData?.displayName || user.displayName || cleanEmail.split("@")[0] || "Developer";
 
@@ -102,6 +105,7 @@ export async function syncUserWithFirestoreAndBackend(
     let firestorePlanId = "free";
     let firestorePlanName = "Free Tier";
     let firestoreRole = "user";
+    let firestoreReferralCode: string | null = null;
 
     if (isFirebaseConfigured() && firestore) {
       try {
@@ -111,6 +115,7 @@ export async function syncUserWithFirestoreAndBackend(
           if (d.planId) firestorePlanId = d.planId;
           if (d.planName) firestorePlanName = d.planName;
           if (d.role) firestoreRole = d.role;
+          if (d.referralCode) firestoreReferralCode = d.referralCode;
         }
       } catch {
         // ignore
@@ -128,6 +133,7 @@ export async function syncUserWithFirestoreAndBackend(
         idToken,
         displayName: additionalData?.displayName || user.displayName,
         referralCode: additionalData?.referralCode,
+        userReferralCode: firestoreReferralCode || generatedReferralCode || undefined,
         planId: firestorePlanId,
         planName: firestorePlanName,
         role: firestoreRole,

@@ -174,6 +174,45 @@ export function handlePaymentWebhook(
       .get(payload.paymentId, payload.paymentId) as Payment | undefined;
   }
 
+  // Resilient fallback: reconstruct payment from webhook raw body on fresh serverless containers
+  if (!payment && payload.rawBody) {
+    try {
+      const parsed = JSON.parse(payload.rawBody);
+      const data = parsed.data || parsed;
+      const meta = data.metadata || {};
+      const planSlug = meta.planSlug || "vip";
+      const matchedPlan = db.prepare("SELECT * FROM membership_plans WHERE slug = ?").get(planSlug) as any;
+      if (matchedPlan) {
+        const nowIso = new Date().toISOString();
+        const ref = data.reference || payload.mpesaReceiptNumber || payload.paymentId;
+        const recoveredId = meta.paymentId || payload.paymentId;
+        db.prepare(`
+          INSERT OR IGNORE INTO payments (
+            id, user_id, plan_id, amount_kes, currency, provider, provider_reference,
+            checkout_request_id, merchant_request_id, phone_number, status, idempotency_key, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, 'KES', 'paystack', ?, ?, ?, ?, 'pending', ?, ?, ?)
+        `).run(
+          recoveredId,
+          meta.userId || "guest-user",
+          matchedPlan.id,
+          matchedPlan.price_kes,
+          ref,
+          `ws_${ref}`,
+          `mr_${ref}`,
+          data.customer?.phone || null,
+          `IDEMP-${ref}`,
+          nowIso,
+          nowIso
+        );
+        payment = db
+          .prepare("SELECT * FROM payments WHERE id = ? OR provider_reference = ?")
+          .get(recoveredId, ref) as Payment | undefined;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   if (!payment) {
     return { success: false, message: "Payment transaction not found." };
   }

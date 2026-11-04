@@ -34,3 +34,6 @@ firestore-debug.log*
 # Test browser profiles
 .edge-*-profile/
 .edge-test-profile/
+
+# TypeScript cache
+*.tsbuildinfo

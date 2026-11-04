@@ -38,11 +38,33 @@ export function setProgramStatus(
   }
 }
 
-export function getReferralCodeForUser(userId: string): ReferralCode | null {
+export function getReferralCodeForUser(userId: string, preferredCode?: string): ReferralCode | null {
   const db = getDb();
   let refCode = db
     .prepare("SELECT id, user_id, code, clicks, created_at FROM referral_codes WHERE user_id = ?")
     .get(userId) as ReferralCode | undefined;
+
+  if (!refCode && preferredCode && preferredCode.trim().length >= 4) {
+    const cleanPreferred = preferredCode.trim().toUpperCase();
+    const id = `ref-${userId}`;
+    const now = new Date().toISOString();
+    try {
+      // If code was previously registered by clicks with 'pending-user', claim it
+      const pendingRow = db
+        .prepare("SELECT clicks FROM referral_codes WHERE code = ? AND user_id = 'pending-user'")
+        .get(cleanPreferred) as { clicks: number } | undefined;
+      if (pendingRow) {
+        db.prepare("UPDATE referral_codes SET user_id = ? WHERE code = ?").run(userId, cleanPreferred);
+        return { id, user_id: userId, code: cleanPreferred, clicks: pendingRow.clicks, created_at: now };
+      }
+
+      db.prepare("INSERT INTO referral_codes (id, user_id, code, clicks, created_at) VALUES (?, ?, ?, 0, ?)")
+        .run(id, userId, cleanPreferred, now);
+      return { id, user_id: userId, code: cleanPreferred, clicks: 0, created_at: now };
+    } catch {
+      // Collision or error, continue to random fallback
+    }
+  }
 
   if (!refCode) {
     for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -74,7 +96,8 @@ export function getReferralCodeForUser(userId: string): ReferralCode | null {
 
 export function recordReferralClick(code: string): boolean {
   const db = getDb();
-  const result = db.prepare("UPDATE referral_codes SET clicks = clicks + 1 WHERE code = ?").run(code.toUpperCase());
+  const cleanCode = code.trim().toUpperCase();
+  const result = db.prepare("UPDATE referral_codes SET clicks = clicks + 1 WHERE code = ?").run(cleanCode);
   return result.changes > 0;
 }
 

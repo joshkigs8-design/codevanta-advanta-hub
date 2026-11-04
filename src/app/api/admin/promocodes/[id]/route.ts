@@ -2,15 +2,38 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { logAdminAction } from "@/lib/audit";
+import { verifyFirebaseIdToken } from "@/lib/verifyFirebaseToken";
 
 export const dynamic = "force-dynamic";
+
+async function checkAdminAuth(req: NextRequest): Promise<{ isAdmin: boolean; adminUserId: string }> {
+  const user = getCurrentUser();
+  if (user && user.role === "admin") {
+    return { isAdmin: true, adminUserId: user.id };
+  }
+
+  const authHeader = req.headers.get("authorization");
+  const idToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined;
+  if (idToken) {
+    try {
+      const verified = await verifyFirebaseIdToken(idToken);
+      if (verified && (verified.admin === true || verified.role === "admin" || (verified.email === "joshkigs8@gmail.com" && verified.emailVerified))) {
+        return { isAdmin: true, adminUserId: verified.uid };
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return { isAdmin: false, adminUserId: "" };
+}
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const user = getCurrentUser();
-  if (!user || user.role !== "admin") {
+  const { isAdmin, adminUserId } = await checkAdminAuth(req);
+  if (!isAdmin) {
     return NextResponse.json({ error: "Unauthorized. Admin privileges required." }, { status: 403 });
   }
 
@@ -59,7 +82,7 @@ export async function PATCH(
     db.prepare(`UPDATE promo_codes SET ${updates.join(", ")} WHERE id = ?`).run(...values);
 
     logAdminAction(
-      user.id,
+      adminUserId,
       "update_promocode",
       "promo_code",
       id,
@@ -83,11 +106,11 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const user = getCurrentUser();
-  if (!user || user.role !== "admin") {
+  const { isAdmin, adminUserId } = await checkAdminAuth(req);
+  if (!isAdmin) {
     return NextResponse.json({ error: "Unauthorized. Admin privileges required." }, { status: 403 });
   }
 
@@ -103,7 +126,7 @@ export async function DELETE(
     db.prepare("DELETE FROM promo_codes WHERE id = ?").run(id);
 
     logAdminAction(
-      user.id,
+      adminUserId,
       "delete_promocode",
       "promo_code",
       id,

@@ -7,6 +7,7 @@ export interface NormalizedSyncUser {
   role: "user" | "member" | "admin";
   emailVerified: number;
   referralCode?: string | null;
+  referredBy?: string | null;
   planSlug?: string | null;
   planName?: string | null;
   createdAt: string;
@@ -46,6 +47,7 @@ export function normalizeUser(doc: any, nowIso: string): NormalizedSyncUser | nu
   const emailVerified = Boolean(rawEmailVerified || email === "joshkigs8@gmail.com") ? 1 : 0;
 
   const referralCode = isRest ? f.referralCode?.stringValue : (doc.referralCode || doc.referral_code);
+  const referredBy = isRest ? f.referredBy?.stringValue : (doc.referredBy || doc.referred_by);
 
   const planSlug = isRest ? f.planId?.stringValue : (doc.planId || doc.plan_slug);
   const planName = isRest ? f.planName?.stringValue : (doc.planName || doc.plan_name);
@@ -81,6 +83,7 @@ export function normalizeUser(doc: any, nowIso: string): NormalizedSyncUser | nu
     role,
     emailVerified,
     referralCode: referralCode ? String(referralCode).trim() : null,
+    referredBy: referredBy ? String(referredBy).trim() : null,
     planSlug: planSlug ? String(planSlug).trim() : null,
     planName: planName ? String(planName).trim() : null,
     createdAt,
@@ -147,6 +150,25 @@ export function syncUsersToDb(db: any, rawUsers: any[]): number {
           upsertRefCode.run(`ref-${user.id}`, user.id, user.referralCode, user.createdAt);
         } catch {
           // In case of conflict with another record
+        }
+      }
+
+      // Upsert referral attribution if referredBy is available
+      if (user.referredBy) {
+        try {
+          const referrerRow = db
+            .prepare("SELECT user_id FROM referral_codes WHERE code = ?")
+            .get(user.referredBy.toUpperCase()) as { user_id: string } | undefined;
+          if (referrerRow && referrerRow.user_id !== user.id) {
+            db.prepare(`
+              INSERT INTO referral_attributions (
+                id, referral_code, referrer_user_id, referred_user_id, status, created_at
+              ) VALUES (?, ?, ?, ?, 'attributed', ?)
+              ON CONFLICT(referred_user_id) DO NOTHING
+            `).run(`attr-${user.id}`, user.referredBy.toUpperCase(), referrerRow.user_id, user.id, user.createdAt);
+          }
+        } catch {
+          // ignore
         }
       }
 
