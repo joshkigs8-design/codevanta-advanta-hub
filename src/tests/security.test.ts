@@ -9,7 +9,12 @@ const TEST_SECRET = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789a
 const COMPROMISED_SECRET = "codevanta-advanta-hub-secret-key-2024";
 
 // Configure test environment variables
-process.env.NODE_ENV = "test";
+Object.defineProperty(process.env, "NODE_ENV", {
+  value: "test",
+  writable: true,
+  configurable: true,
+  enumerable: true,
+});
 process.env.JWT_SECRET = TEST_SECRET;
 process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "AIzaSyAUWt712TX_T5tysCWQxbk40DcwLm9DKkg";
 process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = "codevanta-hub";
@@ -63,6 +68,7 @@ test("Security Audit Remediation — Verification Test Suite", async (suite) => 
         userId: "usr-regular-001",
         email: "user@codevanta.online",
         role: "user",
+        fullName: "Regular User",
       });
 
       // Tamper with the signature portion
@@ -79,6 +85,7 @@ test("Security Audit Remediation — Verification Test Suite", async (suite) => 
         userId: "usr-regular-001",
         email: "user@codevanta.online",
         role: "user",
+        fullName: "Regular User",
       });
 
       const parts = validToken.split(".");
@@ -147,7 +154,7 @@ test("Security Audit Remediation — Verification Test Suite", async (suite) => 
       const originalEnv = process.env.JWT_SECRET;
       try {
         // Test missing secret
-        delete process.env.JWT_SECRET;
+        process.env.JWT_SECRET = "";
         assert.throws(
           () => getJwtSecret(),
           /JWT_SECRET environment variable is missing/,
@@ -227,6 +234,7 @@ test("Security Audit Remediation — Verification Test Suite", async (suite) => 
         userId: "admin-1",
         email: "admin@codevanta.online",
         role: "admin",
+        fullName: "Security Administrator",
       });
 
       const result = await edgeVerify(token, TEST_SECRET);
@@ -249,6 +257,7 @@ test("Security Audit Remediation — Verification Test Suite", async (suite) => 
         userId: "user-1",
         email: "user@codevanta.online",
         role: "user",
+        fullName: "Regular User",
       });
 
       const parts = token.split(".");

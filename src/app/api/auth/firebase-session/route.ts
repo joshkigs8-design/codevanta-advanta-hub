@@ -85,8 +85,14 @@ export async function POST(req: NextRequest) {
       const id = verifiedUid || crypto.randomUUID();
 
       db.prepare(`
-        INSERT OR REPLACE INTO profiles (id, email, password_hash, full_name, avatar_url, role, phone_number, country, email_verified, created_at, updated_at)
+        INSERT INTO profiles (id, email, password_hash, full_name, avatar_url, role, phone_number, country, email_verified, created_at, updated_at)
         VALUES (?, ?, 'FIREBASE_AUTH', ?, NULL, ?, NULL, 'KE', ?, ?, ?)
+        ON CONFLICT(email) DO UPDATE SET
+          password_hash = excluded.password_hash,
+          full_name = excluded.full_name,
+          role = excluded.role,
+          email_verified = excluded.email_verified,
+          updated_at = excluded.updated_at
       `).run(id, cleanEmail, cleanName, role, isEmailVerified ? 1 : 0, now, now);
 
       profile = {

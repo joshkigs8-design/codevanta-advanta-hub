@@ -114,8 +114,14 @@ export function getCurrentUser(): Profile | null {
     const now = new Date().toISOString();
     const id = session.userId || "00000000-0000-4000-a000-000000000001";
     db.prepare(`
-      INSERT OR REPLACE INTO profiles (id, email, password_hash, full_name, role, country, email_verified, created_at, updated_at)
+      INSERT INTO profiles (id, email, password_hash, full_name, role, country, email_verified, created_at, updated_at)
       VALUES (?, ?, 'ADMIN_SESSION', ?, 'admin', 'KE', 1, ?, ?)
+      ON CONFLICT(email) DO UPDATE SET
+        password_hash = excluded.password_hash,
+        full_name = excluded.full_name,
+        role = 'admin',
+        email_verified = 1,
+        updated_at = excluded.updated_at
     `).run(id, session.email.toLowerCase().trim(), session.fullName || "Admin", now, now);
 
     row = db

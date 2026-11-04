@@ -157,7 +157,13 @@ export async function POST(req: NextRequest) {
           userRef,
           {
             planId: promo.plan_slug,
+            planName: plan.name,
             role: user.role === "admin" ? "admin" : "member",
+            membershipId,
+            membershipStatus: "active",
+            membershipStartsAt: nowIso,
+            membershipExpiresAt: null,
+            membershipReference: `PROMO_${promo.code}`,
             updatedAt: serverTimestamp(),
           },
           { merge: true }
