@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { auth, isFirebaseConfigured } from "@/lib/firebase";
+import { syncAllFirestoreUsersWithBackend } from "@/lib/firestoreService";
 import {
   ArrowLeft,
   BarChart3,
@@ -77,6 +79,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         if (data.authenticated && data.user) setUser(data.user);
       })
       .catch(() => undefined);
+
+    if (isFirebaseConfigured() && auth) {
+      const unsub = auth.onAuthStateChanged(async (currentUser) => {
+        if (currentUser) {
+          try {
+            const token = await currentUser.getIdToken();
+            await syncAllFirestoreUsersWithBackend(token);
+          } catch {
+            // ignore
+          }
+        }
+      });
+      return () => unsub();
+    }
   }, [isLoginPage]);
 
   const handleLogout = async () => {

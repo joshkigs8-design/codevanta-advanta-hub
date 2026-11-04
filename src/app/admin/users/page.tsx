@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { RefreshCw, Copy, Check } from "lucide-react";
+import { auth, isFirebaseConfigured } from "@/lib/firebase";
+import { getAllFirestoreUsers, syncAllFirestoreUsersWithBackend } from "@/lib/firestoreService";
 
 interface UserProfile {
   id: string;
@@ -44,18 +46,76 @@ export default function AdminUsersPage() {
     setLoading(true);
     setError(null);
     try {
+      let token: string | null = null;
+      if (isFirebaseConfigured() && auth?.currentUser) {
+        try {
+          token = await auth.currentUser.getIdToken();
+          await syncAllFirestoreUsersWithBackend(token);
+        } catch {
+          // ignore
+        }
+      }
+
       const q = new URLSearchParams({
         page: page.toString(),
         limit: "15",
         search,
         role: roleFilter,
       });
-      const res = await fetch(`/api/admin/users?${q.toString()}`);
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch(`/api/admin/users?${q.toString()}`, { headers });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load users");
-      setUsers(data.users || []);
-      setTotalPages(data.totalPages || 1);
-      setTotalUsers(typeof data.total === "number" ? data.total : (data.users?.length || 0));
+
+      let loadedUsers: UserProfile[] = data.users || [];
+      let totalCount = typeof data.total === "number" ? data.total : loadedUsers.length;
+
+      // Direct Firestore fallback / enhancement:
+      if (isFirebaseConfigured()) {
+        try {
+          const fsUsers = await getAllFirestoreUsers();
+          if (fsUsers.length > 0) {
+            if (fsUsers.length > totalCount) {
+              totalCount = fsUsers.length;
+            }
+            const existingEmails = new Set(loadedUsers.map((u) => u.email.toLowerCase()));
+            const missingUsers: UserProfile[] = fsUsers
+              .filter((f) => !existingEmails.has(f.email.toLowerCase()))
+              .map((f) => ({
+                id: f.uid,
+                email: f.email,
+                full_name: f.fullName,
+                role: f.role,
+                country: "KE",
+                referral_code: f.referralCode || undefined,
+                created_at: typeof f.createdAt === "string" ? f.createdAt : new Date().toISOString(),
+                membership: f.planId && f.planId !== "free" ? {
+                  id: `mem-${f.uid}`,
+                  plan_slug: f.planId,
+                  plan_name: f.planName || f.planId.toUpperCase(),
+                  status: "active",
+                  amount_paid_kes: 0,
+                  starts_at: typeof f.createdAt === "string" ? f.createdAt : new Date().toISOString(),
+                } : null,
+              }));
+
+            if (missingUsers.length > 0) {
+              const filteredMissing = missingUsers.filter((u) => {
+                const matchesSearch = !search || u.full_name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase());
+                const matchesRole = !roleFilter || u.role === roleFilter;
+                return matchesSearch && matchesRole;
+              });
+              loadedUsers = [...loadedUsers, ...filteredMissing];
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      setUsers(loadedUsers);
+      setTotalPages(Math.max(1, Math.ceil(totalCount / 15)));
+      setTotalUsers(totalCount);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error fetching users");
     } finally {
@@ -65,14 +125,26 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     fetchUsers();
+    if (isFirebaseConfigured() && auth) {
+      const unsub = auth.onAuthStateChanged((currentUser) => {
+        if (currentUser) {
+          fetchUsers();
+        }
+      });
+      return () => unsub();
+    }
   }, [fetchUsers]);
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     setUpdatingId(userId);
     try {
+      const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
       const res = await fetch(`/api/admin/users/${userId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ role: newRole }),
       });
       if (!res.ok) {
@@ -96,9 +168,13 @@ export default function AdminUsersPage() {
     setUpdatingId(selectedUser.id);
     setAccessError("");
     try {
+      const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
       const res = await fetch(`/api/admin/users/${selectedUser.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ planSlug: accessPlan, duration: accessDuration }),
       });
       const data = await res.json();

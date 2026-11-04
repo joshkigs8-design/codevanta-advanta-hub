@@ -1,15 +1,39 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { syncFirestoreUsersToLocal } from "@/lib/firestoreSync";
+import { verifyFirebaseIdToken } from "@/lib/verifyFirebaseToken";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const authHeader = req.headers.get("authorization");
+    const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
+
     const session = getSession();
-    if (!session || session.role !== "admin") {
+    let isAuthorized = Boolean(session && session.role === "admin");
+
+    if (!isAuthorized && bearerToken) {
+      const verified = await verifyFirebaseIdToken(bearerToken);
+      const adminEmails = [
+        "joshkigs8@gmail.com",
+        (process.env.ADMIN_DEFAULT_EMAIL || "").toLowerCase().trim(),
+      ].filter(Boolean);
+      if (verified && adminEmails.includes(verified.email.toLowerCase())) {
+        isAuthorized = true;
+      }
+    }
+
+    if (!isAuthorized) {
       return NextResponse.json({ error: "Forbidden: Admin privileges required" }, { status: 403 });
     }
 
     const db = getDb();
+
+    // Proactively sync users from Firestore if token is available
+    if (bearerToken) {
+      await syncFirestoreUsersToLocal(db, bearerToken);
+    }
+
     const totalUsersRow = db.prepare(`SELECT COUNT(*) as count FROM profiles`).get() as { count: number } | undefined;
     const activeUsersRow = db
       .prepare(`SELECT COUNT(*) as count FROM profiles WHERE created_at >= datetime('now', '-30 days')`)

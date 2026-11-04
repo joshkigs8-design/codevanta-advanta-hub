@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { auth, isFirebaseConfigured } from "@/lib/firebase";
+import { getAllFirestoreUsers, syncAllFirestoreUsersWithBackend } from "@/lib/firestoreService";
 import {
   ArrowUpRight,
   BarChart3,
@@ -48,14 +50,51 @@ export default function AdminDashboard() {
     setLoading(true);
     setError(null);
     try {
+      let token: string | null = null;
+      if (isFirebaseConfigured() && auth?.currentUser) {
+        try {
+          token = await auth.currentUser.getIdToken();
+          await syncAllFirestoreUsersWithBackend(token);
+        } catch {
+          // ignore
+        }
+      }
+
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       const [statsResponse, dashboardResponse] = await Promise.all([
-        fetch("/api/admin/stats"),
-        fetch("/api/admin/dashboard"),
+        fetch("/api/admin/stats", { headers }),
+        fetch("/api/admin/dashboard", { headers }),
       ]);
       const statsJson = await statsResponse.json();
       const dashboardJson = await dashboardResponse.json();
       if (!statsResponse.ok) throw new Error(statsJson.error || "Failed to load metrics");
       if (!dashboardResponse.ok) throw new Error(dashboardJson.error || "Failed to load activity");
+
+      // Check if Firestore users count is higher
+      if (isFirebaseConfigured()) {
+        try {
+          const fsUsers = await getAllFirestoreUsers();
+          if (fsUsers.length > (statsJson.totalUsers || 0)) {
+            statsJson.totalUsers = fsUsers.length;
+          }
+          if (fsUsers.length > (dashboardJson.recentUsers?.length || 0)) {
+            const existingEmails = new Set(dashboardJson.recentUsers?.map((u: any) => u.email) || []);
+            const additional = fsUsers
+              .filter((u) => !existingEmails.has(u.email))
+              .map((u) => ({
+                id: u.uid,
+                full_name: u.fullName,
+                email: u.email,
+                role: u.role,
+                created_at: typeof u.createdAt === "string" ? u.createdAt : new Date().toISOString(),
+              }));
+            dashboardJson.recentUsers = [...(dashboardJson.recentUsers || []), ...additional].slice(0, 5);
+          }
+        } catch {
+          // ignore
+        }
+      }
+
       setStats(statsJson);
       setData(dashboardJson);
     } catch (reason) {
@@ -65,7 +104,17 @@ export default function AdminDashboard() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    if (isFirebaseConfigured() && auth) {
+      const unsub = auth.onAuthStateChanged((currentUser) => {
+        if (currentUser) {
+          load();
+        }
+      });
+      return () => unsub();
+    }
+  }, []);
 
   if (loading) {
     return <div className="admin-loading"><RefreshCw className="animate-spin text-hub-gold" size={22} /><span>Loading command center…</span></div>;

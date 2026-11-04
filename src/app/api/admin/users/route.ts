@@ -2,125 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { getReferralCodeForUser } from "@/lib/referral";
-
-async function syncFirestoreUsersToLocal(db: any) {
-  try {
-    const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-    const adminEmail = process.env.ADMIN_SYNC_EMAIL;
-    const adminPassword = process.env.ADMIN_SYNC_PASSWORD;
-    if (!apiKey || !adminEmail || !adminPassword) return;
-
-    // Use admin credentials configured via environment variables to authenticate against Firebase Auth REST API
-    const signInRes = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: adminEmail,
-          password: adminPassword,
-          returnSecureToken: true,
-        }),
-      }
-    );
-    const signInData = await signInRes.json();
-    if (!signInData.idToken) return;
-
-    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "codevanta-hub";
-    const res = await fetch(
-      `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users`,
-      {
-        headers: { Authorization: `Bearer ${signInData.idToken}` },
-      }
-    );
-    const data = await res.json();
-    if (!data.documents || !Array.isArray(data.documents)) return;
-
-    const upsertProfile = db.prepare(`
-      INSERT INTO profiles (id, email, password_hash, full_name, role, country, email_verified, created_at, updated_at)
-      VALUES (?, ?, 'FIREBASE_AUTH', ?, ?, 'KE', ?, ?, ?)
-      ON CONFLICT(email) DO UPDATE SET
-        full_name = excluded.full_name,
-        role = excluded.role,
-        email_verified = excluded.email_verified,
-        updated_at = excluded.updated_at
-    `);
-
-    const upsertRefCode = db.prepare(`
-      INSERT INTO referral_codes (id, user_id, code, clicks, created_at)
-      VALUES (?, ?, ?, 0, ?)
-      ON CONFLICT(user_id) DO UPDATE SET code = excluded.code
-    `);
-
-    const upsertMembership = db.prepare(`
-      INSERT INTO memberships (
-        id, user_id, plan_id, plan_slug, plan_name, status,
-        amount_paid_kes, starts_at, expires_at, payment_reference, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, 'active', 0, ?, ?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET
-        plan_id = excluded.plan_id,
-        plan_slug = excluded.plan_slug,
-        plan_name = excluded.plan_name,
-        status = excluded.status,
-        starts_at = excluded.starts_at,
-        expires_at = excluded.expires_at,
-        payment_reference = excluded.payment_reference,
-        updated_at = excluded.updated_at
-    `);
-
-    const nowIso = new Date().toISOString();
-    for (const doc of data.documents) {
-      const f = doc.fields || {};
-      const email = f.email?.stringValue?.toLowerCase()?.trim();
-      if (!email) continue;
-      const uid = f.uid?.stringValue || doc.name.split("/").pop();
-      const fullName = f.displayName?.stringValue || f.fullName?.stringValue || email.split("@")[0];
-      const role = f.role?.stringValue || (email === "joshkigs8@gmail.com" ? "admin" : "user");
-      const emailVerified = f.emailVerified?.booleanValue ? 1 : 0;
-      const createdAt = f.createdAt?.timestampValue || f.createdAt?.stringValue || nowIso;
-      const updatedAt = f.updatedAt?.timestampValue || f.updatedAt?.stringValue || nowIso;
-
-      upsertProfile.run(uid, email, fullName, role, emailVerified, createdAt, updatedAt);
-
-      if (f.referralCode?.stringValue) {
-        upsertRefCode.run(`ref-${uid}`, uid, f.referralCode.stringValue, createdAt);
-      }
-
-      // Rehydrate memberships saved in Firestore when the app runs on ephemeral storage.
-      const planSlug = f.planId?.stringValue;
-      const membershipStatus = f.membershipStatus?.stringValue;
-      const hasMembership =
-        membershipStatus === "active" ||
-        (!membershipStatus && f.role?.stringValue === "member");
-      if (planSlug && planSlug !== "free" && hasMembership) {
-        const plan = db
-          .prepare("SELECT id, name FROM membership_plans WHERE slug = ?")
-          .get(planSlug) as { id: string; name: string } | undefined;
-        if (plan) {
-          const membershipId = f.membershipId?.stringValue || `mem-firestore-${uid}`;
-          const planName = f.planName?.stringValue || plan.name;
-          const startsAt = f.membershipStartsAt?.stringValue || createdAt;
-          const expiresAt = f.membershipExpiresAt?.stringValue || null;
-          const reference = f.membershipReference?.stringValue || "FIRESTORE_SYNC";
-          upsertMembership.run(
-            membershipId,
-            uid,
-            plan.id,
-            planSlug,
-            planName,
-            startsAt,
-            expiresAt,
-            reference,
-            createdAt,
-            updatedAt
-          );
-        }
-      }
-    }
-  } catch (err) {
-    console.warn("Could not sync Firestore users:", err);
-  }
-}
+import { syncFirestoreUsersToLocal } from "@/lib/firestoreSync";
 
 export async function GET(req: NextRequest) {
   try {
@@ -143,10 +25,12 @@ export async function GET(req: NextRequest) {
     const sort = searchParams.get("sort") || "created_at";
     const order = searchParams.get("order") === "asc" ? "ASC" : "DESC";
 
+    const authHeader = req.headers.get("authorization");
+    const idToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined;
     const db = getDb();
 
-    // Proactively sync users from Firestore so new accounts (including free accounts) appear immediately
-    await syncFirestoreUsersToLocal(db);
+    // Proactively sync users from Firestore so new accounts appear immediately
+    await syncFirestoreUsersToLocal(db, idToken);
 
     // Whitelist sortable columns
     const allowedSorts: Record<string, string> = {

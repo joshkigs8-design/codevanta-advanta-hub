@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { logAdminAction } from "@/lib/audit";
+import { syncFirestoreUsersToLocal } from "@/lib/firestoreSync";
 import type { Profile, UserRole } from "@/types";
 import crypto from "node:crypto";
 
@@ -24,12 +25,26 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     const db = getDb();
 
     // Profile
-    const profile = db
+    let profile = db
       .prepare(
         `SELECT id, email, full_name, avatar_url, role, phone_number, country, created_at, updated_at
          FROM profiles WHERE id = ?`
       )
       .get(id) as Profile | undefined;
+
+    if (!profile) {
+      const authHeader = req.headers.get("authorization");
+      const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined;
+      if (bearerToken) {
+        await syncFirestoreUsersToLocal(db, bearerToken);
+        profile = db
+          .prepare(
+            `SELECT id, email, full_name, avatar_url, role, phone_number, country, created_at, updated_at
+             FROM profiles WHERE id = ?`
+          )
+          .get(id) as Profile | undefined;
+      }
+    }
 
     if (!profile) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -142,9 +157,19 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       }
 
       const db = getDb();
-      const target = db.prepare("SELECT id, email FROM profiles WHERE id = ?").get(id) as
+      let target = db.prepare("SELECT id, email FROM profiles WHERE id = ?").get(id) as
         | { id: string; email: string }
         | undefined;
+      if (!target) {
+        const authHeader = req.headers.get("authorization");
+        const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined;
+        if (bearerToken) {
+          await syncFirestoreUsersToLocal(db, bearerToken);
+          target = db.prepare("SELECT id, email FROM profiles WHERE id = ?").get(id) as
+            | { id: string; email: string }
+            | undefined;
+        }
+      }
       if (!target) {
         return NextResponse.json({ error: "User not found" }, { status: 404 });
       }
@@ -214,9 +239,20 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     const db = getDb();
 
     // Get current user
-    const target = db
+    let target = db
       .prepare("SELECT id, role FROM profiles WHERE id = ?")
       .get(id) as { id: string; role: string } | undefined;
+
+    if (!target) {
+      const authHeader = req.headers.get("authorization");
+      const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined;
+      if (bearerToken) {
+        await syncFirestoreUsersToLocal(db, bearerToken);
+        target = db
+          .prepare("SELECT id, role FROM profiles WHERE id = ?")
+          .get(id) as { id: string; role: string } | undefined;
+      }
+    }
 
     if (!target) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });

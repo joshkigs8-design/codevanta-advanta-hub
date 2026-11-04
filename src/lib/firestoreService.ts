@@ -26,6 +26,7 @@ export interface FirestoreUserProfile {
   fullName: string;
   role: "user" | "member" | "admin";
   planId?: string;
+  planName?: string;
   accountStatus: "active" | "suspended" | "pending";
   paymentStatus: "unpaid" | "paid" | "refunded";
   referralCode?: string;
@@ -60,6 +61,62 @@ export async function getFirestoreUserProfile(uid: string): Promise<FirestoreUse
   } catch (error) {
     console.error("Error reading user profile from Firestore:", error);
     return null;
+  }
+}
+
+/**
+ * Fetch all user profile documents from Firestore (authorized administrator only)
+ */
+export async function getAllFirestoreUsers(): Promise<FirestoreUserProfile[]> {
+  if (!isFirebaseConfigured() || !firestore) return [];
+  try {
+    const usersCol = collection(firestore, "users");
+    const snap = await getDocs(usersCol);
+    return snap.docs.map((docSnap) => {
+      const data = docSnap.data();
+      return {
+        uid: data.uid || docSnap.id,
+        email: data.email || "",
+        fullName: data.displayName || data.fullName || (data.email ? data.email.split("@")[0] : "User"),
+        role: data.role || (data.email === "joshkigs8@gmail.com" ? "admin" : "user"),
+        planId: data.planId || "free",
+        planName: data.planName,
+        accountStatus: data.accountStatus || "active",
+        paymentStatus: data.paymentStatus || "unpaid",
+        referralCode: data.referralCode || "",
+        referredBy: data.referredBy || null,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
+      } as FirestoreUserProfile;
+    });
+  } catch (error) {
+    console.warn("Error fetching all users from Firestore:", error);
+    return [];
+  }
+}
+
+/**
+ * Synchronize all Firestore users with the backend SQLite database
+ */
+export async function syncAllFirestoreUsersWithBackend(idToken?: string): Promise<{ success: boolean; total: number }> {
+  try {
+    const users = await getAllFirestoreUsers();
+    const res = await fetch("/api/admin/users/sync", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+      },
+      body: JSON.stringify({ users, idToken }),
+    });
+    if (!res.ok) {
+      return { success: false, total: 0 };
+    }
+    const data = await res.json();
+    return { success: true, total: data.total || users.length };
+  } catch (err) {
+    console.warn("Failed to sync Firestore users with backend:", err);
+    return { success: false, total: 0 };
   }
 }
 
