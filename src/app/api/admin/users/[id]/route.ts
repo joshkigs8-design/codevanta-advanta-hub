@@ -139,6 +139,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     }
 
     const { id } = params;
+    const authHeader = req.headers.get("authorization");
+    const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined;
+
     const body = await req.json();
     const { role, planSlug, duration } = body as {
       role?: string;
@@ -161,8 +164,6 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         | { id: string; email: string }
         | undefined;
       if (!target) {
-        const authHeader = req.headers.get("authorization");
-        const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined;
         if (bearerToken) {
           await syncFirestoreUsersToLocal(db, bearerToken);
           target = db.prepare("SELECT id, email FROM profiles WHERE id = ?").get(id) as
@@ -207,6 +208,32 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         nowIso
       );
 
+      // Synchronize granted plan to Firestore using admin Bearer token
+      if (bearerToken) {
+        try {
+          const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "codevanta-hub";
+          const patchUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${id}?updateMask.fieldPaths=planId&updateMask.fieldPaths=planName&updateMask.fieldPaths=role&updateMask.fieldPaths=membershipStatus&updateMask.fieldPaths=membershipExpiresAt`;
+          await fetch(patchUrl, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${bearerToken}`,
+            },
+            body: JSON.stringify({
+              fields: {
+                planId: { stringValue: plan.slug },
+                planName: { stringValue: plan.name },
+                role: { stringValue: target.email === "joshkigs8@gmail.com" ? "admin" : "member" },
+                membershipStatus: { stringValue: "active" },
+                ...(expiresAt ? { membershipExpiresAt: { stringValue: expiresAt } } : {}),
+              },
+            }),
+          });
+        } catch (err) {
+          console.warn("Firestore admin grant REST sync error:", err);
+        }
+      }
+
       logAdminAction(admin.id, "grant_user_access", "memberships", id, {
         plan_slug: plan.slug,
         duration,
@@ -244,8 +271,6 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       .get(id) as { id: string; role: string } | undefined;
 
     if (!target) {
-      const authHeader = req.headers.get("authorization");
-      const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined;
       if (bearerToken) {
         await syncFirestoreUsersToLocal(db, bearerToken);
         target = db
@@ -269,6 +294,28 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       now,
       id
     );
+
+    // Synchronize changed role to Firestore using admin Bearer token
+    if (bearerToken) {
+      try {
+        const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "codevanta-hub";
+        const patchUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${id}?updateMask.fieldPaths=role`;
+        await fetch(patchUrl, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${bearerToken}`,
+          },
+          body: JSON.stringify({
+            fields: {
+              role: { stringValue: role },
+            },
+          }),
+        });
+      } catch (err) {
+        console.warn("Firestore admin role REST sync error:", err);
+      }
+    }
 
     // Audit log
     logAdminAction(admin.id, "change_user_role", "profiles", id, {

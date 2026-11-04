@@ -8,9 +8,13 @@ rules_version = '2';
 //
 // Collection: users/{userId}
 //   - Document ID: matches Firebase Auth uid
-//   - Fields: uid (string), email (string), fullName / displayName (string),
+//   - Fields: uid (string), email (string), displayName / fullName (string), photoURL (string),
 //             role (string: 'user' | 'member' | 'admin'),
-//             planId (string: 'free' | 'basic' | 'pro' | 'vip'),
+//             planId (string: 'free' | 'starter' | 'basic' | 'pro' | 'vip'),
+//             planName (string),
+//             membershipId (string), membershipStatus (string),
+//             membershipStartsAt (string/timestamp), membershipExpiresAt (string/timestamp/null),
+//             membershipReference (string),
 //             accountStatus (string: 'active' | 'suspended' | 'pending'),
 //             paymentStatus (string: 'unpaid' | 'paid' | 'refunded'),
 //             referralCode (string), referredBy (string), referralRewards (number/map),
@@ -30,7 +34,8 @@ rules_version = '2';
 //   - Fields: name (string), slug (string), price_kes (number), billing_cycle (string), entitlements (map)
 //
 // Collection: subscriptions/{subId}
-//   - Fields: userId (string), planId (string), status (string), amount_paid_kes (number)
+//   - Fields: userId (string), planId (string), planName (string), status (string),
+//             amount_paid_kes (number), paymentReference (string), startsAt (timestamp), updatedAt (timestamp)
 //
 // Collection: referrals/{refId}
 //   - Fields: referrerId (string), referredId (string), referral_code (string), status (string)
@@ -39,7 +44,13 @@ rules_version = '2';
 //   - Fields: userId (string), amount (number), status (string)
 //
 // Collection: payments/{paymentId}
-//   - Fields: userId (string), amount_kes (number), provider (string), status (string)
+//   - Fields: id (string), userId (string), planId (string), planName (string),
+//             amount_kes (number), currency (string), provider (string),
+//             provider_reference (string), phone_number (string), status (string),
+//             createdAt (timestamp), updatedAt (timestamp)
+//
+// Collection: promo_redemptions/{redemptionId}
+//   - Fields: userId (string), userEmail (string), code (string), planSlug (string), planName (string), redeemedAt (timestamp)
 //
 // Collection: bookmarks/{bookmarkId}
 //   - Fields: userId (string), resourceId (string), resourceName (string), notes (string)
@@ -105,7 +116,8 @@ service cloud.firestore {
     // 1. Users Collection
     // Read: Owner or Admin only (PII protected; Admin has full list & read access)
     // Create: Admin or Owner on initial signup; unverified users can bootstrap profile without privileged roles/plans/fields
-    // Update: Admin has full write access; Owner must be email-verified and cannot escalate role or edit system fields
+    // Update: Admin has full write access; Verified owner can update profile (plan purchase / promo code redemption)
+    //         with strict role-escalation prevention, valid plan IDs, and immutable system fields
     // Delete: Admin only
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
@@ -124,8 +136,11 @@ service cloud.firestore {
         isOwner(userId) &&
         isEmailVerified() &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-          'uid', 'role', 'planId', 'accountStatus', 'paymentStatus', 'referralRewards', 'referredBy', 'createdAt'
-        ])
+          'uid', 'email', 'referralRewards', 'referredBy', 'createdAt'
+        ]) &&
+        (request.resource.data.role != 'admin' || isAdmin()) &&
+        (!('role' in request.resource.data) || request.resource.data.role in ['user', 'member']) &&
+        (!('planId' in request.resource.data) || request.resource.data.planId in ['free', 'starter', 'basic', 'pro', 'vip'])
       );
                         
       allow delete: if isAdmin();
@@ -167,10 +182,12 @@ service cloud.firestore {
 
     // 6. Subscriptions Collection
     // Read: Subscriber (owner) or Admin (Admin has full list & read access across all subscriptions)
-    // Write: Admin only (prevents unauthorized activations/updates from regular clients)
+    // Create: Authenticated owner or Admin (allows client flows to record subscription activations)
+    // Update / Delete: Admin only
     match /subscriptions/{subId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow write: if isAdmin();
+      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if isAdmin();
     }
 
     // 7. Referrals Collection
@@ -201,13 +218,25 @@ service cloud.firestore {
 
     // 9. Payments Collection
     // Read: Owning user or Admin (Admin has full list & read access across all payments)
-    // Write: Admin only (zero client-side writes allowed)
+    // Create: Authenticated owner or Admin (allows client flows to record payment confirmations)
+    // Update / Delete: Admin only
     match /payments/{paymentId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow write: if isAdmin();
+      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if isAdmin();
     }
 
-    // 10. Bookmarks Collection
+    // 10. Promo Code Redemptions Collection
+    // Read: Owning user or Admin
+    // Create: Authenticated user creating their own redemption record
+    // Update / Delete: Admin only
+    match /promo_redemptions/{redemptionId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // 11. Bookmarks Collection
     // Read: Owning user or Admin (Admin has full list & read access)
     // Create: Owning verified user or Admin
     // Update: Owning verified user without ownership hijacking or Admin
@@ -219,13 +248,13 @@ service cloud.firestore {
       allow delete: if isAdmin() || (isOwner(resource.data.userId) && isEmailVerified());
     }
 
-    // 11. Audit Logs Collection
+    // 12. Audit Logs Collection
     // Read & Write: Strictly admin-only (Admin has full list, read, and write permissions)
     match /auditLogs/{logId} {
       allow read, write: if isAdmin();
     }
 
-    // 12. Learning Paths Collection
+    // 13. Learning Paths Collection
     // Read: Publicly readable if published == true; Admin can list/read all
     // Write: Strictly admin-only
     match /learning_paths/{pathId} {
@@ -233,7 +262,7 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // 13. Guided Projects Collection
+    // 14. Guided Projects Collection
     // Read: Publicly readable if published == true; Admin can list/read all
     // Write: Strictly admin-only
     match /projects/{projectId} {
@@ -241,7 +270,7 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // 14. Troubleshooting Entries Collection
+    // 15. Troubleshooting Entries Collection
     // Read: Publicly readable if published == true; Admin can list/read all
     // Write: Strictly admin-only
     match /troubleshooting/{entryId} {
@@ -249,7 +278,7 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // 15. Resource Submissions Collection
+    // 16. Resource Submissions Collection
     // Read: Submitting user or Admin
     // Create: Verified user submitting for themselves or Admin
     // Update / Delete: Strictly admin-only
@@ -259,7 +288,7 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    // 16. Withdrawal Requests Collection
+    // 17. Withdrawal Requests Collection
     // Read: Requesting user or Admin
     // Create: Verified user submitting for themselves or Admin
     // Update / Delete: Strictly admin-only

@@ -99,6 +99,24 @@ export async function syncUserWithFirestoreAndBackend(
 
   // Synchronize with backend session cookie with verified ID Token
   try {
+    let firestorePlanId = "free";
+    let firestorePlanName = "Free Tier";
+    let firestoreRole = "user";
+
+    if (isFirebaseConfigured() && firestore) {
+      try {
+        const snap = await getDoc(doc(firestore, "users", user.uid));
+        if (snap.exists()) {
+          const d = snap.data();
+          if (d.planId) firestorePlanId = d.planId;
+          if (d.planName) firestorePlanName = d.planName;
+          if (d.role) firestoreRole = d.role;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     const idToken = await user.getIdToken();
     const res = await fetch("/api/auth/firebase-session", {
       method: "POST",
@@ -110,6 +128,9 @@ export async function syncUserWithFirestoreAndBackend(
         idToken,
         displayName: additionalData?.displayName || user.displayName,
         referralCode: additionalData?.referralCode,
+        planId: firestorePlanId,
+        planName: firestorePlanName,
+        role: firestoreRole,
       }),
     });
     if (!res.ok) {

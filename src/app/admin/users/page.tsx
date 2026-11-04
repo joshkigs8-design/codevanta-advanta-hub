@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { RefreshCw, Copy, Check } from "lucide-react";
-import { auth, isFirebaseConfigured } from "@/lib/firebase";
+import { auth, firestore, isFirebaseConfigured } from "@/lib/firebase";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { getAllFirestoreUsers, syncAllFirestoreUsersWithBackend } from "@/lib/firestoreService";
 
 interface UserProfile {
@@ -151,6 +152,14 @@ export default function AdminUsersPage() {
         const err = await res.json();
         alert(err.error || "Failed to update role");
       } else {
+        if (isFirebaseConfigured() && firestore) {
+          try {
+            const userRef = doc(firestore, "users", userId);
+            await setDoc(userRef, { role: newRole, updatedAt: serverTimestamp() }, { merge: true });
+          } catch (e) {
+            console.warn("Firestore role sync error:", e);
+          }
+        }
         await fetchUsers();
         if (selectedUser?.id === userId) {
           setSelectedUser((prev) => (prev ? { ...prev, role: newRole as "user" | "member" | "admin" } : null));
@@ -182,9 +191,33 @@ export default function AdminUsersPage() {
         setAccessError(data.error || "Failed to grant access");
         return;
       }
+
+      if (isFirebaseConfigured() && firestore) {
+        try {
+          const userRef = doc(firestore, "users", selectedUser.id);
+          await setDoc(
+            userRef,
+            {
+              planId: accessPlan,
+              planName: data.membership.plan_name,
+              role: selectedUser.role === "admin" ? "admin" : "member",
+              accountStatus: "active",
+              paymentStatus: "paid",
+              membershipStatus: "active",
+              membershipExpiresAt: data.membership.expires_at,
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+        } catch (e) {
+          console.warn("Firestore grant access sync error:", e);
+        }
+      }
+
       await fetchUsers();
       setSelectedUser((prev) => (prev ? {
         ...prev,
+        role: prev.role === "admin" ? "admin" : "member",
         membership: {
           id: "",
           plan_slug: data.membership.plan_slug,

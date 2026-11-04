@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { isFirebaseConfigured, firestore } from "@/lib/firebase";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { verifyFirebaseIdToken } from "@/lib/verifyFirebaseToken";
 import crypto from "node:crypto";
 
 export const dynamic = "force-dynamic";
@@ -115,14 +116,29 @@ export async function POST(req: NextRequest) {
       WHERE id = ?
     `).run(nowIso, promo.id);
 
+    const authHeader = req.headers.get("authorization");
+    const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
+    let verifiedUid = user.id;
+
+    if (bearerToken) {
+      try {
+        const verified = await verifyFirebaseIdToken(bearerToken);
+        if (verified?.uid) {
+          verifiedUid = verified.uid;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     // Cancel any older active memberships for clean upgrade
     db.prepare(`
       UPDATE memberships
       SET status = 'cancelled', updated_at = ?
-      WHERE user_id = ? AND status = 'active'
-    `).run(nowIso, user.id);
+      WHERE (user_id = ? OR user_id = ?) AND status = 'active'
+    `).run(nowIso, user.id, verifiedUid);
 
-    // Insert new lifetime active membership
+    // Insert new lifetime active membership for user.id
     db.prepare(`
       INSERT INTO memberships (
         id, user_id, plan_id, plan_slug, plan_name, status,
@@ -140,19 +156,69 @@ export async function POST(req: NextRequest) {
       nowIso
     );
 
+    // Also insert for verifiedUid if different from user.id
+    if (verifiedUid !== user.id) {
+      try {
+        db.prepare(`
+          INSERT INTO memberships (
+            id, user_id, plan_id, plan_slug, plan_name, status,
+            amount_paid_kes, starts_at, expires_at, payment_reference, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, 'active', 0, ?, NULL, ?, ?, ?)
+        `).run(
+          `mem_promo_uid_${crypto.randomUUID()}`,
+          verifiedUid,
+          plan.id,
+          plan.slug,
+          plan.name,
+          nowIso,
+          `PROMO_${promo.code}`,
+          nowIso,
+          nowIso
+        );
+      } catch {
+        // ignore
+      }
+    }
+
     // Upgrade user profile role if currently regular user
     if (user.role === "user") {
       db.prepare(`
         UPDATE profiles
         SET role = 'member', updated_at = ?
-        WHERE id = ?
-      `).run(nowIso, user.id);
+        WHERE id = ? OR id = ?
+      `).run(nowIso, user.id, verifiedUid);
     }
 
-    // 8. Synchronize to Firestore if configured
+    // 8. Synchronize to Firestore REST API if bearerToken is present
+    if (bearerToken) {
+      try {
+        const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "codevanta-hub";
+        const patchUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${verifiedUid}?updateMask.fieldPaths=planId&updateMask.fieldPaths=planName&updateMask.fieldPaths=role&updateMask.fieldPaths=membershipStatus&updateMask.fieldPaths=membershipReference`;
+        await fetch(patchUrl, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${bearerToken}`,
+          },
+          body: JSON.stringify({
+            fields: {
+              planId: { stringValue: promo.plan_slug },
+              planName: { stringValue: plan.name },
+              role: { stringValue: user.role === "admin" ? "admin" : "member" },
+              membershipStatus: { stringValue: "active" },
+              membershipReference: { stringValue: `PROMO_${promo.code}` },
+            },
+          }),
+        });
+      } catch (err) {
+        console.warn("Firestore promo REST sync notice:", err);
+      }
+    }
+
+    // Also attempt client SDK setDoc
     if (isFirebaseConfigured() && firestore) {
       try {
-        const userRef = doc(firestore, "users", user.id);
+        const userRef = doc(firestore, "users", verifiedUid);
         await setDoc(
           userRef,
           {

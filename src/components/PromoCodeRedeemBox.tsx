@@ -3,6 +3,9 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Ticket, Sparkles, CheckCircle2, AlertCircle, Loader2, ArrowRight } from "lucide-react";
+import { auth, firestore, isFirebaseConfigured } from "@/lib/firebase";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { syncUserWithFirestoreAndBackend } from "@/lib/firebaseAuth";
 
 interface PromoCodeRedeemBoxProps {
   onSuccess?: (planSlug: string) => void;
@@ -25,9 +28,15 @@ export default function PromoCodeRedeemBox({ onSuccess, className = "" }: PromoC
     setSuccessMessage(null);
 
     try {
+      const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+
       const res = await fetch("/api/promocodes/redeem", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ code: code.trim() }),
       });
 
@@ -38,6 +47,49 @@ export default function PromoCodeRedeemBox({ onSuccess, className = "" }: PromoC
           throw new Error("Please sign in or create an account to redeem your promo code.");
         }
         throw new Error(data.error || "Failed to redeem promo code.");
+      }
+
+      // Synchronize to Firestore directly from authenticated client
+      if (isFirebaseConfigured() && firestore && auth?.currentUser) {
+        try {
+          const userRef = doc(firestore, "users", auth.currentUser.uid);
+          await setDoc(
+            userRef,
+            {
+              planId: data.planSlug,
+              planName: data.planName,
+              role: "member",
+              accountStatus: "active",
+              paymentStatus: "paid",
+              membershipId: `mem_${data.planSlug}_${auth.currentUser.uid}`,
+              membershipStatus: "active",
+              membershipStartsAt: new Date().toISOString(),
+              membershipExpiresAt: null,
+              membershipReference: `PROMO_${code.trim().toUpperCase()}`,
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+
+          try {
+            const redRef = doc(firestore, "promo_redemptions", `red_${auth.currentUser.uid}_${Date.now()}`);
+            await setDoc(redRef, {
+              userId: auth.currentUser.uid,
+              userEmail: auth.currentUser.email,
+              code: code.trim().toUpperCase(),
+              planSlug: data.planSlug,
+              planName: data.planName,
+              redeemedAt: serverTimestamp(),
+            });
+          } catch {
+            // ignore
+          }
+
+          // Resync backend session
+          await syncUserWithFirestoreAndBackend(auth.currentUser);
+        } catch (fsErr) {
+          console.warn("Client Firestore promo sync notice:", fsErr);
+        }
       }
 
       setSuccessMessage(data.message);

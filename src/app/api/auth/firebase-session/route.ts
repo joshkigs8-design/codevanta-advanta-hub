@@ -117,6 +117,42 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Rehydrate active membership if planId is provided from Firestore
+    const planSlug = typeof body?.planId === "string" ? body.planId.trim() : null;
+    if (planSlug && planSlug !== "free") {
+      const plan = db
+        .prepare("SELECT id, name, slug FROM membership_plans WHERE slug = ?")
+        .get(planSlug) as { id: string; name: string; slug: string } | undefined;
+      if (plan) {
+        db.prepare(`
+          INSERT INTO memberships (
+            id, user_id, plan_id, plan_slug, plan_name, status,
+            amount_paid_kes, starts_at, expires_at, payment_reference, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, 'active', 0, ?, NULL, 'FIREBASE_SESSION_SYNC', ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            plan_id = excluded.plan_id,
+            plan_slug = excluded.plan_slug,
+            plan_name = excluded.plan_name,
+            status = 'active',
+            updated_at = excluded.updated_at
+        `).run(
+          `mem-session-${profile.id}`,
+          profile.id,
+          plan.id,
+          plan.slug,
+          plan.name,
+          now,
+          now,
+          now
+        );
+
+        if (profile.role !== "admin") {
+          db.prepare("UPDATE profiles SET role = 'member', updated_at = ? WHERE id = ?").run(now, profile.id);
+          profile.role = "member";
+        }
+      }
+    }
+
     // Sign session token with verified claims
     const token = signToken({
       userId: profile.id,
