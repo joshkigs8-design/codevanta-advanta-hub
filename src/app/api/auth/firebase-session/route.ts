@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { signToken } from "@/lib/auth";
+import { signToken, COOKIE_NAME } from "@/lib/auth";
 import { getReferralCodeForUser, attributeReferral } from "@/lib/referral";
 import { verifyFirebaseIdToken } from "@/lib/verifyFirebaseToken";
 import { UserRole } from "@/types";
@@ -144,18 +144,73 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Rehydrate active membership if planId is provided from Firestore
-    const planSlug = typeof body?.planId === "string" ? body.planId.trim() : null;
-    if (planSlug && planSlug !== "free") {
+    // Authoritatively resolve user's active membership from verified server-side records ONLY.
+    // Client-submitted body.planId or body.role are strictly untrusted to prevent privilege escalation.
+    let verifiedActivePlan: { plan_slug: string; plan_name: string } | undefined = undefined;
+
+    // 1. Check existing active membership in database
+    const existingMembership = db
+      .prepare(`
+        SELECT plan_slug, plan_name 
+        FROM memberships 
+        WHERE (user_id = ? OR user_id = ?) AND status = 'active'
+        ORDER BY created_at DESC 
+        LIMIT 1
+      `)
+      .get(profile.id, verifiedUid) as { plan_slug: string; plan_name: string } | undefined;
+
+    if (existingMembership && existingMembership.plan_slug !== "free") {
+      verifiedActivePlan = existingMembership;
+    }
+
+    // 2. Check verified completed payment
+    if (!verifiedActivePlan) {
+      const completedPayment = db
+        .prepare(`
+          SELECT m.slug as plan_slug, m.name as plan_name 
+          FROM payments p 
+          JOIN membership_plans m ON p.plan_id = m.id 
+          WHERE (p.user_id = ? OR p.user_id = ?) AND p.status = 'completed'
+          ORDER BY p.created_at DESC 
+          LIMIT 1
+        `)
+        .get(profile.id, verifiedUid) as { plan_slug: string; plan_name: string } | undefined;
+
+      if (completedPayment) {
+        verifiedActivePlan = completedPayment;
+      }
+    }
+
+    // 3. Check verified promo code redemption
+    if (!verifiedActivePlan) {
+      const promoRedemption = db
+        .prepare(`
+          SELECT m.slug as plan_slug, m.name as plan_name 
+          FROM promo_code_redemptions r 
+          JOIN membership_plans m ON r.plan_slug = m.slug 
+          WHERE (r.user_id = ? OR r.user_id = ?)
+          ORDER BY r.redeemed_at DESC 
+          LIMIT 1
+        `)
+        .get(profile.id, verifiedUid) as { plan_slug: string; plan_name: string } | undefined;
+
+      if (promoRedemption) {
+        verifiedActivePlan = promoRedemption;
+      }
+    }
+
+    // If verified active plan exists, ensure membership and member role are synchronized
+    if (verifiedActivePlan) {
       const plan = db
         .prepare("SELECT id, name, slug FROM membership_plans WHERE slug = ?")
-        .get(planSlug) as { id: string; name: string; slug: string } | undefined;
+        .get(verifiedActivePlan.plan_slug) as { id: string; name: string; slug: string } | undefined;
+
       if (plan) {
         db.prepare(`
           INSERT INTO memberships (
             id, user_id, plan_id, plan_slug, plan_name, status,
             amount_paid_kes, starts_at, expires_at, payment_reference, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, 'active', 0, ?, NULL, 'FIREBASE_SESSION_SYNC', ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, 'active', 0, ?, NULL, 'VERIFIED_SERVER_RECORDS', ?, ?)
           ON CONFLICT(id) DO UPDATE SET
             plan_id = excluded.plan_id,
             plan_slug = excluded.plan_slug,
@@ -163,7 +218,7 @@ export async function POST(req: NextRequest) {
             status = 'active',
             updated_at = excluded.updated_at
         `).run(
-          `mem-session-${profile.id}`,
+          `mem-verified-${profile.id}`,
           profile.id,
           plan.id,
           plan.slug,
@@ -206,7 +261,7 @@ export async function POST(req: NextRequest) {
     const isHttps = proto === "https" || req.url.startsWith("https://");
     const isSecure = (process.env.NODE_ENV === "production" && !isLocalhost) || isHttps;
 
-    response.cookies.set("cv_hub_session", token, {
+    response.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,
       secure: isSecure,
       sameSite: "lax",

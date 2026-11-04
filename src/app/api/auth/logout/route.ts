@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
+import { COOKIE_NAME } from "@/lib/auth";
 
 export async function POST() {
   const response = NextResponse.json({ success: true, message: "Logged out successfully" });
-  response.cookies.set("cv_hub_session", "", {
+  response.cookies.set(COOKIE_NAME, "", {
     httpOnly: true,
     expires: new Date(0),
     path: "/",

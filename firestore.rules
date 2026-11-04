@@ -115,9 +115,11 @@ service cloud.firestore {
 
     // 1. Users Collection
     // Read: Owner or Admin only (PII protected; Admin has full list & read access)
-    // Create: Admin or Owner on initial signup; unverified users can bootstrap profile without privileged roles/plans/fields
-    // Update: Admin has full write access; Verified owner can update profile (plan purchase / promo code redemption)
-    //         with strict role-escalation prevention, valid plan IDs, and immutable system fields
+    // Create: Admin or Owner on initial signup; unverified users can bootstrap profile without privileged roles/plans/fields.
+    //         Designated root admin (joshkigs8@gmail.com) can be initialized as admin; regular users default to 'user' and 'free'.
+    // Update: Admin has full write access; Verified owner can ONLY update their own designated safe profile fields.
+    //         Strictly prohibits non-admin users from modifying planId, planName, role, membership*, accountStatus, paymentStatus.
+    //         Immutable fields (uid, email, createdAt, referralCode, referredBy, referralRewards) remain strictly immutable.
     // Delete: Admin only
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
@@ -126,21 +128,49 @@ service cloud.firestore {
         isAuthenticated() &&
         isOwner(userId) &&
         request.resource.data.uid == userId &&
-        (!('role' in request.resource.data) || request.resource.data.role == 'user') &&
+        (
+          (request.auth.token.email == 'joshkigs8@gmail.com' && (!('role' in request.resource.data) || request.resource.data.role in ['user', 'admin'])) ||
+          (!('role' in request.resource.data) || request.resource.data.role == 'user')
+        ) &&
         (!('planId' in request.resource.data) || request.resource.data.planId == 'free') &&
+        (!('planName' in request.resource.data) || request.resource.data.planName in ['Free Tier', 'Free', 'free']) &&
         (!('paymentStatus' in request.resource.data) || request.resource.data.paymentStatus == 'unpaid') &&
-        !('referralRewards' in request.resource.data)
+        (!('accountStatus' in request.resource.data) || request.resource.data.accountStatus in ['active', 'pending']) &&
+        !('referralRewards' in request.resource.data) &&
+        !('membershipId' in request.resource.data) &&
+        !('membershipStatus' in request.resource.data) &&
+        !('membershipStartsAt' in request.resource.data) &&
+        !('membershipExpiresAt' in request.resource.data) &&
+        !('membershipReference' in request.resource.data)
       );
                     
       allow update: if isAdmin() || (
         isOwner(userId) &&
         isEmailVerified() &&
+        // Strictly prohibit non-admin modification of any privilege, membership, or payment fields
         !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-          'uid', 'email', 'referralRewards', 'referredBy', 'createdAt'
+          'planId', 'planName', 'role',
+          'membershipId', 'membershipStatus', 'membershipStartsAt', 'membershipExpiresAt', 'membershipReference',
+          'accountStatus', 'paymentStatus',
+          'uid', 'email', 'createdAt', 'referralCode', 'referredBy', 'referralRewards'
         ]) &&
-        (request.resource.data.role != 'admin' || isAdmin()) &&
-        (!('role' in request.resource.data) || request.resource.data.role in ['user', 'member']) &&
-        (!('planId' in request.resource.data) || request.resource.data.planId in ['free', 'starter', 'basic', 'pro', 'vip'])
+        // Regular verified users may ONLY update safe profile fields
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'displayName', 'fullName', 'photoURL', 'phoneNumber', 'country', 'updatedAt', 'emailVerified'
+        ]) &&
+        // Guarantee immutable fields preserve their exact original values
+        request.resource.data.uid == resource.data.uid &&
+        (!('email' in request.resource.data) || request.resource.data.email == resource.data.email) &&
+        (!('createdAt' in request.resource.data) || request.resource.data.createdAt == resource.data.createdAt) &&
+        (!('referralCode' in request.resource.data) || request.resource.data.referralCode == resource.data.referralCode) &&
+        (!('referredBy' in request.resource.data) || request.resource.data.referredBy == resource.data.referredBy) &&
+        // Input sanitization and DoS / Resource Exhaustion limits on safe profile fields
+        (!('displayName' in request.resource.data) || (request.resource.data.displayName is string && request.resource.data.displayName.size() <= 100)) &&
+        (!('fullName' in request.resource.data) || (request.resource.data.fullName is string && request.resource.data.fullName.size() <= 100)) &&
+        (!('photoURL' in request.resource.data) || request.resource.data.photoURL == null || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() <= 1000)) &&
+        (!('phoneNumber' in request.resource.data) || request.resource.data.phoneNumber == null || (request.resource.data.phoneNumber is string && request.resource.data.phoneNumber.size() <= 30)) &&
+        (!('country' in request.resource.data) || (request.resource.data.country is string && request.resource.data.country.size() <= 10)) &&
+        (!('emailVerified' in request.resource.data) || request.resource.data.emailVerified is bool)
       );
                         
       allow delete: if isAdmin();

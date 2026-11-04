@@ -451,18 +451,65 @@ export function recordReferralPayout(
   paidAt: string,
   adminNote?: string
 ): ReferralPayout | null {
-    const reference = mpesaReference.trim();
-    if (!reference) throw new Error("M-Pesa transaction reference is required.");
-    const db = getDb();
+  const reference = mpesaReference.trim();
+  if (!reference) throw new Error("M-Pesa transaction reference is required.");
+  const db = getDb();
+
+  db.exec("BEGIN IMMEDIATE;");
+  try {
     const payout = db.prepare("SELECT * FROM referral_payouts WHERE id = ?").get(payoutId) as ReferralPayout | undefined;
-    if (!payout || payout.status !== "pending") return null;
+    if (!payout || payout.status !== "pending") {
+      db.exec("ROLLBACK;");
+      return null;
+    }
+
     const now = new Date().toISOString();
     db.prepare(`
       UPDATE referral_payouts
       SET status = 'paid', mpesa_reference = ?, paid_at = ?, paid_by = ?, admin_note = ?, updated_at = ?
       WHERE id = ? AND status = 'pending'
     `).run(reference, paidAt, adminUserId, adminNote || null, now, payoutId);
+
+    // Debit the approved wallet balance and log to ledger
+    const wallet = db
+      .prepare("SELECT id, approved_balance, withdrawn_balance FROM wallet_accounts WHERE user_id = ?")
+      .get(payout.referrer_user_id) as { id: string; approved_balance: number; withdrawn_balance: number } | undefined;
+
+    if (wallet) {
+      const newApproved = Math.max(0, wallet.approved_balance - payout.amount_kes);
+      const newWithdrawn = wallet.withdrawn_balance + payout.amount_kes;
+
+      db.prepare(`
+        UPDATE wallet_accounts
+        SET approved_balance = ?, withdrawn_balance = ?, updated_at = ?
+        WHERE id = ?
+      `).run(newApproved, newWithdrawn, now, wallet.id);
+
+      const ledgerId = crypto.randomUUID();
+      db.prepare(`
+        INSERT INTO wallet_ledger_entries (
+          id, wallet_id, user_id, entry_type, amount_kes, balance_after_kes, reference_type, reference_id, notes, created_at
+        ) VALUES (?, ?, ?, 'referral_payout', ?, ?, 'referral_payout', ?, ?, ?)
+      `).run(
+        ledgerId,
+        wallet.id,
+        payout.referrer_user_id,
+        -payout.amount_kes,
+        newApproved,
+        payout.id,
+        `Manual referral payout disbursed via M-Pesa. Ref: ${reference}`,
+        now
+      );
+    }
+
+    db.exec("COMMIT;");
     return db.prepare("SELECT * FROM referral_payouts WHERE id = ?").get(payoutId) as ReferralPayout;
+  } catch (err) {
+    try {
+      db.exec("ROLLBACK;");
+    } catch {}
+    throw err;
+  }
 }
 
 export function reviewReferralReward(

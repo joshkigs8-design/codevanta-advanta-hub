@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { signToken } from "@/lib/auth";
+import { signToken, COOKIE_NAME } from "@/lib/auth";
 import { attributeReferral, getReferralCodeForUser } from "@/lib/referral";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    response.cookies.set("cv_hub_session", token, {
+    response.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

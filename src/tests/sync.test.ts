@@ -160,5 +160,117 @@ test("Firestore User Sync to SQLite Engine", async (t) => {
     db.prepare("DELETE FROM referral_codes WHERE code = 'CVCLICK99'").run();
     db.prepare("DELETE FROM profiles WHERE id = ?").run(testUserId);
   });
+
+  await t.test("7. Firestore REST pagination retrieves multiple pages via nextPageToken", async () => {
+    const { fetchAndSyncFirestoreUsers } = await import("../lib/firestoreSync");
+    
+    // Mock global fetch to simulate Firestore paginated response
+    const originalFetch = global.fetch;
+    let fetchCallCount = 0;
+
+    global.fetch = async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
+      fetchCallCount++;
+      const urlStr = url.toString();
+
+      if (urlStr.includes("pageToken=PAGE_TWO_TOKEN")) {
+        return new Response(
+          JSON.stringify({
+            documents: [
+              {
+                name: "projects/codevanta-hub/databases/(default)/documents/users/page2-user-1",
+                fields: {
+                  email: { stringValue: "page2@example.com" },
+                  displayName: { stringValue: "Page Two User" },
+                  role: { stringValue: "user" },
+                },
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      // Page 1 response with nextPageToken
+      return new Response(
+        JSON.stringify({
+          documents: [
+            {
+              name: "projects/codevanta-hub/databases/(default)/documents/users/page1-user-1",
+              fields: {
+                email: { stringValue: "page1@example.com" },
+                displayName: { stringValue: "Page One User" },
+                role: { stringValue: "user" },
+              },
+            },
+          ],
+          nextPageToken: "PAGE_TWO_TOKEN",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    };
+
+    try {
+      const syncedCount = await fetchAndSyncFirestoreUsers(db, "mock-admin-token");
+      assert.strictEqual(fetchCallCount, 2, "Must request page 1 and page 2");
+      assert.strictEqual(syncedCount, 2, "Must sync 2 users across pages");
+
+      const p1 = db.prepare("SELECT * FROM profiles WHERE email = 'page1@example.com'").get();
+      const p2 = db.prepare("SELECT * FROM profiles WHERE email = 'page2@example.com'").get();
+      assert.ok(p1, "Page 1 user must exist in SQLite");
+      assert.ok(p2, "Page 2 user must exist in SQLite");
+
+      db.prepare("DELETE FROM profiles WHERE email IN ('page1@example.com', 'page2@example.com')").run();
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  await t.test("8. Deterministic newest active membership resolution", () => {
+    const testUserId = "det-user-mem-1";
+    const now = new Date();
+    const olderTime = new Date(now.getTime() - 100000).toISOString();
+    const newerTime = new Date(now.getTime()).toISOString();
+
+    db.prepare(`
+      INSERT OR REPLACE INTO profiles (id, email, password_hash, full_name, role, country, email_verified, created_at, updated_at)
+      VALUES (?, 'detuser@example.com', 'HASH', 'Deterministic User', 'member', 'KE', 1, ?, ?)
+    `).run(testUserId, olderTime, newerTime);
+
+    db.prepare(`
+      INSERT INTO memberships (id, user_id, plan_id, plan_slug, plan_name, status, amount_paid_kes, starts_at, created_at, updated_at)
+      VALUES ('mem-old', ?, 'plan-basic-150', 'basic', 'Basic Plan', 'active', 50, ?, ?, ?)
+    `).run(testUserId, olderTime, olderTime, olderTime);
+
+    db.prepare(`
+      INSERT INTO memberships (id, user_id, plan_id, plan_slug, plan_name, status, amount_paid_kes, starts_at, created_at, updated_at)
+      VALUES ('mem-new', ?, 'plan-vip-350', 'vip', 'VIP Plan', 'active', 150, ?, ?, ?)
+    `).run(testUserId, newerTime, newerTime, newerTime);
+
+    const row = db.prepare(`
+      SELECT
+        p.id, p.email,
+        m.id as membership_id, m.plan_slug, m.plan_name
+      FROM profiles p
+      LEFT JOIN (
+        SELECT m1.user_id, m1.id, m1.plan_slug, m1.plan_name, m1.status, m1.amount_paid_kes, m1.starts_at, m1.expires_at
+        FROM memberships m1
+        JOIN (
+          SELECT user_id, MAX(created_at) as max_created
+          FROM memberships
+          WHERE status = 'active'
+          GROUP BY user_id
+        ) m2 ON m1.user_id = m2.user_id AND m1.created_at = m2.max_created
+      ) m ON m.user_id = p.id
+      WHERE p.id = ?
+    `).get(testUserId) as any;
+
+    assert.ok(row, "User row must be returned");
+    assert.strictEqual(row.membership_id, "mem-new", "Must deterministically select the newest active membership");
+    assert.strictEqual(row.plan_slug, "vip", "Must resolve VIP plan slug");
+
+    // Clean up
+    db.prepare("DELETE FROM memberships WHERE user_id = ?").run(testUserId);
+    db.prepare("DELETE FROM profiles WHERE id = ?").run(testUserId);
+  });
 });
 

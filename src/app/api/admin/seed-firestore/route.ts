@@ -7,7 +7,7 @@ import { initialTroubleshooting } from "@/lib/seeds/troubleshooting";
 import { initialProjects } from "@/lib/seeds/projects";
 import { initialStudentBenefits } from "@/lib/seeds/students";
 import { getDb } from "@/lib/db";
-import { verifyToken } from "@/lib/auth";
+import { verifyToken, COOKIE_NAME } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -27,7 +27,7 @@ const DEFAULT_PLANS = [
 
 export async function POST(req: NextRequest) {
   // 1. Verify admin privilege
-  const sessionToken = req.cookies.get("cv_hub_session")?.value;
+  const sessionToken = req.cookies.get(COOKIE_NAME)?.value;
   const user = sessionToken ? verifyToken(sessionToken) : null;
   const secretKey = req.headers.get("x-admin-key");
 

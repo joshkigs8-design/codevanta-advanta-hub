@@ -91,31 +91,42 @@ export function submitWithdrawalRequest(
     return { success: false, error: "Withdrawal amount cannot be less than or equal to processing fee." };
   }
 
-  const { wallet } = getWallet(userId);
-  if (wallet.approved_balance < amountKes) {
-    return {
-      success: false,
-      error: `Insufficient approved balance. Available: KES ${wallet.approved_balance.toLocaleString()}, Requested: KES ${amountKes.toLocaleString()}.`,
-    };
-  }
-
-  // 4. Concurrency lock: Prevent duplicate concurrent pending withdrawals
-  const pendingWithdrawal = db
-    .prepare("SELECT id FROM withdrawal_requests WHERE user_id = ? AND status IN ('submitted', 'processing')")
-    .get(userId) as { id: string } | undefined;
-
-  if (pendingWithdrawal) {
-    return {
-      success: false,
-      error: "You already have a withdrawal request in progress. Please allow it to complete before submitting another.",
-    };
-  }
-
-  const requestId = crypto.randomUUID();
-  const nowIso = new Date().toISOString();
-
   db.exec("BEGIN IMMEDIATE;");
   try {
+    // 4. Concurrency lock: Re-query wallet under lock to prevent race conditions
+    let wallet = db
+      .prepare("SELECT * FROM wallet_accounts WHERE user_id = ?")
+      .get(userId) as WalletAccount | undefined;
+
+    if (!wallet) {
+      db.exec("ROLLBACK;");
+      return { success: false, error: "Wallet account not found." };
+    }
+
+    if (wallet.approved_balance < amountKes) {
+      db.exec("ROLLBACK;");
+      return {
+        success: false,
+        error: `Insufficient approved balance. Available: KES ${wallet.approved_balance.toLocaleString()}, Requested: KES ${amountKes.toLocaleString()}.`,
+      };
+    }
+
+    // Check for existing pending/processing withdrawal under transaction lock
+    const pendingWithdrawal = db
+      .prepare("SELECT id FROM withdrawal_requests WHERE user_id = ? AND status IN ('submitted', 'processing')")
+      .get(userId) as { id: string } | undefined;
+
+    if (pendingWithdrawal) {
+      db.exec("ROLLBACK;");
+      return {
+        success: false,
+        error: "You already have a withdrawal request in progress. Please allow it to complete before submitting another.",
+      };
+    }
+
+    const requestId = crypto.randomUUID();
+    const nowIso = new Date().toISOString();
+
     // Deduct approved balance
     const newBalance = wallet.approved_balance - amountKes;
     db.prepare("UPDATE wallet_accounts SET approved_balance = ?, updated_at = ? WHERE id = ?")
@@ -174,7 +185,11 @@ export function submitWithdrawalRequest(
 
     return { success: true, request: createdRequest };
   } catch (err: unknown) {
-    db.exec("ROLLBACK;");
+    try {
+      db.exec("ROLLBACK;");
+    } catch {
+      // ignore rollback errors if transaction was already finalized
+    }
     return { success: false, error: err instanceof Error ? err.message : "Database error processing withdrawal" };
   }
 }

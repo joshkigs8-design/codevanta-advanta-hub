@@ -115,27 +115,38 @@ export function initiateCheckout(
 }
 
 export function verifyWebhookSignature(payloadString: string, signatureHeader?: string | null): boolean {
-  if (process.env.NODE_ENV !== "production" && (!signatureHeader || signatureHeader === "sandbox_test_signature")) {
+  if (!signatureHeader) return false;
+  if (process.env.NODE_ENV === "test" && signatureHeader === "sandbox_test_signature") {
     return true;
   }
-  if (!signatureHeader) return false;
+  const secret = process.env.MPESA_CALLBACK_SECRET || CALLBACK_SECRET;
+  if (!secret) return false;
 
-  const hmac = crypto.createHmac("sha256", CALLBACK_SECRET);
-  const expectedSignature = hmac.update(payloadString).digest("hex");
-  return crypto.timingSafeEqual(Buffer.from(signatureHeader), Buffer.from(expectedSignature));
+  try {
+    const hmac = crypto.createHmac("sha256", secret);
+    const expectedSignature = hmac.update(payloadString).digest("hex");
+    const expectedBuf = Buffer.from(expectedSignature, "utf8");
+    const sigBuf = Buffer.from(signatureHeader, "utf8");
+    if (expectedBuf.length !== sigBuf.length) return false;
+    return crypto.timingSafeEqual(expectedBuf, sigBuf);
+  } catch {
+    return false;
+  }
 }
 
 export function verifyPaystackSignature(payloadString: string, signatureHeader?: string | null): boolean {
+  if (!signatureHeader) return false;
   if (
-    process.env.NODE_ENV !== "production" &&
-    (!signatureHeader || signatureHeader === "sandbox_paystack_test_signature" || signatureHeader === "sandbox_test_signature")
+    process.env.NODE_ENV === "test" &&
+    (signatureHeader === "sandbox_paystack_test_signature" || signatureHeader === "sandbox_test_signature")
   ) {
     return true;
   }
-  if (!signatureHeader || !PAYSTACK_SECRET) return false;
+  const secret = process.env.PAYSTACK_SECRET_KEY || PAYSTACK_SECRET;
+  if (!secret) return false;
 
   try {
-    const hmac = crypto.createHmac("sha512", PAYSTACK_SECRET);
+    const hmac = crypto.createHmac("sha512", secret);
     const expectedSignature = hmac.update(payloadString).digest("hex");
     
     // Constant-time comparison to prevent timing attacks

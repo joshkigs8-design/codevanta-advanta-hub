@@ -80,10 +80,14 @@ export async function GET(req: NextRequest) {
         FROM profiles p
         LEFT JOIN referral_codes rc ON rc.user_id = p.id
         LEFT JOIN (
-          SELECT user_id, id, plan_slug, plan_name, status, amount_paid_kes, starts_at, expires_at
-          FROM memberships
-          WHERE status = 'active'
-          GROUP BY user_id
+          SELECT m1.user_id, m1.id, m1.plan_slug, m1.plan_name, m1.status, m1.amount_paid_kes, m1.starts_at, m1.expires_at
+          FROM memberships m1
+          JOIN (
+            SELECT user_id, MAX(created_at) as max_created
+            FROM memberships
+            WHERE status = 'active'
+            GROUP BY user_id
+          ) m2 ON m1.user_id = m2.user_id AND m1.created_at = m2.max_created
         ) m ON m.user_id = p.id
         ${whereClause}
         ORDER BY ${sortColumn} ${order}

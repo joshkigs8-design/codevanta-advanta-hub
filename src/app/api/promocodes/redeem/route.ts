@@ -91,31 +91,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const nowIso = new Date().toISOString();
-    const redemptionId = `red_${crypto.randomUUID()}`;
-    const membershipId = `mem_promo_${crypto.randomUUID()}`;
-
-    // 7. Atomic transaction: Record redemption, increment count, and grant membership
-    db.prepare(`
-      INSERT INTO promo_code_redemptions (
-        id, promo_code_id, promo_code, user_id, user_email, plan_slug, redeemed_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      redemptionId,
-      promo.id,
-      promo.code,
-      user.id,
-      user.email,
-      promo.plan_slug,
-      nowIso
-    );
-
-    db.prepare(`
-      UPDATE promo_codes
-      SET used_count = used_count + 1, updated_at = ?
-      WHERE id = ?
-    `).run(nowIso, promo.id);
-
     const authHeader = req.headers.get("authorization");
     const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
     let verifiedUid = user.id;
@@ -131,62 +106,131 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Cancel any older active memberships for clean upgrade
-    db.prepare(`
-      UPDATE memberships
-      SET status = 'cancelled', updated_at = ?
-      WHERE (user_id = ? OR user_id = ?) AND status = 'active'
-    `).run(nowIso, user.id, verifiedUid);
+    const nowIso = new Date().toISOString();
+    const redemptionId = `red_${crypto.randomUUID()}`;
+    const membershipId = `mem_promo_${crypto.randomUUID()}`;
 
-    // Insert new lifetime active membership for user.id
-    db.prepare(`
-      INSERT INTO memberships (
-        id, user_id, plan_id, plan_slug, plan_name, status,
-        amount_paid_kes, starts_at, expires_at, payment_reference, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, 'active', 0, ?, NULL, ?, ?, ?)
-    `).run(
-      membershipId,
-      user.id,
-      plan.id,
-      plan.slug,
-      plan.name,
-      nowIso,
-      `PROMO_${promo.code}`,
-      nowIso,
-      nowIso
-    );
+    // 7. Atomic transaction: Verify slots under write lock, increment count, and grant membership
+    db.exec("BEGIN IMMEDIATE;");
+    try {
+      // Re-verify promo availability under write lock
+      const currentPromo = db
+        .prepare("SELECT id, max_uses, used_count, is_active FROM promo_codes WHERE id = ?")
+        .get(promo.id) as { id: string; max_uses: number; used_count: number; is_active: number } | undefined;
 
-    // Also insert for verifiedUid if different from user.id
-    if (verifiedUid !== user.id) {
-      try {
-        db.prepare(`
-          INSERT INTO memberships (
-            id, user_id, plan_id, plan_slug, plan_name, status,
-            amount_paid_kes, starts_at, expires_at, payment_reference, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, 'active', 0, ?, NULL, ?, ?, ?)
-        `).run(
-          `mem_promo_uid_${crypto.randomUUID()}`,
-          verifiedUid,
-          plan.id,
-          plan.slug,
-          plan.name,
-          nowIso,
-          `PROMO_${promo.code}`,
-          nowIso,
-          nowIso
+      if (!currentPromo || currentPromo.is_active !== 1 || currentPromo.used_count >= currentPromo.max_uses) {
+        db.exec("ROLLBACK;");
+        return NextResponse.json(
+          { error: "This launchday promo code has reached its maximum capacity." },
+          { status: 400 }
         );
-      } catch {
-        // ignore
       }
-    }
 
-    // Upgrade user profile role if currently regular user
-    if (user.role === "user") {
+      // Re-check redemption under write lock
+      const txAlreadyRedeemed = db
+        .prepare("SELECT id FROM promo_code_redemptions WHERE promo_code_id = ? AND (user_id = ? OR user_id = ?)")
+        .get(promo.id, user.id, verifiedUid);
+
+      if (txAlreadyRedeemed) {
+        db.exec("ROLLBACK;");
+        return NextResponse.json(
+          { error: "You have already redeemed this promo code on your account." },
+          { status: 400 }
+        );
+      }
+
+      // Atomic slot consumption guard
+      const updateResult = db
+        .prepare("UPDATE promo_codes SET used_count = used_count + 1, updated_at = ? WHERE id = ? AND used_count < max_uses AND is_active = 1")
+        .run(nowIso, promo.id);
+
+      if (updateResult.changes === 0) {
+        db.exec("ROLLBACK;");
+        return NextResponse.json(
+          { error: "This launchday promo code has reached its maximum capacity." },
+          { status: 400 }
+        );
+      }
+
+      // Insert redemption record
       db.prepare(`
-        UPDATE profiles
-        SET role = 'member', updated_at = ?
-        WHERE id = ? OR id = ?
+        INSERT INTO promo_code_redemptions (
+          id, promo_code_id, promo_code, user_id, user_email, plan_slug, redeemed_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        redemptionId,
+        promo.id,
+        promo.code,
+        user.id,
+        user.email,
+        promo.plan_slug,
+        nowIso
+      );
+
+      // Cancel any older active memberships for clean upgrade
+      db.prepare(`
+        UPDATE memberships
+        SET status = 'cancelled', updated_at = ?
+        WHERE (user_id = ? OR user_id = ?) AND status = 'active'
       `).run(nowIso, user.id, verifiedUid);
+
+      // Insert new lifetime active membership for user.id
+      db.prepare(`
+        INSERT INTO memberships (
+          id, user_id, plan_id, plan_slug, plan_name, status,
+          amount_paid_kes, starts_at, expires_at, payment_reference, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, 'active', 0, ?, NULL, ?, ?, ?)
+      `).run(
+        membershipId,
+        user.id,
+        plan.id,
+        plan.slug,
+        plan.name,
+        nowIso,
+        `PROMO_${promo.code}`,
+        nowIso,
+        nowIso
+      );
+
+      // Also insert for verifiedUid if different from user.id
+      if (verifiedUid !== user.id) {
+        try {
+          db.prepare(`
+            INSERT INTO memberships (
+              id, user_id, plan_id, plan_slug, plan_name, status,
+              amount_paid_kes, starts_at, expires_at, payment_reference, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, 'active', 0, ?, NULL, ?, ?, ?)
+          `).run(
+            `mem_promo_uid_${crypto.randomUUID()}`,
+            verifiedUid,
+            plan.id,
+            plan.slug,
+            plan.name,
+            nowIso,
+            `PROMO_${promo.code}`,
+            nowIso,
+            nowIso
+          );
+        } catch {
+          // ignore
+        }
+      }
+
+      // Upgrade user profile role if currently regular user
+      if (user.role === "user") {
+        db.prepare(`
+          UPDATE profiles
+          SET role = 'member', updated_at = ?
+          WHERE id = ? OR id = ?
+        `).run(nowIso, user.id, verifiedUid);
+      }
+
+      db.exec("COMMIT;");
+    } catch (txErr) {
+      try {
+        db.exec("ROLLBACK;");
+      } catch {}
+      throw txErr;
     }
 
     // 8. Synchronize to Firestore REST API if bearerToken is present

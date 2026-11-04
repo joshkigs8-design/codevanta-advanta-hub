@@ -1,4 +1,5 @@
 process.env.DATABASE_PATH = ":memory:";
+process.env.NODE_ENV = "test";
 
 import test from "node:test";
 import assert from "node:assert";
@@ -9,10 +10,12 @@ import {
   getProgramStatus,
   setProgramStatus,
   processQualifyingReferralReward,
+  createReferralPayout,
+  recordReferralPayout,
 } from "../lib/referral";
 import { getWallet, submitWithdrawalRequest, processWithdrawalRequest } from "../lib/wallet";
 import { getUserEntitlements } from "../lib/entitlements";
-import { handlePaymentWebhook, initiateCheckout, verifyPaystackSignature, formatKenyanPhoneNumber } from "../lib/payments";
+import { handlePaymentWebhook, initiateCheckout, verifyPaystackSignature, verifyWebhookSignature, formatKenyanPhoneNumber } from "../lib/payments";
 import crypto from "node:crypto";
 import { MembershipPlan, ReferralReward } from "../types";
 
@@ -542,9 +545,40 @@ test("CodeVanta Advanta Hub — Comprehensive Domain Test Suite", async (t) => {
     const rejectedLedger = restoredLedger.find((e) => e.entry_type === "withdrawal_rejected");
     assert.ok(rejectedLedger, "Ledger must record withdrawal_rejected refund");
 
-    // 7. Verify Paystack Signature Verification utility
-    const testSignatureValid = verifyPaystackSignature("test_payload", "sandbox_paystack_test_signature");
-    assert.strictEqual(testSignatureValid, true, "Sandbox Paystack signature validates in test environment");
+    // 7. Verify Manual Referral Payout debits wallet and records ledger entry
+    const existingReward = db.prepare("SELECT * FROM referral_rewards WHERE status = 'approved' LIMIT 1").get() as ReferralReward;
+    assert.ok(existingReward, "Must find existing approved referral reward from earlier tests");
+
+    db.prepare("UPDATE profiles SET phone_number = '+254712345678' WHERE id = ?").run(existingReward.referrer_user_id);
+    const payout = createReferralPayout(existingReward.id);
+    assert.ok(payout, "Referral payout record created");
+
+    const { wallet: preWallet } = getWallet(existingReward.referrer_user_id);
+    const preApproved = preWallet.approved_balance;
+    const preWithdrawn = preWallet.withdrawn_balance;
+
+    const recordedPayout = recordReferralPayout(payout.id, adminId, "WSK999ABC", now, "Manual referral payout test");
+    assert.ok(recordedPayout, "Payout marked as paid");
+    assert.strictEqual(recordedPayout.status, "paid");
+
+    const { wallet: debitedWallet, ledger: debitedLedger } = getWallet(existingReward.referrer_user_id);
+    assert.strictEqual(debitedWallet.approved_balance, Math.max(0, preApproved - payout.amount_kes), "Approved balance must be debited");
+    assert.strictEqual(debitedWallet.withdrawn_balance, preWithdrawn + payout.amount_kes, "Withdrawn balance must be incremented");
+
+    const manLedger = debitedLedger.find((e) => e.entry_type === "referral_payout");
+    assert.ok(manLedger, "Must record referral_payout in wallet ledger");
+    assert.strictEqual(manLedger.amount_kes, -payout.amount_kes, "Ledger entry amount must match payout amount");
+
+    // 8. Verify Strict Webhook Signature Verification utility
+    assert.strictEqual(verifyPaystackSignature("test_payload", "sandbox_paystack_test_signature"), true, "Sandbox Paystack signature validates in test environment");
+    assert.strictEqual(verifyPaystackSignature("test_payload", ""), false, "Empty signature is rejected");
+    assert.strictEqual(verifyPaystackSignature("test_payload", null), false, "Null signature is rejected");
+    assert.strictEqual(verifyPaystackSignature("test_payload", "fake_signature_hash"), false, "Forged signature is rejected");
+
+    assert.strictEqual(verifyWebhookSignature("test_payload", "sandbox_test_signature"), true, "Sandbox webhook signature validates in test environment");
+    assert.strictEqual(verifyWebhookSignature("test_payload", ""), false, "Empty webhook signature is rejected");
+    assert.strictEqual(verifyWebhookSignature("test_payload", null), false, "Null webhook signature is rejected");
+    assert.strictEqual(verifyWebhookSignature("test_payload", "fake_signature_hash"), false, "Forged webhook signature is rejected");
   });
 
   await t.test("10. Paystack Custom M-Pesa Charge API, Phone Validation & Idempotency", () => {

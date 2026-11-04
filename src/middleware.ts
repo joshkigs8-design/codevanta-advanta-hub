@@ -37,6 +37,7 @@ interface ValidatedSession {
   aud?: string;
 }
 
+const COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "cv_hub_session";
 const DEFAULT_SECURE_SECRET = "6d5692d4dfceab133e668d89b3fa6274679dcf0dd3a6eb82ebaab25e674e9a60";
 
 /**
@@ -116,7 +117,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Retrieve session cookie
-  const token = request.cookies.get("cv_hub_session")?.value;
+  const token = request.cookies.get(COOKIE_NAME)?.value;
   if (!token) {
     if (isAdminApiRoute) {
       return NextResponse.json({ error: "Unauthorized: Missing session token" }, { status: 401 });

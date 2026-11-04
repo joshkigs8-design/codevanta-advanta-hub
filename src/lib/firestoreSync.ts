@@ -214,22 +214,40 @@ export async function fetchAndSyncFirestoreUsers(db: any, idToken?: string): Pro
   if (!token) return 0;
 
   const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "codevanta-hub";
+  let totalSynced = 0;
+  let pageToken: string | undefined = undefined;
+  let pageCount = 0;
+  const maxPages = 20;
+
   try {
-    const res = await fetch(
-      `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
+    do {
+      pageCount++;
+      const url = new URL(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users`);
+      url.searchParams.set("pageSize", "100");
+      if (pageToken) {
+        url.searchParams.set("pageToken", pageToken);
       }
-    );
-    if (!res.ok) {
-      return 0;
-    }
-    const data = await res.json();
-    if (!data.documents || !Array.isArray(data.documents)) return 0;
-    return syncUsersToDb(db, data.documents);
+
+      const res = await fetch(url.toString(), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        break;
+      }
+
+      const data = await res.json();
+      if (data.documents && Array.isArray(data.documents)) {
+        totalSynced += syncUsersToDb(db, data.documents);
+      }
+
+      pageToken = typeof data.nextPageToken === "string" && data.nextPageToken.trim() ? data.nextPageToken.trim() : undefined;
+    } while (pageToken && pageCount < maxPages);
+
+    return totalSynced;
   } catch (err) {
     console.warn("Could not fetch and sync Firestore users:", err);
-    return 0;
+    return totalSynced;
   }
 }
 

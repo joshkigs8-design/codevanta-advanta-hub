@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { signToken } from "@/lib/auth";
+import { signToken, COOKIE_NAME } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 
 export async function POST(req: NextRequest) {
@@ -57,19 +57,21 @@ export async function POST(req: NextRequest) {
             const targetRole = isAdmin ? "admin" : (profile?.role || "user");
             const now = new Date().toISOString();
 
+            const isEmailVerified = Boolean(fbData.emailVerified || isAdmin) ? 1 : 0;
+
             if (!profile) {
               const newId = fbData.localId;
               const fullName = fbData.displayName || cleanEmail.split("@")[0];
               db.prepare(`
                 INSERT INTO profiles (id, email, password_hash, full_name, role, country, email_verified, created_at, updated_at)
-                VALUES (?, ?, 'FIREBASE_AUTH', ?, ?, 'KE', 1, ?, ?)
+                VALUES (?, ?, 'FIREBASE_AUTH', ?, ?, 'KE', ?, ?, ?)
                 ON CONFLICT(email) DO UPDATE SET
                   password_hash = excluded.password_hash,
                   full_name = excluded.full_name,
                   role = excluded.role,
                   email_verified = excluded.email_verified,
                   updated_at = excluded.updated_at
-              `).run(newId, cleanEmail, fullName, targetRole, now, now);
+              `).run(newId, cleanEmail, fullName, targetRole, isEmailVerified, now, now);
               profile = {
                 id: newId,
                 email: cleanEmail,
@@ -77,9 +79,14 @@ export async function POST(req: NextRequest) {
                 full_name: fullName,
                 role: targetRole,
               };
-            } else if (isAdmin && profile.role !== "admin") {
-              db.prepare("UPDATE profiles SET role = 'admin', updated_at = ? WHERE id = ?").run(now, profile.id);
-              profile.role = "admin";
+            } else {
+              if (isAdmin && profile.role !== "admin") {
+                db.prepare("UPDATE profiles SET role = 'admin', updated_at = ? WHERE id = ?").run(now, profile.id);
+                profile.role = "admin";
+              }
+              if (fbData.emailVerified) {
+                db.prepare("UPDATE profiles SET email_verified = 1, updated_at = ? WHERE id = ?").run(now, profile.id);
+              }
             }
           }
         } catch (fbErr) {
@@ -115,7 +122,7 @@ export async function POST(req: NextRequest) {
     const isHttps = proto === "https" || req.url.startsWith("https://");
     const isSecure = (process.env.NODE_ENV === "production" && !isLocalhost) || isHttps;
 
-    response.cookies.set("cv_hub_session", token, {
+    response.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,
       secure: isSecure,
       sameSite: "lax",
